@@ -1,7 +1,9 @@
 /**
  * @file App.cpp
  * @brief Implementation of the main application controller.
- *        Handles game state machine transitions and frame-by-frame updates.
+ *        Handles game state machine, integrates Level loading, Player MVC,
+ *        collision detection, and camera following.
+ *        Game loop logic ported from C# Form1.cs onTick().
  * @inheritance None (top-level controller)
  */
 #include "App.hpp"
@@ -10,17 +12,12 @@
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
 #include "Util/Logger.hpp"
-#include "Util/Renderer.hpp"
 
 // ============================================================================
 // Start: Initialize game, transition to TITLE
 // ============================================================================
 void App::Start() {
     LOG_TRACE("Start");
-
-    // TODO Phase 2: Load title screen level CSV
-    // TODO Phase 5: Initialize all managers
-
     m_CurrentState = State::TITLE;
     LOG_INFO("Game initialized - entering TITLE state");
 }
@@ -54,6 +51,9 @@ void App::Update() {
             break;
     }
 
+    // Render the scene
+    RenderAll();
+
     // Global exit check
     if (Util::Input::IfExit()) {
         m_CurrentState = State::END;
@@ -73,13 +73,14 @@ void App::UpdateTitle() {
         m_Score = 0;
         m_Coins = 0;
         m_TimeCounter = Mario::GameConfig::INITIAL_TIME;
+        m_TimeSubCounter = 0;
         m_CurrentState = State::LOADING;
         m_Loading = false;
         LOG_INFO("Starting game - entering LOADING state");
     }
 
     // ESC to quit from title
-    if (Util::Input::IsKeyUp(Util::Keycode::ESCAPE)) {
+    if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
         m_CurrentState = State::END;
     }
 }
@@ -87,14 +88,17 @@ void App::UpdateTitle() {
 void App::UpdateLoading() {
     if (!m_Loading) {
         m_Loading = true;
-        m_LoadTimer = m_Timer + 50; // Show loading for ~1 second
-        LOG_INFO("Loading World {}-{}", m_WorldNum, m_LevelNum);
+        m_LoadTimer = m_Timer + 50;
+
+        std::string levelName = std::to_string(m_WorldNum) + "-" +
+                                std::to_string(m_LevelNum);
+        LOG_INFO("Loading World {}", levelName);
+        LoadLevel(levelName);
     }
 
     if (m_Loading && m_LoadTimer < m_Timer) {
-        // TODO Phase 2: LoadLevel(levelName, 0);
-        // TODO Phase 2: StartLevel();
         m_Loading = false;
+        StartLevel();
         m_CurrentState = State::PLAYING;
         LOG_INFO("Level loaded - entering PLAYING state");
     }
@@ -109,28 +113,69 @@ void App::UpdatePlaying() {
         return;
     }
 
-    // TODO Phase 3: Handle player input (move, jump, crouch, fire)
-    // TODO Phase 3: Update physics
-    // TODO Phase 3: Check collisions
-    // TODO Phase 4: Update entities
-    // TODO Phase 5: Update timer, UI, check win/death conditions
+    if (!m_Player || !m_Level) return;
+
+    // -- Controller: Handle input (MVC Controller layer) --
+    m_InputHandler.HandleInput(m_Player->GetState(), m_Speed);
+
+    // -- Physics & Collision --
+    m_CollisionManager.CheckPlayerBlockCollision(*m_Player, *m_Level,
+                                                  m_Camera.GetOffset());
+
+    // -- Update player state (Model tick) --
+    m_Player->GetState().Tick();
+
+    // -- Camera follows player --
+    m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
+
+    // -- Update level blocks (animations, camera-based positioning) --
+    m_Level->UpdateBlocks(m_Camera.GetOffset());
+
+    // -- Update player view (sprite selection, screen position) --
+    m_Player->UpdateView(m_Camera.GetOffset());
+
+    // -- Timer (matching C# reference: 40 ticks = 1 game-second) --
+    if (m_Player->GetState().IsControllable()) {
+        m_TimeSubCounter++;
+        if (m_TimeSubCounter >= Mario::GameConfig::TIME_SUB_LIMIT) {
+            m_TimeCounter--;
+            m_TimeSubCounter = 0;
+        }
+        if (m_TimeCounter <= 0) {
+            m_Lives--;
+            m_Player->GetState().SetDead(true);
+        }
+    }
+
+    // -- Check pit fall --
+    if (m_CollisionManager.CheckPitFall(*m_Player)) {
+        m_Lives--;
+        m_Player->GetState().SetDead(true);
+        m_Player->GetState().SetControllable(false);
+    }
+
+    // -- Check death state transition --
+    if (m_Player->GetState().IsDead()) {
+        m_DeathTimer = m_Timer + 80; // ~1.6s death animation
+        m_CurrentState = State::DEATH;
+        LOG_INFO("Player died - entering DEATH state (Lives: {})", m_Lives);
+    }
 }
 
 void App::UpdateDeath() {
-    // TODO Phase 5: Play death animation, then either respawn or game over
-    // Placeholder: wait a bit then go to loading or game over
-    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
+    // Wait for death animation timer
+    if (m_Timer > m_DeathTimer) {
         if (m_Lives > 0) {
             m_CurrentState = State::LOADING;
             m_Loading = false;
         } else {
             m_CurrentState = State::GAME_OVER;
+            LOG_INFO("No lives remaining - GAME_OVER");
         }
     }
 }
 
 void App::UpdateGameOver() {
-    // Press Enter to return to title
     if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
         m_CurrentState = State::TITLE;
         LOG_INFO("Game Over - returning to TITLE");
@@ -149,27 +194,24 @@ void App::UpdateESCMenu() {
     // Select
     if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
         switch (m_ESCMenuSelection) {
-            case 0: // Resume
+            case 0:
                 m_CurrentState = State::PLAYING;
                 LOG_INFO("Resuming game");
                 break;
-            case 1: // Jump to 1-1
-                m_WorldNum = 1;
-                m_LevelNum = 1;
+            case 1:
+                m_WorldNum = 1; m_LevelNum = 1;
                 m_CurrentState = State::LOADING;
                 m_Loading = false;
                 LOG_INFO("Jumping to World 1-1");
                 break;
-            case 2: // Jump to 1-2
-                m_WorldNum = 1;
-                m_LevelNum = 2;
+            case 2:
+                m_WorldNum = 1; m_LevelNum = 2;
                 m_CurrentState = State::LOADING;
                 m_Loading = false;
                 LOG_INFO("Jumping to World 1-2");
                 break;
-            case 3: // Jump to 8-4
-                m_WorldNum = 8;
-                m_LevelNum = 4;
+            case 3:
+                m_WorldNum = 8; m_LevelNum = 4;
                 m_CurrentState = State::LOADING;
                 m_Loading = false;
                 LOG_INFO("Jumping to World 8-4");
@@ -184,14 +226,57 @@ void App::UpdateESCMenu() {
     }
 }
 
+// ============================================================================
+// Level Management
+// ============================================================================
+
+void App::LoadLevel(const std::string& levelName) {
+    m_Camera.Reset();
+
+    // Create and load the level
+    m_Level = std::make_shared<Mario::Level>();
+    if (!m_Level->Load(levelName)) {
+        LOG_ERROR("Failed to load level: {}", levelName);
+        m_CurrentState = State::TITLE;
+        return;
+    }
+
+    // Create player at spawn position from level CSV
+    float spawnX = m_Level->GetPlayerSpawnX();
+    float spawnY = m_Level->GetPlayerSpawnY();
+    m_Player = std::make_shared<Mario::Player>(spawnX, spawnY, 0);
+
+    // Build renderer: clear and add all blocks + player
+    m_Renderer = Util::Renderer();
+    for (const auto& block : m_Level->GetAllBlocks()) {
+        m_Renderer.AddChild(block);
+    }
+    m_Renderer.AddChild(m_Player);
+
+    LOG_INFO("Level {} loaded with {} blocks, player at ({}, {})",
+             levelName, m_Level->GetAllBlocks().size(), spawnX, spawnY);
+}
+
+void App::StartLevel() {
+    m_TimeCounter = Mario::GameConfig::INITIAL_TIME;
+    m_TimeSubCounter = 0;
+
+    if (m_Player) {
+        m_Player->GetState().SetControllable(true);
+    }
+}
+
+void App::RenderAll() {
+    m_Renderer.Update();
+}
+
 void App::AdvanceToNextLevel() {
     if (m_WorldNum == 1 && m_LevelNum == 1) {
-        m_LevelNum = 2; // 1-1 -> 1-2
+        m_LevelNum = 2;
     } else if (m_WorldNum == 1 && m_LevelNum == 2) {
         m_WorldNum = 8;
-        m_LevelNum = 4; // 1-2 -> 8-4
+        m_LevelNum = 4;
     } else {
-        // Game complete!
         m_CurrentState = State::TITLE;
         LOG_INFO("Game Complete! Returning to title.");
         return;
@@ -203,6 +288,6 @@ void App::AdvanceToNextLevel() {
 // ============================================================================
 // End
 // ============================================================================
-void App::End() { // NOLINT(this method will mutate members in the future)
+void App::End() {
     LOG_TRACE("End");
 }

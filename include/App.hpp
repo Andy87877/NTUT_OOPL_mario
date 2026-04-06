@@ -2,7 +2,7 @@
  * @file App.hpp
  * @brief Main application controller for Super Mario Bros.
  *        Manages the game state machine (Title, Loading, Playing, Death, GameOver)
- *        and coordinates all subsystems.
+ *        and coordinates all subsystems (Level, Player, Input, Collision, Camera).
  * @inheritance None (top-level controller)
  */
 #ifndef APP_HPP
@@ -12,14 +12,15 @@
 
 #include "Mario/GameConfig.hpp"
 #include "Mario/Camera.hpp"
+#include "Mario/Level.hpp"
+#include "Mario/Player.hpp"
+#include "Mario/InputHandler.hpp"
+#include "Mario/CollisionManager.hpp"
+
+#include "Util/Renderer.hpp"
 
 #include <string>
 #include <memory>
-
-namespace Mario {
-    class Level;
-    class Player;
-}
 
 class App {
 public:
@@ -53,8 +54,9 @@ private:
     void UpdateESCMenu();
 
     // -- Level Management --
-    void LoadLevel(const std::string& levelName, float startOffset = 0.0f);
+    void LoadLevel(const std::string& levelName);
     void StartLevel();
+    void RenderAll();
 
     // -- Helpers --
     void AdvanceToNextLevel();
@@ -65,16 +67,31 @@ private:
     // -- Camera --
     Mario::Camera m_Camera;
 
+    // -- Renderer --
+    Util::Renderer m_Renderer;
+
     // -- Level Data --
     std::shared_ptr<Mario::Level> m_Level;
+
+    // -- Player (View, inherits Util::GameObject) --
     std::shared_ptr<Mario::Player> m_Player;
+
+    // -- Input (Controller in MVC) --
+    Mario::InputHandler m_InputHandler;
+
+    // -- Collision Manager --
+    Mario::CollisionManager m_CollisionManager;
 
     // -- Game State --
     int m_Score = 0;
     int m_Lives = Mario::GameConfig::INITIAL_LIVES;
     int m_Coins = 0;
     int m_TimeCounter = Mario::GameConfig::INITIAL_TIME;
+    int m_TimeSubCounter = 0;
     int m_Timer = 0;
+
+    // -- Movement Speed (matching C# speed calculation) --
+    float m_Speed = Mario::GameConfig::SCALED_SPEED;
 
     // -- World Progress --
     int m_WorldNum = 1;
@@ -83,6 +100,9 @@ private:
     // -- Loading State --
     bool m_Loading = false;
     int m_LoadTimer = -1;
+
+    // -- Death State --
+    int m_DeathTimer = -1;
 
     // -- ESC Menu State --
     int m_ESCMenuSelection = 0;  // 0=Resume, 1=1-1, 2=1-2, 3=8-4

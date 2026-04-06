@@ -50,12 +50,29 @@ classDiagram
     }
 
     %% 繼承關係
-    GameObject <|-- Player : 繼承
+    GameObject <|-- Player : 繼承 (View layer)
     GameObject <|-- Entity : 繼承
     GameObject <|-- Block : 繼承
     GameObject <|-- UIElement : 繼承
     Block <|-- MovingPlatform : 繼承
 ```
+
+### 已實作類別說明
+
+| 類別 | 繼承自 | 角色 (MVC) | 說明 |
+|------|--------|-----------|------|
+| `Block` | `Util::GameObject` | View | 地形方塊，包含碰撞、動畫、撞擊回彈 |
+| `Player` | `Util::GameObject` | View | 瑪利歐渲染，精靈圖快取，方向翻轉 |
+| `PlayerState` | 無(純資料) | Model | 位置、速度、血量、狀態機、動畫鍵值 |
+| `InputHandler` | 無 | Controller | 讀取鍵盤輸入，驅動 PlayerState |
+| `Level` | 無 | Model | CSV 讀取、方塊網格管理、生成點追蹤 |
+| `Camera` | 無 | Service | 視窗跟隨玩家捲動 |
+| `PhysicsEngine` | 無 | Service | 重力、跳躍拋物線計算 |
+| `CollisionManager` | 無 | Service | 玩家與方塊碰撞偵測與修正 |
+| `GameConfig` | 無 | Config | 全域常數(磚塊大小、物理參數、Z層) |
+| `Collider (AABB)` | 無 | Data | 軸對齊碰撞框 |
+| `EntityDef / BlockDef` | 無 | Data | CSV 查表資料結構 |
+| `SpritePathResolver` | 無 | Utility | 精靈圖路徑建構器 |
 
 ---
 
@@ -71,16 +88,17 @@ classDiagram
         +Start() 初始化
         +Update() 每幀更新
         +End() 遊戲結束
+        +LoadLevel() 載入關卡
+        +State: TITLE/LOADING/PLAYING/DEATH/GAME_OVER/ESC_MENU
     }
 
     class Managers["各大子系統 (Managers)"] {
-        +SceneManager (場景切換)
-        +LevelManager (載入地圖檔案)
-        +PhysicsEngine (計算重力與速度)
-        +CollisionManager (計算誰撞到誰)
-        +InputHandler (鍵盤按鍵偵測)
-        +UIManager (畫分數、血量)
-        +AudioManager (放音樂、音效)
+        +Level (載入CSV地圖、管理方塊網格)
+        +PhysicsEngine (計算重力與跳躍)
+        +CollisionManager (玩家-方塊碰撞)
+        +InputHandler (鍵盤輸入→PlayerState)
+        +Camera (視窗跟隨捲動)
+        +SpritePathResolver (精靈圖路徑)
     }
 
     App *-- Managers : 管理並協調

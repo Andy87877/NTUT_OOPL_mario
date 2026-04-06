@@ -6,6 +6,18 @@ set(SRC_FILES
     Mario/Camera.cpp
     Mario/PhysicsEngine.cpp
     Mario/SpritePathResolver.cpp
+
+    # Level & Block
+    Mario/Block.cpp
+    Mario/Level.cpp
+
+    # Player (MVC)
+    Mario/PlayerState.cpp
+    Mario/Player.cpp
+    Mario/InputHandler.cpp
+
+    # Collision
+    Mario/CollisionManager.cpp
 )
 
 set(INCLUDE_FILES
@@ -19,6 +31,19 @@ set(INCLUDE_FILES
     Mario/Camera.hpp
     Mario/PhysicsEngine.hpp
     Mario/SpritePathResolver.hpp
+
+    # Level & Block
+    Mario/EntityDef.hpp
+    Mario/Block.hpp
+    Mario/Level.hpp
+
+    # Player (MVC)
+    Mario/PlayerState.hpp
+    Mario/Player.hpp
+    Mario/InputHandler.hpp
+
+    # Collision
+    Mario/CollisionManager.hpp
 )
 
 set(TEST_FILES
