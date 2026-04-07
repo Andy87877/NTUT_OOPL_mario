@@ -8,6 +8,8 @@
  */
 #include "App.hpp"
 
+#include "Mario/PhysicsEngine.hpp"
+
 #include "Util/Image.hpp"
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
@@ -125,6 +127,25 @@ void App::UpdatePlaying() {
     // -- Update player state (Model tick) --
     m_Player->GetState().Tick();
 
+    // -- Update entities --
+    for (auto& entity : m_Entities) {
+        if (!entity->GetState().IsActive()) continue;
+
+        // Entity Model tick (movement, animation, gravity)
+        entity->GetState().Tick();
+
+        // Entity-block collision (walls, ground)
+        if (entity->GetState().DoesCollide() && !entity->GetState().IsStatic()) {
+            CheckEntityBlockCollision(*entity);
+        }
+
+        // Entity view update (sprite, screen position)
+        entity->UpdateView(m_Camera.GetOffset());
+    }
+
+    // -- Player-Entity collision --
+    CheckPlayerEntityCollision();
+
     // -- Camera follows player --
     m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
 
@@ -160,6 +181,9 @@ void App::UpdatePlaying() {
         m_CurrentState = State::DEATH;
         LOG_INFO("Player died - entering DEATH state (Lives: {})", m_Lives);
     }
+
+    // -- Remove dead entities from renderer --
+    CleanupDeadEntities();
 }
 
 void App::UpdateDeath() {
@@ -246,15 +270,22 @@ void App::LoadLevel(const std::string& levelName) {
     float spawnY = m_Level->GetPlayerSpawnY();
     m_Player = std::make_shared<Mario::Player>(spawnX, spawnY, 0);
 
-    // Build renderer: clear and add all blocks + player
+    // Spawn entities (Goomba, KoopaTroopa, etc.) from level data
+    m_Entities = Mario::EntityFactory::SpawnFromLevel(*m_Level);
+
+    // Build renderer: clear and add all blocks + player + entities
     m_Renderer = Util::Renderer();
     for (const auto& block : m_Level->GetAllBlocks()) {
         m_Renderer.AddChild(block);
     }
     m_Renderer.AddChild(m_Player);
+    for (const auto& entity : m_Entities) {
+        m_Renderer.AddChild(entity);
+    }
 
-    LOG_INFO("Level {} loaded with {} blocks, player at ({}, {})",
-             levelName, m_Level->GetAllBlocks().size(), spawnX, spawnY);
+    LOG_INFO("Level {} loaded: {} blocks, {} entities, player at ({}, {})",
+             levelName, m_Level->GetAllBlocks().size(), m_Entities.size(),
+             spawnX, spawnY);
 }
 
 void App::StartLevel() {
@@ -290,4 +321,151 @@ void App::AdvanceToNextLevel() {
 // ============================================================================
 void App::End() {
     LOG_TRACE("End");
+}
+
+// ============================================================================
+// Entity Helpers
+// ============================================================================
+
+void App::CheckEntityBlockCollision(Mario::Entity& entity) {
+    Mario::EntityState& state = entity.GetState();
+    Mario::AABB box = state.GetHitbox();
+
+    int tileSize = Mario::GameConfig::TILE_SIZE;
+
+    // Ground check
+    int leftTile  = static_cast<int>(box.left) / tileSize;
+    int rightTile = static_cast<int>(box.right - 1) / tileSize;
+    int bottomTile = static_cast<int>(box.bottom) / tileSize;
+
+    bool onGround = false;
+    for (int x = leftTile; x <= rightTile; x++) {
+        Mario::Block* block = m_Level->GetBlockAt(x, bottomTile);
+        if (block && block->IsSolid()) {
+            Mario::AABB bb = block->GetAABB();
+            if (box.Intersects(bb)) {
+                float overlap = box.bottom - bb.top;
+                if (overlap > 0 && overlap < tileSize * 0.75f) {
+                    state.SetY(bb.top - state.GetHeight());
+                    state.SetVelY(0.0f);
+                    state.SetGrounded(true);
+                    onGround = true;
+                }
+            }
+        }
+    }
+    if (!onGround && state.IsGrounded()) {
+        state.SetGrounded(false);
+    }
+
+    // Wall check: flip direction on wall collision
+    Mario::AABB updatedBox = state.GetHitbox();
+    if (state.GetVelX() > 0) {
+        int rtile = static_cast<int>(updatedBox.right) / tileSize;
+        for (int y = static_cast<int>(updatedBox.top) / tileSize;
+             y <= static_cast<int>(updatedBox.bottom - 1) / tileSize; y++) {
+            Mario::Block* block = m_Level->GetBlockAt(rtile, y);
+            if (block && block->IsSolid()) {
+                state.FlipDirection();
+                state.SetX(block->GetWorldX() - state.GetWidth());
+                break;
+            }
+        }
+    } else if (state.GetVelX() < 0) {
+        int ltile = static_cast<int>(updatedBox.left) / tileSize;
+        for (int y = static_cast<int>(updatedBox.top) / tileSize;
+             y <= static_cast<int>(updatedBox.bottom - 1) / tileSize; y++) {
+            Mario::Block* block = m_Level->GetBlockAt(ltile, y);
+            if (block && block->IsSolid()) {
+                state.FlipDirection();
+                state.SetX(block->GetWorldX() + tileSize);
+                break;
+            }
+        }
+    }
+
+    // Pit fall: deactivate entity if below level
+    if (state.GetY() > Mario::GameConfig::LEVEL_HEIGHT_PX + tileSize) {
+        state.Delete();
+    }
+}
+
+void App::CheckPlayerEntityCollision() {
+    if (!m_Player || m_Player->GetState().IsDead()) return;
+
+    Mario::PlayerState& ps = m_Player->GetState();
+    Mario::AABB playerBox = ps.GetHitbox();
+
+    for (auto& entity : m_Entities) {
+        Mario::EntityState& es = entity->GetState();
+        if (!es.IsActive()) continue;
+
+        Mario::AABB entityBox = es.GetHitbox();
+        if (!playerBox.Intersects(entityBox)) continue;
+
+        if (es.IsEnemy()) {
+            // Check if player is stomping (falling from above)
+            float playerBottom = playerBox.bottom;
+            float entityTop = entityBox.top;
+            float overlapY = playerBottom - entityTop;
+
+            if (overlapY > 0 && overlapY < Mario::GameConfig::TILE_SIZE * 0.5f
+                && ps.GetVelY() >= 0 && !ps.IsGrounded()) {
+                // Stomp! Kill enemy
+                if (es.IsSquishable() || es.IsKoopaSquash()) {
+                    es.Squish();
+                    m_Score += es.GetScoreWorth();
+                    // Bounce player up after stomp
+                    ps.SetFallHeight(Mario::PhysicsEngine::GetJumpHeight(0) * 0.5);
+                    ps.SetGrounded(false);
+                    LOG_DEBUG("Stomped {} (+{} score)",
+                              es.GetName(), es.GetScoreWorth());
+                }
+            } else if (!es.IsSquished()) {
+                // Player takes damage from enemy
+                ps.TakeDamage();
+                LOG_DEBUG("Player hit by {}", es.GetName());
+            }
+        } else if (es.IsPowerUp()) {
+            // Collect power-up
+            int puState = es.GetPowerUpState();
+            if (puState == 1) {
+                // Mushroom -> Big
+                if (ps.GetState() == 0) {
+                    ps.PowerUp(Mario::PowerState::BIG);
+                }
+            } else if (puState == 2) {
+                // Fire Flower
+                ps.PowerUp(Mario::PowerState::FIRE);
+            } else if (puState == 3) {
+                // Star
+                ps.StartStar();
+            } else if (puState == 5) {
+                // 1-Up
+                m_Lives++;
+            }
+            m_Score += es.GetScoreWorth();
+            es.Delete();
+            LOG_DEBUG("Collected {} (+{} score)", es.GetName(), es.GetScoreWorth());
+        } else if (es.IsCoin()) {
+            m_Coins++;
+            m_Score += es.GetScoreWorth();
+            es.Delete();
+            if (m_Coins >= 100) {
+                m_Coins -= 100;
+                m_Lives++;
+            }
+        }
+    }
+}
+
+void App::CleanupDeadEntities() {
+    for (auto it = m_Entities.begin(); it != m_Entities.end(); ) {
+        if (!(*it)->GetState().IsActive()) {
+            m_Renderer.RemoveChild(*it);
+            it = m_Entities.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }

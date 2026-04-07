@@ -38,8 +38,7 @@ void CollisionManager::CheckPlayerBlockCollision(
 
 bool CollisionManager::CheckPitFall(const Player& player) const {
     // Player fell below the level (16 rows * 32 pixels = 512)
-    float levelBottom = static_cast<float>(
-        GameConfig::VIEWPORT_TILES_Y * GameConfig::TILE_SIZE);
+    float levelBottom = static_cast<float>(GameConfig::LEVEL_HEIGHT_PX);
     return player.GetState().GetY() > levelBottom + GameConfig::TILE_SIZE;
 }
 

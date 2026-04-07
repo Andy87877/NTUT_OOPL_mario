@@ -235,11 +235,11 @@ void Level::CreateBlocksFromGrid() {
                 continue;
             }
 
-            // Pipe exit marker (ID 53) - track position for pipe warp
+            // Pipe exit marker (ID 53) - record position but still render
             if (blockID == 53) {
                 m_PipeExitX = static_cast<float>(x * GameConfig::TILE_SIZE) -
                               3.0f * GameConfig::TILE_SIZE;
-                continue;
+                // Don't continue — this is also a visible Pipe3 block
             }
 
             // Entity spawn points (via block spawner flag)

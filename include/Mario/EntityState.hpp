@@ -1,0 +1,126 @@
+/**
+ * @file EntityState.hpp
+ * @brief Entity state data (Model layer for Entity MVC).
+ *        Holds position, velocity, animation, and behavior flags.
+ *        Ported from C# Entity.cs variables and logic.
+ * @inheritance None (pure data Model)
+ */
+#ifndef MARIO_ENTITY_STATE_HPP
+#define MARIO_ENTITY_STATE_HPP
+
+#include "Mario/GameConfig.hpp"
+#include "Mario/Collider.hpp"
+
+#include <string>
+
+namespace Mario {
+
+/**
+ * Entity state model — mirrors the C# Entity class data fields.
+ * Goomba, KoopaTroopa, Mushroom, Star, etc. all use this.
+ */
+class EntityState {
+public:
+    EntityState() = default;
+
+    void Init(const std::string& name, float worldX, float worldY,
+              int direction, bool isEnemy, bool isPowerUp, bool isCoin,
+              bool isStatic, bool doesCollide, bool squishable,
+              bool koopaSquash, bool doesJump, bool isBounce,
+              int scoreWorth, bool isAnimated, int animFrames,
+              int animBuffer, bool oneLoop, bool fromBlock,
+              int powerUpState);
+
+    // -- Per-frame update --
+    void Tick();
+
+    // -- Getters --
+    float GetX() const { return m_PosX; }
+    float GetY() const { return m_PosY; }
+    float GetVelX() const { return m_VelX; }
+    double GetVelY() const { return m_VelY; }
+    int GetWidth() const { return GameConfig::TILE_SIZE; }
+    int GetHeight() const { return m_SizeY; }
+    const std::string& GetName() const { return m_Name; }
+    int GetDirection() const { return m_Direction; }
+    int GetAnimFrame() const { return m_CurrentFrame; }
+    int GetScoreWorth() const { return m_ScoreWorth; }
+    int GetPowerUpState() const { return m_PowerUpState; }
+    bool IsActive() const { return m_Active; }
+    bool IsEnemy() const { return m_IsEnemy; }
+    bool IsPowerUp() const { return m_IsPowerUp; }
+    bool IsCoin() const { return m_IsCoin; }
+    bool IsStatic() const { return m_IsStatic; }
+    bool IsGrounded() const { return m_IsGrounded; }
+    bool IsSquished() const { return m_Squashed; }
+    bool IsSquishable() const { return m_Squishable; }
+    bool IsKoopaSquash() const { return m_KoopaSquash; }
+    bool DoesCollide() const { return m_DoesCollide; }
+    bool IsBounce() const { return m_IsBounce; }
+    bool IsFromBlock() const { return m_FromBlock; }
+    bool IsDeathActive() const { return m_DeathActive; }
+
+    // -- Setters --
+    void SetX(float x) { m_PosX = x; }
+    void SetY(float y) { m_PosY = y; }
+    void SetVelX(float vx) { m_VelX = vx; }
+    void SetVelY(double vy) { m_VelY = vy; }
+    void SetGrounded(bool g) { m_IsGrounded = g; }
+    void SetActive(bool a) { m_Active = a; }
+
+    // -- Actions --
+    void FlipDirection();
+    void Squish();
+    void KickShell(float speed);
+    void Delete();
+    void Jump();
+
+    // -- Collision --
+    AABB GetHitbox() const;
+
+    // -- Gravity --
+    float ApplyGravity();
+
+private:
+    std::string m_Name;
+    float m_PosX = 0.0f;
+    float m_PosY = 0.0f;
+    float m_VelX = 0.0f;
+    double m_VelY = 0.0;
+    double m_FallHeight = 0.0;
+    int m_SizeY = GameConfig::TILE_SIZE;
+    int m_Direction = 1; // 0=Left, 1=Right, 2=None
+
+    bool m_Active = true;
+    bool m_IsEnemy = false;
+    bool m_IsPowerUp = false;
+    bool m_IsCoin = false;
+    bool m_IsStatic = false;
+    bool m_IsGrounded = false;
+    bool m_DoesCollide = true;
+    bool m_Squishable = false;
+    bool m_KoopaSquash = false;
+    bool m_DoesJump = false;
+    bool m_IsBounce = false;
+    bool m_FromBlock = false;
+    int m_ScoreWorth = 0;
+    int m_PowerUpState = 0;
+
+    // Animation
+    bool m_IsAnimated = false;
+    int m_AnimFrames = 0;
+    int m_CurrentFrame = 0;
+    int m_AnimBuffer = 1;
+    int m_AnimBufferCount = 0;
+    bool m_OneLoop = false;
+
+    // Death/squish
+    bool m_Squashed = false;
+    bool m_DeathActive = false;
+    int m_SquishCounter = 0;
+    int m_ActiveCounter = 0;
+};
+
+} // namespace Mario
+
+#endif // MARIO_ENTITY_STATE_HPP

@@ -16,11 +16,14 @@
 #include "Mario/Player.hpp"
 #include "Mario/InputHandler.hpp"
 #include "Mario/CollisionManager.hpp"
+#include "Mario/Entity.hpp"
+#include "Mario/EntityFactory.hpp"
 
 #include "Util/Renderer.hpp"
 
 #include <string>
 #include <memory>
+#include <vector>
 
 class App {
 public:
@@ -60,6 +63,9 @@ private:
 
     // -- Helpers --
     void AdvanceToNextLevel();
+    void CheckEntityBlockCollision(Mario::Entity& entity);
+    void CheckPlayerEntityCollision();
+    void CleanupDeadEntities();
 
 private:
     State m_CurrentState = State::START;
@@ -81,6 +87,9 @@ private:
 
     // -- Collision Manager --
     Mario::CollisionManager m_CollisionManager;
+
+    // -- Entities (Goomba, KoopaTroopa, Mushroom, etc.) --
+    std::vector<std::shared_ptr<Mario::Entity>> m_Entities;
 
     // -- Game State --
     int m_Score = 0;

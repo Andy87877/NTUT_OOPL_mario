@@ -61,18 +61,21 @@ classDiagram
 
 | 類別 | 繼承自 | 角色 (MVC) | 說明 |
 |------|--------|-----------|------|
-| `Block` | `Util::GameObject` | View | 地形方塊，包含碰撞、動畫、撞擊回彈 |
-| `Player` | `Util::GameObject` | View | 瑪利歐渲染，精靈圖快取，方向翻轉 |
-| `PlayerState` | 無(純資料) | Model | 位置、速度、血量、狀態機、動畫鍵值 |
-| `InputHandler` | 無 | Controller | 讀取鍵盤輸入，驅動 PlayerState |
-| `Level` | 無 | Model | CSV 讀取、方塊網格管理、生成點追蹤 |
-| `Camera` | 無 | Service | 視窗跟隨玩家捲動 |
-| `PhysicsEngine` | 無 | Service | 重力、跳躍拋物線計算 |
-| `CollisionManager` | 無 | Service | 玩家與方塊碰撞偵測與修正 |
-| `GameConfig` | 無 | Config | 全域常數(磚塊大小、物理參數、Z層) |
-| `Collider (AABB)` | 無 | Data | 軸對齊碰撞框 |
-| `EntityDef / BlockDef` | 無 | Data | CSV 查表資料結構 |
-| `SpritePathResolver` | 無 | Utility | 精靈圖路徑建構器 |
+| `Block` | `Util::GameObject` | View | Terrain tile with collision, animation, hit-bounce |
+| `Player` | `Util::GameObject` | View | Mario rendering, sprite cache, direction flip |
+| `Entity` | `Util::GameObject` | View | Enemy/power-up/coin rendering, direction flip |
+| `PlayerState` | None (data) | Model | Position, velocity, power state, animation keys |
+| `EntityState` | None (data) | Model | Entity position, velocity, squish/death state |
+| `InputHandler` | None | Controller | Keyboard input -> PlayerState |
+| `Level` | None | Model | CSV parsing, block grid, spawn point tracking |
+| `EntityFactory` | None | Factory | Creates Entity instances from level spawn data |
+| `Camera` | None | Service | Viewport scrolling following player |
+| `PhysicsEngine` | None | Service | Gravity, jump parabola calculation |
+| `CollisionManager` | None | Service | Player-Block collision detection & resolution |
+| `GameConfig` | None | Config | Global constants (tile size, physics, Z-layers) |
+| `Collider (AABB)` | None | Data | Axis-aligned bounding box |
+| `EntityDef / BlockDef` | None | Data | CSV lookup data structures |
+| `SpritePathResolver` | None | Utility | Sprite path name builder |
 
 ---
 
@@ -92,16 +95,17 @@ classDiagram
         +State: TITLE/LOADING/PLAYING/DEATH/GAME_OVER/ESC_MENU
     }
 
-    class Managers["各大子系統 (Managers)"] {
-        +Level (載入CSV地圖、管理方塊網格)
-        +PhysicsEngine (計算重力與跳躍)
-        +CollisionManager (玩家-方塊碰撞)
-        +InputHandler (鍵盤輸入→PlayerState)
-        +Camera (視窗跟隨捲動)
-        +SpritePathResolver (精靈圖路徑)
+    class Managers["Subsystems (Managers)"] {
+        +Level (CSV map loading, block grid)
+        +PhysicsEngine (gravity & jump)
+        +CollisionManager (player-block, entity-block)
+        +InputHandler (keyboard -> PlayerState)
+        +EntityFactory (spawn entities from level data)
+        +Camera (viewport scrolling)
+        +SpritePathResolver (sprite paths)
     }
 
-    App *-- Managers : 管理並協調
+    App *-- Managers : coordinates
 ```
 
 ---

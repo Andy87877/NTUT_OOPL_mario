@@ -16,6 +16,11 @@ set(SRC_FILES
     Mario/Player.cpp
     Mario/InputHandler.cpp
 
+    # Entity (MVC)
+    Mario/EntityState.cpp
+    Mario/Entity.cpp
+    Mario/EntityFactory.cpp
+
     # Collision
     Mario/CollisionManager.cpp
 )
@@ -41,6 +46,11 @@ set(INCLUDE_FILES
     Mario/PlayerState.hpp
     Mario/Player.hpp
     Mario/InputHandler.hpp
+
+    # Entity (MVC)
+    Mario/EntityState.hpp
+    Mario/Entity.hpp
+    Mario/EntityFactory.hpp
 
     # Collision
     Mario/CollisionManager.hpp

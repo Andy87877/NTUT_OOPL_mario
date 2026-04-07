@@ -3,12 +3,17 @@
  * @brief Implementation of Player (View layer).
  *        Renders Mario sprite based on PlayerState Model data.
  *        Handles sprite caching and PTSD coordinate conversion.
+ *        PTSD: (0,0) = screen center, +X right, +Y up.
+ *        Level: 16 rows, row 0 = top, world Y increases downward.
  * @inheritance Util::GameObject -> Player
  */
 #include "Mario/Player.hpp"
 #include "Mario/SpritePathResolver.hpp"
 
 #include "Util/Logger.hpp"
+
+#include <cmath>
+#include <fstream>
 
 namespace Mario {
 
@@ -23,34 +28,37 @@ Player::Player(float worldX, float worldY, int startState) {
 }
 
 void Player::UpdateView(float cameraOffset) {
-    if (!m_State.IsDead() || m_State.GetY() < GameConfig::WINDOW_HEIGHT + 100) {
-        // Build the sprite path from current state
-        std::string spritePath = BuildSpritePath();
+    // Build the sprite path from current state
+    std::string spritePath = BuildSpritePath();
 
-        // Only reload sprite if it changed
-        if (spritePath != m_CurrentSpritePath) {
-            m_CurrentSpritePath = spritePath;
-            auto sprite = GetOrLoadSprite(spritePath);
-            if (sprite) {
-                SetDrawable(sprite);
-            }
+    // Only reload sprite if it changed
+    if (spritePath != m_CurrentSpritePath) {
+        m_CurrentSpritePath = spritePath;
+        auto sprite = GetOrLoadSprite(spritePath);
+        if (sprite) {
+            SetDrawable(sprite);
         }
     }
 
     // Convert world coordinates to PTSD screen coordinates
-    // PTSD: (0,0) = center of screen, +Y = up
-    float halfH = static_cast<float>(GameConfig::VIEWPORT_TILES_Y *
-                  GameConfig::TILE_SIZE) / 2.0f;
+    // World: (0,0) top-left, Y increases downward
+    // PTSD:  (0,0) screen center, Y increases upward
+    float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
 
-    float screenX = m_State.GetX() + GameConfig::TILE_SIZE / 2.0f - cameraOffset;
-    float screenY = halfH - (m_State.GetY() + m_State.GetHeight() / 2.0f);
+    // Player world position is top-left of the player sprite
+    // PTSD needs center of the sprite
+    float playerCenterX = m_State.GetX() + GameConfig::TILE_SIZE / 2.0f;
+    float playerCenterY = m_State.GetY() + m_State.GetHeight() / 2.0f;
+
+    // Subtract half window width to convert from world-left-origin to PTSD-center-origin
+    float screenX = playerCenterX - cameraOffset - GameConfig::WINDOW_WIDTH / 2.0f;
+    float screenY = levelHalfH - playerCenterY;
 
     m_Transform.translation = {screenX, screenY};
 
     // Flip sprite based on facing direction
-    // PTSD uses negative scale.x to flip horizontally
     float absScaleX = std::abs(m_Transform.scale.x);
-    if (absScaleX == 0.0f) absScaleX = 1.0f;
+    if (absScaleX < 0.01f) absScaleX = 1.0f;
 
     if (m_State.IsFacingRight()) {
         m_Transform.scale.x = absScaleX;
@@ -68,38 +76,26 @@ void Player::UpdateView(float cameraOffset) {
 
 std::string Player::BuildSpritePath() const {
     std::string prefix = m_State.GetAnimPrefix();
-    int state = m_State.GetState();
     int frame = m_State.GetAnimFrame();
 
-    // Map power state to sprite state number
-    // C# naming: "Mario" + prefix + state + frame
-    // e.g. "MarioIdle.png" (small idle), "MarioIdle10.png" (big idle)
+    // Map power state to C# state number
     int spriteState = 0;
     switch (m_State.GetPowerState()) {
-        case PowerState::SMALL:
-        case PowerState::SMALL_STAR:
-            spriteState = 0;
-            break;
-        case PowerState::BIG:
-        case PowerState::BIG_STAR:
-            spriteState = 1;
-            break;
-        case PowerState::FIRE:
-            spriteState = 2;
-            break;
-        default:
-            spriteState = 0;
-            break;
+        case PowerState::SMALL:      spriteState = 0; break;
+        case PowerState::BIG:        spriteState = 1; break;
+        case PowerState::FIRE:       spriteState = 2; break;
+        case PowerState::SMALL_STAR: spriteState = 3; break;
+        case PowerState::BIG_STAR:   spriteState = 4; break;
+        default:                     spriteState = 0; break;
     }
 
-    // Star states use cycling color: 300-303, 400-403
-    if (m_State.GetPowerState() == PowerState::SMALL_STAR) {
-        spriteState = 3;
-    } else if (m_State.GetPowerState() == PowerState::BIG_STAR) {
-        spriteState = 4;
+    // C# Walk animation uses frames 1, 2, 3 (not 0, 1, 2)
+    int spriteFrame = frame;
+    if (prefix == "Right") {
+        spriteFrame = frame + 1; // C# starts walk frames at 1
     }
 
-    return SpritePathResolver::GetPlayerSpritePath(prefix, spriteState, frame);
+    return SpritePathResolver::GetPlayerSpritePath(prefix, spriteState, spriteFrame);
 }
 
 std::shared_ptr<Util::Image> Player::GetOrLoadSprite(const std::string& path) {
@@ -108,23 +104,34 @@ std::shared_ptr<Util::Image> Player::GetOrLoadSprite(const std::string& path) {
         return it->second;
     }
 
-    try {
-        auto sprite = std::make_shared<Util::Image>(path);
-        m_SpriteCache[path] = sprite;
-        return sprite;
-    } catch (...) {
-        // Fallback: try without frame number
+    // Verify file exists first to avoid PTSD checkerboard
+    std::ifstream test(path);
+    if (test.good()) {
         try {
-            // Extract base name and try without the trailing digit
-            std::string fallback = SpritePathResolver::GetSpritePath("MarioIdle");
-            auto sprite = std::make_shared<Util::Image>(fallback);
+            auto sprite = std::make_shared<Util::Image>(path);
             m_SpriteCache[path] = sprite;
             return sprite;
         } catch (...) {
-            LOG_ERROR("Failed to load player sprite: {}", path);
-            return nullptr;
+            LOG_WARN("Failed to create Image from: {}", path);
         }
     }
+
+    // Fallback to basic idle sprite
+    LOG_WARN("Player sprite not found: {}, trying fallback", path);
+    std::string fallback = SpritePathResolver::GetPlayerSpritePath("Idle", 0, 0);
+    std::ifstream test2(fallback);
+    if (test2.good()) {
+        try {
+            auto sprite = std::make_shared<Util::Image>(fallback);
+            m_SpriteCache[path] = sprite; // Cache fallback under original key
+            return sprite;
+        } catch (...) {
+            LOG_ERROR("Failed to load fallback sprite: {}", fallback);
+        }
+    }
+
+    LOG_ERROR("No valid player sprite found!");
+    return nullptr;
 }
 
 } // namespace Mario

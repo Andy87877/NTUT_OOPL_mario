@@ -2,6 +2,7 @@
  * @file GameConfig.hpp
  * @brief Global game configuration constants for Super Mario Bros.
  *        Contains physics, camera, tile size, and scale settings.
+ *        Window dimensions must match PTSD config.hpp (1280x720).
  * @inheritance None (static utility class)
  */
 #ifndef MARIO_GAME_CONFIG_HPP
@@ -19,13 +20,17 @@ struct GameConfig {
     static constexpr float SCALE_FACTOR = 2.0f; // Sprite scale multiplier
     static constexpr int ORIGINAL_TILE = 16;    // Original NES tile size
 
-    // -- Viewport (in tiles) --
-    static constexpr int VIEWPORT_TILES_X = 25; // Visible tiles horizontally (800/32)
-    static constexpr int VIEWPORT_TILES_Y = 15; // Visible tiles vertically (480/32)
+    // -- PTSD Window (must match PTSD config.hpp) --
+    static constexpr int WINDOW_WIDTH  = 1280;
+    static constexpr int WINDOW_HEIGHT = 720;
 
-    // -- Window --
-    static constexpr int WINDOW_WIDTH  = VIEWPORT_TILES_X * TILE_SIZE;  // 800
-    static constexpr int WINDOW_HEIGHT = VIEWPORT_TILES_Y * TILE_SIZE;  // 480
+    // -- Viewport (in tiles, based on window) --
+    static constexpr int VIEWPORT_TILES_X = WINDOW_WIDTH / TILE_SIZE;   // 40
+    static constexpr int VIEWPORT_TILES_Y = WINDOW_HEIGHT / TILE_SIZE;  // 22 (720/32)
+
+    // -- Level dimensions --
+    static constexpr int LEVEL_ROWS = 16;       // NES levels are 16 tiles tall
+    static constexpr int LEVEL_HEIGHT_PX = LEVEL_ROWS * TILE_SIZE; // 512px
 
     // -- Timing --
     static constexpr float TICK_INTERVAL = 20.0f / 1000.0f; // 20ms per tick (50 FPS)
