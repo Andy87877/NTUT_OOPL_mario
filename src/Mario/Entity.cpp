@@ -60,7 +60,7 @@ void Entity::UpdateView(float cameraOffset) {
     float centerY = m_State.GetY() + m_State.GetHeight() / 2.0f;
 
     float screenX = centerX - cameraOffset - GameConfig::WINDOW_WIDTH / 2.0f;
-    float screenY = levelHalfH - centerY;
+    float screenY = levelHalfH - centerY + GameConfig::RENDER_Y_OFFSET;
 
     m_Transform.translation = {screenX, screenY};
 

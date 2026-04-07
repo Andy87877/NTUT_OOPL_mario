@@ -15,6 +15,9 @@
 #include "Util/Keycode.hpp"
 #include "Util/Logger.hpp"
 
+// OpenGL include for background clearing
+#include <GL/glew.h>
+
 // ============================================================================
 // Start: Initialize game, transition to TITLE
 // ============================================================================
@@ -120,8 +123,22 @@ void App::UpdatePlaying() {
     m_InputHandler.HandleInput(m_Player->GetState(), m_Speed);
 
     // -- Physics & Collision --
+    std::vector<Mario::Level::SpawnPoint> newSpawns;
     m_CollisionManager.CheckPlayerBlockCollision(*m_Player, *m_Level,
-                                                  m_Camera.GetOffset());
+                                                  m_Camera.GetOffset(), &newSpawns);
+
+    // -- Process newly spawned entities (e.g. from hitting blocks) --
+    if (!newSpawns.empty()) {
+        for (auto& sp : newSpawns) {
+            auto entity = Mario::EntityFactory::SpawnEntity(
+                m_Level->GetEntityDefByName(sp.entityName), 
+                sp.worldX, sp.worldY, 1, true);
+            if (entity) {
+                m_Entities.push_back(entity);
+                m_Renderer.AddChild(entity);
+            }
+        }
+    }
 
     // -- Update player state (Model tick) --
     m_Player->GetState().Tick();
@@ -362,6 +379,16 @@ void App::LoadLevel(const std::string& levelName) {
     m_Renderer.AddChild(m_Player);
     for (const auto& entity : m_Entities) {
         m_Renderer.AddChild(entity);
+    }
+
+    // Set map background color (Sky Blue or Black for underground)
+    bool isUnderground = m_GameState.IsUnderground() || 
+                         levelName.find("u") != std::string::npos || 
+                         levelName == "1-2";
+    if (isUnderground) {
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Black
+    } else {
+        glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f, 1.0f); // Sky Blue
     }
 
     LOG_INFO("Level {} loaded: {} blocks, {} entities, player at ({}, {})",

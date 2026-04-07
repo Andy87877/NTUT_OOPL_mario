@@ -31,7 +31,7 @@ static void GridToScreen(int gridX, int gridY, float cameraOffset,
     float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
     screenY = levelHalfH -
               (static_cast<float>(gridY * GameConfig::TILE_SIZE) +
-               GameConfig::TILE_SIZE / 2.0f);
+               GameConfig::TILE_SIZE / 2.0f) + GameConfig::RENDER_Y_OFFSET;
 }
 
 Block::Block(int blockID, int gridX, int gridY, const BlockDef& def)

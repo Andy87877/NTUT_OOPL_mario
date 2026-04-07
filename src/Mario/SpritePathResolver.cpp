@@ -17,6 +17,7 @@
 #include "Mario/SpritePathResolver.hpp"
 
 #include <fstream>
+#include <cctype>
 
 namespace Mario {
 
@@ -49,6 +50,20 @@ std::string SpritePathResolver::GetBlockSpritePath(const std::string& blockName,
         if (test0.good()) {
             return path0;
         }
+        // Fallback: strip trailing digits and try again
+        std::string strippedName = blockName;
+        while (!strippedName.empty() && std::isdigit(strippedName.back())) {
+            strippedName.pop_back();
+        }
+        
+        if (strippedName != blockName) {
+            std::string fallbackPath = SPRITE_BASE_PATH + strippedName + ".png";
+            std::ifstream testFallback(fallbackPath);
+            if (testFallback.good()) {
+                return fallbackPath;
+            }
+        }
+        
         // Return base path anyway (will be caught by caller)
         return basePath;
     }

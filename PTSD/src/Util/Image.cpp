@@ -13,16 +13,38 @@
 #include <glm/fwd.hpp>
 
 std::shared_ptr<SDL_Surface> LoadSurface(const std::string &filepath) {
-    auto surface = std::shared_ptr<SDL_Surface>(IMG_Load(filepath.c_str()),
-                                                SDL_FreeSurface);
-
-    if (surface == nullptr) {
-        surface = {GetMissingTextureSDLSurface(), SDL_FreeSurface};
+    SDL_Surface* rawSurface = IMG_Load(filepath.c_str());
+    if (rawSurface == nullptr) {
+        rawSurface = GetMissingTextureSDLSurface();
         LOG_ERROR("Failed to load image: '{}'", filepath);
         LOG_ERROR("{}", IMG_GetError());
     }
 
-    return surface;
+    // Convert to RGBA32 format to guarantee alpha channel exists
+    SDL_Surface* rgbaSurface = SDL_ConvertSurfaceFormat(rawSurface, SDL_PIXELFORMAT_RGBA32, 0);
+    if (rawSurface != GetMissingTextureSDLSurface()) {
+        SDL_FreeSurface(rawSurface);
+    }
+
+    if (rgbaSurface) {
+        // Find Mario background blue (92, 148, 252) and White (255, 255, 255) and set alpha to 0
+        Uint32* pixels = static_cast<Uint32*>(rgbaSurface->pixels);
+        int pixelCount = rgbaSurface->w * rgbaSurface->h;
+        Uint32 transparent = SDL_MapRGBA(rgbaSurface->format, 0, 0, 0, 0);
+        
+        for (int i = 0; i < pixelCount; i++) {
+            Uint8 r, g, b, a;
+            SDL_GetRGBA(pixels[i], rgbaSurface->format, &r, &g, &b, &a);
+            // Sky blue or pure white backgrounds
+            if ((r == 92 && g == 148 && b == 252) || 
+                (r == 255 && g == 255 && b == 255) ||
+                (r == 146 && g == 144 && b == 255)) { // Underground blue
+                pixels[i] = transparent;
+            }
+        }
+    }
+
+    return std::shared_ptr<SDL_Surface>(rgbaSurface, SDL_FreeSurface);
 }
 
 namespace Util {

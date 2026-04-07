@@ -30,7 +30,8 @@ void InputHandler::HandleInput(PlayerState& state, float speed) {
 
     // -- Jump --
     m_Jump = Util::Input::IsKeyDown(Util::Keycode::SPACE) ||
-             Util::Input::IsKeyDown(Util::Keycode::Z);
+             Util::Input::IsKeyDown(Util::Keycode::Z) ||
+             Util::Input::IsKeyDown(Util::Keycode::UP);
     if (m_Jump) {
         state.SetJumping(true);
     }

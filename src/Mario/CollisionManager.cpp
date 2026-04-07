@@ -11,7 +11,7 @@
 namespace Mario {
 
 void CollisionManager::CheckPlayerBlockCollision(
-    Player& player, Level& level, float cameraOffset) {
+    Player& player, Level& level, float cameraOffset, std::vector<Level::SpawnPoint>* outSpawns) {
 
     PlayerState& state = player.GetState();
 
@@ -27,7 +27,7 @@ void CollisionManager::CheckPlayerBlockCollision(
 
     // Resolve collisions in order: ground, ceiling, walls
     CheckGroundCollision(state, level);
-    CheckCeilingCollision(state, level);
+    CheckCeilingCollision(state, level, outSpawns);
     CheckWallCollision(state, level, cameraOffset);
 
     // Prevent player from going past left boundary
@@ -99,7 +99,7 @@ void CollisionManager::CheckGroundCollision(PlayerState& state, Level& level) {
     }
 }
 
-void CollisionManager::CheckCeilingCollision(PlayerState& state, Level& level) {
+void CollisionManager::CheckCeilingCollision(PlayerState& state, Level& level, std::vector<Level::SpawnPoint>* outSpawns) {
     AABB playerBox = state.GetHitbox();
 
     int leftTile  = static_cast<int>(playerBox.left) / GameConfig::TILE_SIZE;
@@ -120,6 +120,18 @@ void CollisionManager::CheckCeilingCollision(PlayerState& state, Level& level) {
                     state.SetFallHeight(0.0);
 
                     // Trigger block hit
+                    if (!block->IsHit() && block->GetDef().spawner && !block->GetDef().spawnEntity.empty()) {
+                        if (outSpawns) {
+                            Level::SpawnPoint sp;
+                            sp.entityName = block->GetDef().spawnEntity;
+                            sp.gridX = block->GetGridX();
+                            sp.gridY = block->GetGridY();
+                            sp.worldX = static_cast<float>(block->GetGridX() * GameConfig::TILE_SIZE);
+                            sp.worldY = static_cast<float>(block->GetGridY() * GameConfig::TILE_SIZE - GameConfig::TILE_SIZE);
+                            sp.spawned = true;
+                            outSpawns->push_back(sp);
+                        }
+                    }
                     block->OnHit(state.GetState());
                 }
             }

@@ -27,6 +27,7 @@ struct GameConfig {
     // -- Viewport (in tiles, based on window) --
     static constexpr int VIEWPORT_TILES_X = WINDOW_WIDTH / TILE_SIZE;   // 40
     static constexpr int VIEWPORT_TILES_Y = WINDOW_HEIGHT / TILE_SIZE;  // 22 (720/32)
+    static constexpr float RENDER_Y_OFFSET = -104.0f; // Offset to align 512px level bottom to 720px window bottom
 
     // -- Level dimensions --
     static constexpr int LEVEL_ROWS = 16;       // NES levels are 16 tiles tall

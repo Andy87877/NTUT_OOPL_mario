@@ -52,7 +52,7 @@ void Player::UpdateView(float cameraOffset) {
 
     // Subtract half window width to convert from world-left-origin to PTSD-center-origin
     float screenX = playerCenterX - cameraOffset - GameConfig::WINDOW_WIDTH / 2.0f;
-    float screenY = levelHalfH - playerCenterY;
+    float screenY = levelHalfH - playerCenterY + GameConfig::RENDER_Y_OFFSET;
 
     m_Transform.translation = {screenX, screenY};
 

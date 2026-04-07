@@ -11,6 +11,7 @@
 #include "Mario/Level.hpp"
 
 #include <memory>
+#include <vector>
 
 namespace Mario {
 
@@ -35,7 +36,7 @@ public:
      * @param cameraOffset Current camera offset
      */
     void CheckPlayerBlockCollision(Player& player, Level& level,
-                                   float cameraOffset);
+                                   float cameraOffset, std::vector<Level::SpawnPoint>* outSpawns = nullptr);
 
     /**
      * Check if the player has fallen into a pit.
@@ -53,7 +54,7 @@ private:
     /**
      * Check ceiling collision: did the player hit a block from below?
      */
-    void CheckCeilingCollision(PlayerState& state, Level& level);
+    void CheckCeilingCollision(PlayerState& state, Level& level, std::vector<Level::SpawnPoint>* outSpawns = nullptr);
 
     /**
      * Check horizontal wall collision: left and right sides.
