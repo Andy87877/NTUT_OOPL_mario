@@ -502,6 +502,11 @@ docs/html/
 # my gitignore
 Agent.md
 Constructs.md
+Refactor.md
+
+implementation_plan_8-4.md
+8-4_map_generation_guide.md
+
 
 _reference_code/
 _ptsd-template-main/

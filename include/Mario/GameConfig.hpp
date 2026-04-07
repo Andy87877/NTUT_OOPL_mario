@@ -73,6 +73,18 @@ struct GameConfig {
     static constexpr int FLAG_ENTITY_ID = 29;
     static constexpr int UNDER_COIN_ID  = 49;
     static constexpr int PIPE_EXIT_ID   = 53;
+
+    // Pipe entrance block IDs (from C# Form1.cs lines 802-827)
+    static constexpr int PIPE_DOWN_LEFT  = 51;  // Left half of downward pipe
+    static constexpr int PIPE_DOWN_RIGHT = 52;  // Right half of downward pipe
+    static constexpr int PIPE_RIGHT_TOP  = 42;  // Top half of rightward pipe
+    static constexpr int PIPE_RIGHT_BOT  = 43;  // Bottom half of rightward pipe
+
+    // -- Flagpole / Ending --
+    static constexpr int FLAGPOLE_SLIDE_SPEED = 2;   // Pixels per tick
+    static constexpr int ENDING_WALK_DELAY = 20;     // Ticks after grounded before walking
+    static constexpr int LEVEL_TRANSITION_DELAY = 50; // Ticks before next level loads
+    static constexpr int PIPE_ANIM_SPEED = 5;        // Mario descend speed in pipe
 };
 
 } // namespace Mario

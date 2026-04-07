@@ -69,6 +69,8 @@ classDiagram
 | `InputHandler` | None | Controller | Keyboard input -> PlayerState |
 | `Level` | None | Model | CSV parsing, block grid, spawn point tracking |
 | `EntityFactory` | None | Factory | Creates Entity instances from level spawn data |
+| `LevelCompleteController` | None | Controller | Flagpole slide, walk-to-castle, pipe warp |
+| `GameStateManager` | None | Service | Score, lives, coins, time, level progression |
 | `Camera` | None | Service | Viewport scrolling following player |
 | `PhysicsEngine` | None | Service | Gravity, jump parabola calculation |
 | `CollisionManager` | None | Service | Player-Block collision detection & resolution |

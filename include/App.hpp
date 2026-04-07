@@ -18,6 +18,8 @@
 #include "Mario/CollisionManager.hpp"
 #include "Mario/Entity.hpp"
 #include "Mario/EntityFactory.hpp"
+#include "Mario/LevelCompleteController.hpp"
+#include "Mario/GameStateManager.hpp"
 
 #include "Util/Renderer.hpp"
 
@@ -35,6 +37,8 @@ public:
         TITLE,        // Title screen
         LOADING,      // Loading screen (shows world/lives)
         PLAYING,      // Active gameplay
+        FLAGPOLE,     // Flagpole ending sequence
+        PIPE_WARP,    // Pipe warp transition
         DEATH,        // Mario death animation
         GAME_OVER,    // Game over screen
         ESC_MENU,     // Pause menu with level skip
@@ -52,6 +56,8 @@ private:
     void UpdateTitle();
     void UpdateLoading();
     void UpdatePlaying();
+    void UpdateFlagpole();
+    void UpdatePipeWarp();
     void UpdateDeath();
     void UpdateGameOver();
     void UpdateESCMenu();
@@ -65,6 +71,8 @@ private:
     void AdvanceToNextLevel();
     void CheckEntityBlockCollision(Mario::Entity& entity);
     void CheckPlayerEntityCollision();
+    void CheckFlagpoleCollision();
+    void CheckPipeCollision();
     void CleanupDeadEntities();
 
 private:
@@ -91,20 +99,13 @@ private:
     // -- Entities (Goomba, KoopaTroopa, Mushroom, etc.) --
     std::vector<std::shared_ptr<Mario::Entity>> m_Entities;
 
-    // -- Game State --
-    int m_Score = 0;
-    int m_Lives = Mario::GameConfig::INITIAL_LIVES;
-    int m_Coins = 0;
-    int m_TimeCounter = Mario::GameConfig::INITIAL_TIME;
-    int m_TimeSubCounter = 0;
-    int m_Timer = 0;
+    // -- Phase 5: Level Completion --
+    Mario::LevelCompleteController m_LevelCompleteCtrl;
+    Mario::GameStateManager m_GameState;
+    std::shared_ptr<Mario::Entity> m_FlagEntity;  // The flag that slides down
 
     // -- Movement Speed (matching C# speed calculation) --
     float m_Speed = Mario::GameConfig::SCALED_SPEED;
-
-    // -- World Progress --
-    int m_WorldNum = 1;
-    int m_LevelNum = 1;
 
     // -- Loading State --
     bool m_Loading = false;
@@ -112,6 +113,7 @@ private:
 
     // -- Death State --
     int m_DeathTimer = -1;
+    int m_Timer = 0;
 
     // -- ESC Menu State --
     int m_ESCMenuSelection = 0;  // 0=Resume, 1=1-1, 2=1-2, 3=8-4

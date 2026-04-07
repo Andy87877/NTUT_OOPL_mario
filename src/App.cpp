@@ -2,7 +2,7 @@
  * @file App.cpp
  * @brief Implementation of the main application controller.
  *        Handles game state machine, integrates Level loading, Player MVC,
- *        collision detection, and camera following.
+ *        collision detection, camera following, flagpole/pipe sequences.
  *        Game loop logic ported from C# Form1.cs onTick().
  * @inheritance None (top-level controller)
  */
@@ -40,6 +40,12 @@ void App::Update() {
         case State::PLAYING:
             UpdatePlaying();
             break;
+        case State::FLAGPOLE:
+            UpdateFlagpole();
+            break;
+        case State::PIPE_WARP:
+            UpdatePipeWarp();
+            break;
         case State::DEATH:
             UpdateDeath();
             break;
@@ -69,13 +75,7 @@ void App::Update() {
 void App::UpdateTitle() {
     // Press Enter to start the game
     if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
-        m_WorldNum = 1;
-        m_LevelNum = 1;
-        m_Lives = Mario::GameConfig::INITIAL_LIVES;
-        m_Score = 0;
-        m_Coins = 0;
-        m_TimeCounter = Mario::GameConfig::INITIAL_TIME;
-        m_TimeSubCounter = 0;
+        m_GameState.NewGame();
         m_CurrentState = State::LOADING;
         m_Loading = false;
         LOG_INFO("Starting game - entering LOADING state");
@@ -90,10 +90,9 @@ void App::UpdateTitle() {
 void App::UpdateLoading() {
     if (!m_Loading) {
         m_Loading = true;
-        m_LoadTimer = m_Timer + 50;
+        m_LoadTimer = m_Timer + Mario::GameConfig::LEVEL_TRANSITION_DELAY;
 
-        std::string levelName = std::to_string(m_WorldNum) + "-" +
-                                std::to_string(m_LevelNum);
+        std::string levelName = m_GameState.GetLevelName();
         LOG_INFO("Loading World {}", levelName);
         LoadLevel(levelName);
     }
@@ -146,6 +145,12 @@ void App::UpdatePlaying() {
     // -- Player-Entity collision --
     CheckPlayerEntityCollision();
 
+    // -- Check flagpole collision (goal block) --
+    CheckFlagpoleCollision();
+
+    // -- Check pipe warp collision --
+    CheckPipeCollision();
+
     // -- Camera follows player --
     m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
 
@@ -155,22 +160,18 @@ void App::UpdatePlaying() {
     // -- Update player view (sprite selection, screen position) --
     m_Player->UpdateView(m_Camera.GetOffset());
 
-    // -- Timer (matching C# reference: 40 ticks = 1 game-second) --
+    // -- Timer (via GameStateManager) --
     if (m_Player->GetState().IsControllable()) {
-        m_TimeSubCounter++;
-        if (m_TimeSubCounter >= Mario::GameConfig::TIME_SUB_LIMIT) {
-            m_TimeCounter--;
-            m_TimeSubCounter = 0;
-        }
-        if (m_TimeCounter <= 0) {
-            m_Lives--;
+        m_GameState.Tick();
+        if (m_GameState.IsTimeUp()) {
+            m_GameState.LoseLife();
             m_Player->GetState().SetDead(true);
         }
     }
 
     // -- Check pit fall --
     if (m_CollisionManager.CheckPitFall(*m_Player)) {
-        m_Lives--;
+        m_GameState.LoseLife();
         m_Player->GetState().SetDead(true);
         m_Player->GetState().SetControllable(false);
     }
@@ -179,17 +180,84 @@ void App::UpdatePlaying() {
     if (m_Player->GetState().IsDead()) {
         m_DeathTimer = m_Timer + 80; // ~1.6s death animation
         m_CurrentState = State::DEATH;
-        LOG_INFO("Player died - entering DEATH state (Lives: {})", m_Lives);
+        LOG_INFO("Player died - entering DEATH state (Lives: {})",
+                 m_GameState.GetLives());
     }
 
     // -- Remove dead entities from renderer --
     CleanupDeadEntities();
 }
 
+// ============================================================================
+// Flagpole Sequence (Phase 5)
+// C# reference: Form1.cs lines 1174-1228, 1231-1265
+// ============================================================================
+void App::UpdateFlagpole() {
+    if (!m_Player || !m_Level) return;
+
+    bool stillRunning = m_LevelCompleteCtrl.Update(
+        *m_Player, *m_Level, m_Camera.GetOffset());
+
+    // Update camera and blocks during cutscene
+    m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
+    m_Level->UpdateBlocks(m_Camera.GetOffset());
+
+    // Update flag entity view if present
+    if (m_FlagEntity && m_FlagEntity->GetState().IsActive()) {
+        m_FlagEntity->UpdateView(m_Camera.GetOffset());
+    }
+
+    if (!stillRunning && m_LevelCompleteCtrl.IsCompleted()) {
+        // Save power state for next level (C# line 1192)
+        m_GameState.SavePowerState(m_Player->GetState().GetState());
+        AdvanceToNextLevel();
+    }
+}
+
+// ============================================================================
+// Pipe Warp Sequence (Phase 5)
+// C# reference: Form1.cs lines 941-968
+// ============================================================================
+void App::UpdatePipeWarp() {
+    if (!m_Player || !m_Level) return;
+
+    bool stillRunning = m_LevelCompleteCtrl.Update(
+        *m_Player, *m_Level, m_Camera.GetOffset());
+
+    if (!stillRunning && m_LevelCompleteCtrl.IsCompleted()) {
+        m_GameState.SavePowerState(m_Player->GetState().GetState());
+
+        if (!m_GameState.IsUnderground()) {
+            // We were in the main level, now load the sub-level (underground)
+            m_GameState.SetUnderground(true);
+            std::string subLevel = m_Level->GetSubLevelName();
+            LOG_INFO("Loading sub-level: {}", subLevel);
+            LoadLevel(subLevel);
+            StartLevel();
+            m_CurrentState = State::PLAYING;
+        } else {
+            // We were underground, now return to the main level
+            m_GameState.SetUnderground(false);
+            std::string mainLevel = m_GameState.GetLevelName();
+            LOG_INFO("Returning to main level: {}", mainLevel);
+            LoadLevel(mainLevel);
+            StartLevel();
+
+            // Position Mario at the pipe exit
+            if (m_Player) {
+                m_Player->GetState().SetX(m_Level->GetPipeExitX());
+                m_Player->GetState().SetControllable(true);
+                m_Player->SetVisible(true);
+            }
+            m_CurrentState = State::PLAYING;
+        }
+    }
+}
+
 void App::UpdateDeath() {
     // Wait for death animation timer
     if (m_Timer > m_DeathTimer) {
-        if (m_Lives > 0) {
+        if (!m_GameState.IsGameOver()) {
             m_CurrentState = State::LOADING;
             m_Loading = false;
         } else {
@@ -223,19 +291,19 @@ void App::UpdateESCMenu() {
                 LOG_INFO("Resuming game");
                 break;
             case 1:
-                m_WorldNum = 1; m_LevelNum = 1;
+                m_GameState.SetLevel(1, 1);
                 m_CurrentState = State::LOADING;
                 m_Loading = false;
                 LOG_INFO("Jumping to World 1-1");
                 break;
             case 2:
-                m_WorldNum = 1; m_LevelNum = 2;
+                m_GameState.SetLevel(1, 2);
                 m_CurrentState = State::LOADING;
                 m_Loading = false;
                 LOG_INFO("Jumping to World 1-2");
                 break;
             case 3:
-                m_WorldNum = 8; m_LevelNum = 4;
+                m_GameState.SetLevel(8, 4);
                 m_CurrentState = State::LOADING;
                 m_Loading = false;
                 LOG_INFO("Jumping to World 8-4");
@@ -256,6 +324,8 @@ void App::UpdateESCMenu() {
 
 void App::LoadLevel(const std::string& levelName) {
     m_Camera.Reset();
+    m_LevelCompleteCtrl.Reset();
+    m_FlagEntity = nullptr;
 
     // Create and load the level
     m_Level = std::make_shared<Mario::Level>();
@@ -268,10 +338,21 @@ void App::LoadLevel(const std::string& levelName) {
     // Create player at spawn position from level CSV
     float spawnX = m_Level->GetPlayerSpawnX();
     float spawnY = m_Level->GetPlayerSpawnY();
-    m_Player = std::make_shared<Mario::Player>(spawnX, spawnY, 0);
+
+    // Restore saved power state across levels
+    int savedState = m_GameState.GetSavedPowerState();
+    m_Player = std::make_shared<Mario::Player>(spawnX, spawnY, savedState);
 
     // Spawn entities (Goomba, KoopaTroopa, etc.) from level data
     m_Entities = Mario::EntityFactory::SpawnFromLevel(*m_Level);
+
+    // Look for the Flag entity in spawn list
+    for (auto& entity : m_Entities) {
+        if (entity->GetState().GetName() == "Flag") {
+            m_FlagEntity = entity;
+            break;
+        }
+    }
 
     // Build renderer: clear and add all blocks + player + entities
     m_Renderer = Util::Renderer();
@@ -289,8 +370,8 @@ void App::LoadLevel(const std::string& levelName) {
 }
 
 void App::StartLevel() {
-    m_TimeCounter = Mario::GameConfig::INITIAL_TIME;
-    m_TimeSubCounter = 0;
+    m_GameState.ResetTime();
+    m_GameState.StartTime();
 
     if (m_Player) {
         m_Player->GetState().SetControllable(true);
@@ -302,18 +383,16 @@ void App::RenderAll() {
 }
 
 void App::AdvanceToNextLevel() {
-    if (m_WorldNum == 1 && m_LevelNum == 1) {
-        m_LevelNum = 2;
-    } else if (m_WorldNum == 1 && m_LevelNum == 2) {
-        m_WorldNum = 8;
-        m_LevelNum = 4;
-    } else {
+    std::string nextLevel = m_GameState.AdvanceLevel();
+    if (m_GameState.IsGameWon()) {
+        // All levels beaten
         m_CurrentState = State::TITLE;
         LOG_INFO("Game Complete! Returning to title.");
         return;
     }
     m_CurrentState = State::LOADING;
     m_Loading = false;
+    LOG_INFO("Advancing to level {}", nextLevel);
 }
 
 // ============================================================================
@@ -321,6 +400,106 @@ void App::AdvanceToNextLevel() {
 // ============================================================================
 void App::End() {
     LOG_TRACE("End");
+}
+
+// ============================================================================
+// Flagpole & Pipe Detection
+// ============================================================================
+
+void App::CheckFlagpoleCollision() {
+    if (!m_Player || m_Player->GetState().IsDead()) return;
+    if (m_LevelCompleteCtrl.IsActive()) return;
+
+    Mario::PlayerState& ps = m_Player->GetState();
+    Mario::AABB playerBox = ps.GetHitbox();
+
+    for (const auto& block : m_Level->GetAllBlocks()) {
+        if (!block->IsGoal()) continue;
+
+        Mario::AABB blockBox = block->GetAABB();
+        if (!playerBox.Intersects(blockBox)) continue;
+
+        // Player touched the flagpole goal!
+        LOG_INFO("Flagpole reached at block ({}, {})",
+                 block->GetGridX(), block->GetGridY());
+
+        m_LevelCompleteCtrl.StartFlagpole(*m_Player, m_FlagEntity, block.get());
+        m_GameState.StopTime();
+        m_CurrentState = State::FLAGPOLE;
+        return;
+    }
+}
+
+void App::CheckPipeCollision() {
+    if (!m_Player || m_Player->GetState().IsDead()) return;
+    if (m_LevelCompleteCtrl.IsActive()) return;
+
+    Mario::PlayerState& ps = m_Player->GetState();
+    Mario::AABB playerBox = ps.GetHitbox();
+
+    bool pipeDown1 = false, pipeDown2 = false;
+    bool pipeRight1 = false, pipeRight2 = false;
+    float pipeDX = 0.0f, pipeDY = 0.0f;
+    float pipeRX = 0.0f, pipeRY = 0.0f;
+
+    for (const auto& block : m_Level->GetAllBlocks()) {
+        Mario::AABB bBox = block->GetAABB();
+        if (!playerBox.Intersects(bBox)) continue;
+
+        int id = block->GetBlockID();
+
+        // Down pipe check (C# lines 802-813)
+        if (id == Mario::GameConfig::PIPE_DOWN_LEFT) {
+            pipeDown1 = true;
+            pipeDX = block->GetWorldX();
+            pipeDY = block->GetWorldY();
+        }
+        if (id == Mario::GameConfig::PIPE_DOWN_RIGHT) {
+            pipeDown2 = true;
+        }
+
+        // Right pipe check (C# lines 815-827)
+        if (id == Mario::GameConfig::PIPE_RIGHT_TOP) {
+            pipeRight1 = true;
+            pipeRX = block->GetWorldX();
+            pipeRY = block->GetWorldY();
+        }
+        if (id == Mario::GameConfig::PIPE_RIGHT_BOT) {
+            pipeRight2 = true;
+            if (!pipeRight1) {
+                pipeRX = block->GetWorldX();
+                pipeRY = block->GetWorldY();
+            }
+        }
+    }
+
+    // Down pipe: need both halves + player centered + pressing Down
+    // C# line 830: pipeCheck1 && pipeCheck2 && position centered && direction == "Down"
+    if (pipeDown1 && pipeDown2 &&
+        Util::Input::IsKeyPressed(Util::Keycode::DOWN)) {
+        // Check Mario is centered on the pipe
+        float pipeCenter = pipeDX + Mario::GameConfig::TILE_SIZE;
+        float playerCenter = ps.GetX() + ps.GetWidth() / 2.0f;
+        if (std::abs(playerCenter - pipeCenter) <
+            Mario::GameConfig::TILE_SIZE * 0.6f) {
+            LOG_INFO("Entering pipe DOWN at ({}, {})", pipeDX, pipeDY);
+            m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Down", pipeDX, pipeDY);
+            m_GameState.StopTime();
+            m_CurrentState = State::PIPE_WARP;
+            return;
+        }
+    }
+
+    // Right pipe: need any pipe half + player grounded + pressing Right
+    // C# lines 834-837
+    if ((pipeRight1 || pipeRight2) && ps.IsGrounded() &&
+        Util::Input::IsKeyPressed(Util::Keycode::RIGHT)) {
+        LOG_INFO("Entering pipe RIGHT at ({}, {})", pipeRX, pipeRY);
+        m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Right", pipeRX, pipeRY);
+        m_GameState.StopTime();
+        m_CurrentState = State::PIPE_WARP;
+        return;
+    }
 }
 
 // ============================================================================
@@ -414,7 +593,7 @@ void App::CheckPlayerEntityCollision() {
                 // Stomp! Kill enemy
                 if (es.IsSquishable() || es.IsKoopaSquash()) {
                     es.Squish();
-                    m_Score += es.GetScoreWorth();
+                    m_GameState.AddScore(es.GetScoreWorth());
                     // Bounce player up after stomp
                     ps.SetFallHeight(Mario::PhysicsEngine::GetJumpHeight(0) * 0.5);
                     ps.SetGrounded(false);
@@ -442,19 +621,15 @@ void App::CheckPlayerEntityCollision() {
                 ps.StartStar();
             } else if (puState == 5) {
                 // 1-Up
-                m_Lives++;
+                m_GameState.AddLife();
             }
-            m_Score += es.GetScoreWorth();
+            m_GameState.AddScore(es.GetScoreWorth());
             es.Delete();
             LOG_DEBUG("Collected {} (+{} score)", es.GetName(), es.GetScoreWorth());
         } else if (es.IsCoin()) {
-            m_Coins++;
-            m_Score += es.GetScoreWorth();
+            m_GameState.AddCoin();
+            m_GameState.AddScore(es.GetScoreWorth());
             es.Delete();
-            if (m_Coins >= 100) {
-                m_Coins -= 100;
-                m_Lives++;
-            }
         }
     }
 }

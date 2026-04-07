@@ -23,6 +23,10 @@ set(SRC_FILES
 
     # Collision
     Mario/CollisionManager.cpp
+
+    # Level Completion (Phase 5)
+    Mario/LevelCompleteController.cpp
+    Mario/GameStateManager.cpp
 )
 
 set(INCLUDE_FILES
@@ -54,6 +58,10 @@ set(INCLUDE_FILES
 
     # Collision
     Mario/CollisionManager.hpp
+
+    # Level Completion (Phase 5)
+    Mario/LevelCompleteController.hpp
+    Mario/GameStateManager.hpp
 )
 
 set(TEST_FILES
