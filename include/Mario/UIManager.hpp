@@ -1,0 +1,90 @@
+/**
+ * @file UIManager.hpp
+ * @brief Manager for UI state, rendering HUD and floating text effects.
+ * @inheritance None (Manager class)
+ */
+#ifndef MARIO_UI_MANAGER_HPP
+#define MARIO_UI_MANAGER_HPP
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "Mario/FloatingText.hpp"
+#include "Mario/GameStateManager.hpp"
+#include "Mario/UIText.hpp"
+#include "Util/Renderer.hpp"
+
+namespace Mario {
+
+/**
+ * Manages UI rendering and floating text effects.
+ */
+class UIManager {
+   public:
+    enum class State { TITLE, LOADING, PLAYING, GAME_OVER, ESC_MENU };
+
+    UIManager(GameStateManager* gameState);
+    virtual ~UIManager() = default;
+
+    /**
+     * Update floating text state and UI elements based on current game state.
+     */
+    void Update(State currentState, int escMenuSelection = 0);
+
+    /**
+     * Add a floating text (for points, 1UP, etc) at world coordinates.
+     */
+    void AddFloatingText(float worldX, float worldY, const std::string& text,
+                         int frames = 60);
+
+    /**
+     * Get game state for UI display.
+     */
+    GameStateManager* GetGameState() const { return m_GameState; }
+
+    Util::Renderer& GetRenderer() { return m_UIRenderer; }
+
+   private:
+    void InitHUD();
+    void InitTitleScreen();
+    void InitLoadingScreen();
+    void InitGameOverScreen();
+    void InitESCMenu();
+
+    void UpdateHUD();
+    void UpdateTitleScreen();
+    void UpdateLoadingScreen();
+    void UpdateGameOverScreen();
+    void UpdateESCMenu(int selection);
+
+    GameStateManager* m_GameState;
+    Util::Renderer m_UIRenderer;
+
+    // Font path and size
+    std::string m_FontPath = std::string(RESOURCE_DIR) + "/Font/mario.ttf";
+    int m_FontSize = 24;
+
+    // HUD Text Elements
+    std::shared_ptr<UIText> m_HeaderMario;
+    std::shared_ptr<UIText> m_HeaderWorld;
+    std::shared_ptr<UIText> m_HeaderTime;
+    std::shared_ptr<UIText> m_ScoreText;
+    std::shared_ptr<UIText> m_CoinsText;
+    std::shared_ptr<UIText> m_WorldText;
+    std::shared_ptr<UIText> m_TimeText;
+
+    // Title / Loading / Game Over Text Elements
+    std::shared_ptr<UIText> m_CenterLabel;
+    std::shared_ptr<UIText> m_SubLabel;
+
+    // ESC Menu Text
+    std::vector<std::shared_ptr<UIText>> m_MenuTexts;
+
+    // Floating text effects
+    std::vector<std::shared_ptr<FloatingText>> m_FloatingTexts;
+};
+
+}  // namespace Mario
+
+#endif  // MARIO_UI_MANAGER_HPP

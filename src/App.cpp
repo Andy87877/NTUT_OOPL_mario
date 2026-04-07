@@ -22,6 +22,10 @@
 // ============================================================================
 void App::Start() {
     LOG_TRACE("Start");
+
+    // Initialize UI Manager (manages UI state and floating texts)
+    m_UIManager = std::make_unique<Mario::UIManager>(&m_GameState);
+
     m_CurrentState = State::TITLE;
     LOG_INFO("Game initialized - entering TITLE state");
 }
@@ -407,7 +411,68 @@ void App::StartLevel() {
     }
 }
 
-void App::RenderAll() { m_Renderer.Update(); }
+void App::RenderAll() {
+    // Rendering based on current game state
+    // UIManager now only handles UI state (floating texts)
+
+    if (!m_UIManager) {
+        m_Renderer.Update();
+        return;
+    }
+
+    switch (m_CurrentState) {
+        case State::TITLE:
+            glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
+                         0.0f);
+            m_Renderer.Update();
+            m_UIManager->Update(Mario::UIManager::State::TITLE);
+            break;
+
+        case State::LOADING:
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            m_Renderer.Update();
+            m_UIManager->Update(Mario::UIManager::State::LOADING);
+            break;
+
+        case State::PLAYING:
+        case State::FLAGPOLE:
+        case State::PIPE_WARP:
+            if (m_GameState.IsUnderground()) {
+                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            } else {
+                glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
+                             0.0f);
+            }
+            m_Renderer.Update();
+
+            // Update UI elements
+            m_UIManager->Update(Mario::UIManager::State::PLAYING);
+            break;
+
+        case State::DEATH:
+            m_Renderer.Update();
+            m_UIManager->Update(Mario::UIManager::State::PLAYING);
+            break;
+
+        case State::GAME_OVER:
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            m_Renderer.Update();
+            m_UIManager->Update(Mario::UIManager::State::GAME_OVER);
+            break;
+
+        case State::ESC_MENU:
+            m_Renderer.Update();
+            m_UIManager->Update(Mario::UIManager::State::ESC_MENU,
+                                m_ESCMenuSelection);
+            break;
+
+        case State::START:
+        case State::END:
+        default:
+            m_Renderer.Update();
+            break;
+    }
+}
 
 void App::AdvanceToNextLevel() {
     std::string nextLevel = m_GameState.AdvanceLevel();

@@ -34,6 +34,24 @@ set(SRC_FILES
     # Level Completion (Phase 5)
     Mario/LevelCompleteController.cpp
     Mario/GameStateManager.cpp
+
+    # Scene Handlers (Phase 5)
+    Mario/TitleSceneHandler.cpp
+    Mario/LoadingSceneHandler.cpp
+    Mario/DeathSceneHandler.cpp
+    Mario/GameOverSceneHandler.cpp
+    Mario/ESCMenuSceneHandler.cpp
+
+    # Managers (Phase 5)
+    Mario/SceneManager.cpp
+    Mario/UIManager.cpp
+    Mario/AudioManager.cpp
+    Mario/GameTheater.cpp
+
+    # UI (Phase 5)
+    Mario/FloatingText.cpp
+
+    # Render
 )
 
 set(INCLUDE_FILES
@@ -77,6 +95,31 @@ set(INCLUDE_FILES
     # Level Completion (Phase 5)
     Mario/LevelCompleteController.hpp
     Mario/GameStateManager.hpp
+
+    # Scene Handlers (Phase 5)
+    Mario/ISceneHandler.hpp
+    Mario/TitleSceneHandler.hpp
+    Mario/LoadingSceneHandler.hpp
+    Mario/DeathSceneHandler.hpp
+    Mario/GameOverSceneHandler.hpp
+    Mario/ESCMenuSceneHandler.hpp
+
+    # Managers (Phase 5)
+    Mario/SceneManager.hpp
+    Mario/UIManager.hpp
+    Mario/AudioManager.hpp
+    Mario/GameTheater.hpp
+
+    # Audio Service (Phase 5)
+    Mario/IAudioService.hpp
+
+    # Infrastructure (Phase 5)
+    Mario/EventSystem.hpp
+    Mario/ServiceLocator.hpp
+
+    # UI (Phase 5)
+    Mario/FloatingText.hpp
+    Mario/UIText.hpp
 )
 
 set(TEST_FILES

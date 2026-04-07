@@ -1,55 +1,33 @@
 #include "Util/Image.hpp"
 
-#include <glm/fwd.hpp>
+#include "Util/Logger.hpp"
+#include "pch.hpp"
 
 #include "Core/Texture.hpp"
 #include "Core/TextureUtils.hpp"
-#include "Util/Logger.hpp"
+
 #include "Util/MissingTexture.hpp"
 #include "Util/TransformUtils.hpp"
+
 #include "config.hpp"
-#include "pch.hpp"
+#include <glm/fwd.hpp>
 
-std::shared_ptr<SDL_Surface> LoadSurface(const std::string& filepath) {
-    SDL_Surface* rawSurface = IMG_Load(filepath.c_str());
+std::shared_ptr<SDL_Surface> LoadSurface(const std::string &filepath) {
+    auto surface = std::shared_ptr<SDL_Surface>(IMG_Load(filepath.c_str()),
+                                                SDL_FreeSurface);
 
-    if (rawSurface == nullptr) {
-        rawSurface = GetMissingTextureSDLSurface();
+    if (surface == nullptr) {
+        surface = {GetMissingTextureSDLSurface(), SDL_FreeSurface};
         LOG_ERROR("Failed to load image: '{}'", filepath);
         LOG_ERROR("{}", IMG_GetError());
     }
 
-    // Convert to RGBA32 format to guarantee alpha channel exists
-    SDL_Surface* rgbaSurface =
-        SDL_ConvertSurfaceFormat(rawSurface, SDL_PIXELFORMAT_RGBA32, 0);
-    if (rawSurface != GetMissingTextureSDLSurface()) {
-        SDL_FreeSurface(rawSurface);
-    }
-
-    if (rgbaSurface) {
-        // Find Mario background blue (92, 148, 252) and White (255, 255, 255)
-        // and set alpha to 0
-        Uint32* pixels = static_cast<Uint32*>(rgbaSurface->pixels);
-        int pixelCount = rgbaSurface->w * rgbaSurface->h;
-        Uint32 transparent = SDL_MapRGBA(rgbaSurface->format, 0, 0, 0, 0);
-
-        for (int i = 0; i < pixelCount; i++) {
-            Uint8 r, g, b, a;
-            SDL_GetRGBA(pixels[i], rgbaSurface->format, &r, &g, &b, &a);
-            // Sky blue or pure white backgrounds
-            if ((r == 92 && g == 148 && b == 252) ||
-                (r == 255 && g == 255 && b == 255) ||
-                (r == 146 && g == 144 && b == 255)) {  // Underground blue
-                pixels[i] = transparent;
-            }
-        }
-    }
-
-    return std::shared_ptr<SDL_Surface>(rgbaSurface, SDL_FreeSurface);
+    return surface;
 }
 
 namespace Util {
-Image::Image(const std::string& filepath) : m_Path(filepath) {
+Image::Image(const std::string &filepath)
+    : m_Path(filepath) {
     if (s_Program == nullptr) {
         InitProgram();
     }
@@ -68,7 +46,7 @@ Image::Image(const std::string& filepath) : m_Path(filepath) {
     m_Size = {surface->w, surface->h};
 }
 
-void Image::SetImage(const std::string& filepath) {
+void Image::SetImage(const std::string &filepath) {
     auto surface = s_Store.Get(filepath);
 
     m_Texture->UpdateData(Core::SdlFormatToGlFormat(surface->format->format),
@@ -76,7 +54,7 @@ void Image::SetImage(const std::string& filepath) {
     m_Size = {surface->w, surface->h};
 }
 
-void Image::Draw(const Core::Matrices& data) {
+void Image::Draw(const Core::Matrices &data) {
     m_UniformBuffer->SetData(0, data);
 
     m_Texture->Bind(UNIFORM_SURFACE_LOCATION);
@@ -108,40 +86,28 @@ void Image::InitVertexArray() {
     // Vertex
     s_VertexArray->AddVertexBuffer(std::make_unique<Core::VertexBuffer>(
         std::vector<float>{
-            -0.5F,
-            0.5F,  //
-            -0.5F,
-            -0.5F,  //
-            0.5F,
-            -0.5F,  //
-            0.5F,
-            0.5F,  //
+            -0.5F, 0.5F,  //
+            -0.5F, -0.5F, //
+            0.5F, -0.5F,  //
+            0.5F, 0.5F,   //
         },
         2));
 
     // UV
     s_VertexArray->AddVertexBuffer(std::make_unique<Core::VertexBuffer>(
         std::vector<float>{
-            0.0F,
-            0.0F,  //
-            0.0F,
-            1.0F,  //
-            1.0F,
-            1.0F,  //
-            1.0F,
-            0.0F,  //
+            0.0F, 0.0F, //
+            0.0F, 1.0F, //
+            1.0F, 1.0F, //
+            1.0F, 0.0F, //
         },
         2));
 
     // Index
     s_VertexArray->SetIndexBuffer(
         std::make_unique<Core::IndexBuffer>(std::vector<unsigned int>{
-            0,
-            1,
-            2,  //
-            0,
-            2,
-            3,  //
+            0, 1, 2, //
+            0, 2, 3, //
         }));
     // NOLINTEND
 }
@@ -150,4 +116,4 @@ std::unique_ptr<Core::Program> Image::s_Program = nullptr;
 std::unique_ptr<Core::VertexArray> Image::s_VertexArray = nullptr;
 
 Util::AssetStore<std::shared_ptr<SDL_Surface>> Image::s_Store(LoadSurface);
-}  // namespace Util
+} // namespace Util

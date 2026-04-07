@@ -1110,10 +1110,202 @@ classDiagram
 | **Service Locator** | `ServiceLocator` | 替代 Singleton 的 DI 容器 |
 | **Facade** | `App` / `AppCore` | 簡化子系統的統一入口 |
 | **Coordinator** | `PlayingSceneController` | 協調遊玩場景的所有子系統 |
+| **Template Method** | `ISceneHandler` | 場景生命週期模板（OnEnter → Update → OnExit） |
+| **Observer** | `EventSystem` | 發布/訂閱事件（物件間鬆散耦合） |
 
 ---
 
-## 十二、層級控制 (Z-Index 渲染順序)
+## 十二 (新增): Phase 5 - 場景管理與管理器系統架構
+
+### 12.1 Phase 5 新增模組概覽
+
+Phase 5 實作了**完整的場景管理系統**與**全域管理器架構**，將遊戲流程從單一 `App` 狀態機轉變為模組化的場景堆棧系統。
+
+#### 新增設計亮點
+
+1. **策略模式場景處理** (`ISceneHandler`)
+   - 每個場景獨立實作 `OnEnter()` / `Update()` / `OnExit()` 生命週期
+   - 支援無限場景組合（可加入新場景無須修改 App）
+   - 遵守開放封閉原則 (OCP)
+
+2. **場景堆管理** (`SceneManager`)
+   - 基於棧的場景管理，支援場景推入/彈出/切換
+   - 自動呼叫 `OnEnter()` / `OnExit()` 鉤子
+   - 支援場景轉換時的自動訊號處理
+
+3. **服務定位器** (`ServiceLocator`)
+   - 統一的依賴注入容器
+   - 替代全域 Singleton 的更乾淨做法
+   - 支援測試時模擬服務
+
+4. **事件系統** (`EventSystem`)
+   - 物件間的訊息傳遞解耦
+   - 發布/訂閱模式
+   - 支援多種事件類型
+
+5. **音訊服務** (`IAudioService` + `AudioManager`)
+   - 依賴反演原則 (DIP) 設計
+   - BGM 與 SFX 分離管理
+   - 便於單元測試（可注入 Mock 實作）
+
+6. **UI 管理器** (`UIManager` + `FloatingText`)
+   - 統一管理 HUD 渲染
+   - 支援浮動文字特效
+   - 場景轉換時自動清理
+
+### 12.2 Phase 5 類別繼承關係
+
+```mermaid
+classDiagram
+    direction TB
+
+    %% Scene Handler Pattern
+    class ISceneHandler["ISceneHandler (介面)"] {
+        +OnEnter()*
+        +Update() bool*
+        +OnExit()*
+        +GetNextSceneName() string*
+        +GetName() string*
+    }
+
+    class TitleSceneHandler["TitleSceneHandler"] {
+        +等待玩家開始
+        +轉移到 LoadingScene
+    }
+
+    class LoadingSceneHandler["LoadingSceneHandler"] {
+        +顯示關卡資訊
+        +轉移到 PlayingScene
+    }
+
+    class DeathSceneHandler["DeathSceneHandler"] {
+        +顯示死亡動畫
+        +轉移到 LoadingScene 或 GameOverScene
+    }
+
+    class GameOverSceneHandler["GameOverSceneHandler"] {
+        +顯示 GAME OVER
+        +等待重新開始  
+    }
+
+    class ESCMenuSceneHandler["ESCMenuSceneHandler"] {
+        +暫停選單
+        +選項轉移
+    }
+
+    %% Manager Pattern
+    class SceneManager["SceneManager (服務)"] {
+        -stack~ISceneHandler~ m_SceneStack
+        +PushScene(name)
+        +PopScene()
+        +ReplaceScene(name)
+        +Update() bool
+    }
+
+    class UIManager["UIManager (服務)"] {
+        -GameStateManager* m_GameState
+        +RenderHUD()
+        +RenderDeathOverlay()
+        +AddFloatingText(x, y, text)
+    }
+
+    class FloatingText["FloatingText (特效)"] {
+        -float m_FloatDistance
+        -int m_LifetimeCounter
+        +Update()
+        +Draw()
+    }
+
+    class AudioManager["AudioManager (服務)"] {
+        -float m_Volume
+        -bool m_Muted
+        +PlayBGM(name)
+        +PlaySFX(name)
+        +SetVolume(v) / SetMuted(b)
+    }
+
+    class IAudioService["IAudioService (介面)"] {
+        +PlayBGM(name)*
+        +PlaySFX(name)*
+        +SetVolume(v)*
+    }
+
+    class GameTheater["GameTheater (協調器)"] {
+        -SceneManager m_SceneManager
+        +Initialize(startScene)
+        +Update() bool
+        +TransitionToScene(name)
+    }
+
+    class ServiceLocator["ServiceLocator (DI)"] {
+        -map~type, service~
+        +RegisterService(T, service)
+        +GetService(T) service
+        +HasService(T) bool
+    }
+
+    class EventSystem["EventSystem~T~ (通用)"] {
+        -map~id, callback~ m_Listeners
+        +Subscribe(cb) id
+        +Unsubscribe(id)
+        +Publish(event)
+    }
+
+    %% 繼承與實裝
+    ISceneHandler <|.. TitleSceneHandler
+    ISceneHandler <|.. LoadingSceneHandler
+    ISceneHandler <|.. DeathSceneHandler
+    ISceneHandler <|.. GameOverSceneHandler
+    ISceneHandler <|.. ESCMenuSceneHandler
+
+    IAudioService <|.. AudioManager
+
+    UIManager o-- FloatingText : 創建與管理
+    SceneManager o-- ISceneHandler : 管理場景堆
+    GameTheater o-- SceneManager : 使用場景堆
+    ServiceLocator ..> AudioManager : 提供服務
+    ServiceLocator ..> EventSystem : 提供服務
+```
+
+### 12.3 Phase 5 設計特色
+
+#### 12.3.1 遊戲流程狀態機
+
+```
+[初始化] 
+    ↓
+[Title Scene] --按 Enter--> [Loading Scene] --自動--> [Playing Scene]
+                                                           ↓
+                                                    [ESC 暫停選單]
+                                                           ↓
+[Game Over Scene] <--生命耗盡-- [Death Scene] <--Mario 死亡-- [Playing Scene]
+                                                           ↓
+                                                    [Loading Scene] --自動--> [Playing Scene] (下一關)
+```
+
+#### 12.3.2 服務定位器模式優勢
+
+- **DI 容器**：替代全域 Singleton，更便於測試
+- **單責原則**：每個服務各司其職
+- **易於擴充**：新增服務只需註冊，無須修改現有程式碼
+
+#### 12.3.3 事件系統應用
+
+```cpp
+// 訂閱事件
+EventSystem<PlayerDeadEvent> events;
+events.Subscribe([](const PlayerDeadEvent& e) {
+    std::cout << "Player died at: " << e.x << ", " << e.y << std::endl;
+});
+
+// 發佈事件
+PlayerDeadEvent evt{mario.GetX(), mario.GetY()};
+events.Publish(evt);
+```
+
+---
+
+## 十三、層級控制 (Z-Index 渲染順序)
 
 | Z-Index | 層級 | 內容 |
 |---------|------|------|
