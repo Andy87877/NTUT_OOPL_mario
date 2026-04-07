@@ -21,6 +21,13 @@ set(SRC_FILES
     Mario/Entity.cpp
     Mario/EntityFactory.cpp
 
+    # Behaviors (Phase 4 - Strategy Pattern)
+    Mario/Behaviors/DefaultEntityBehavior.cpp
+    Mario/Behaviors/EnemyBehavior.cpp
+    Mario/Behaviors/ItemBehavior.cpp
+    Mario/Behaviors/FireballBehavior.cpp
+    Mario/Behaviors/BowserBehavior.cpp
+
     # Collision
     Mario/CollisionManager.cpp
 
@@ -55,6 +62,14 @@ set(INCLUDE_FILES
     Mario/EntityState.hpp
     Mario/Entity.hpp
     Mario/EntityFactory.hpp
+
+    # Behaviors (Phase 4 - Strategy Pattern)
+    Mario/Behaviors/IEntityBehavior.hpp
+    Mario/Behaviors/DefaultEntityBehavior.hpp
+    Mario/Behaviors/EnemyBehavior.hpp
+    Mario/Behaviors/ItemBehavior.hpp
+    Mario/Behaviors/FireballBehavior.hpp
+    Mario/Behaviors/BowserBehavior.hpp
 
     # Collision
     Mario/CollisionManager.hpp

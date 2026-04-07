@@ -9,7 +9,6 @@
 #include "App.hpp"
 
 #include "Mario/PhysicsEngine.hpp"
-
 #include "Util/Image.hpp"
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
@@ -124,15 +123,15 @@ void App::UpdatePlaying() {
 
     // -- Physics & Collision --
     std::vector<Mario::Level::SpawnPoint> newSpawns;
-    m_CollisionManager.CheckPlayerBlockCollision(*m_Player, *m_Level,
-                                                  m_Camera.GetOffset(), &newSpawns);
+    m_CollisionManager.CheckPlayerBlockCollision(
+        *m_Player, *m_Level, m_Camera.GetOffset(), &newSpawns);
 
     // -- Process newly spawned entities (e.g. from hitting blocks) --
     if (!newSpawns.empty()) {
         for (auto& sp : newSpawns) {
             auto entity = Mario::EntityFactory::SpawnEntity(
-                m_Level->GetEntityDefByName(sp.entityName), 
-                sp.worldX, sp.worldY, 1, true);
+                m_Level->GetEntityDefByName(sp.entityName), sp.worldX,
+                sp.worldY, 1, true);
             if (entity) {
                 m_Entities.push_back(entity);
                 m_Renderer.AddChild(entity);
@@ -151,7 +150,8 @@ void App::UpdatePlaying() {
         entity->GetState().Tick();
 
         // Entity-block collision (walls, ground)
-        if (entity->GetState().DoesCollide() && !entity->GetState().IsStatic()) {
+        if (entity->GetState().DoesCollide() &&
+            !entity->GetState().IsStatic()) {
             CheckEntityBlockCollision(*entity);
         }
 
@@ -195,7 +195,7 @@ void App::UpdatePlaying() {
 
     // -- Check death state transition --
     if (m_Player->GetState().IsDead()) {
-        m_DeathTimer = m_Timer + 80; // ~1.6s death animation
+        m_DeathTimer = m_Timer + 80;  // ~1.6s death animation
         m_CurrentState = State::DEATH;
         LOG_INFO("Player died - entering DEATH state (Lives: {})",
                  m_GameState.GetLives());
@@ -212,8 +212,8 @@ void App::UpdatePlaying() {
 void App::UpdateFlagpole() {
     if (!m_Player || !m_Level) return;
 
-    bool stillRunning = m_LevelCompleteCtrl.Update(
-        *m_Player, *m_Level, m_Camera.GetOffset());
+    bool stillRunning =
+        m_LevelCompleteCtrl.Update(*m_Player, *m_Level, m_Camera.GetOffset());
 
     // Update camera and blocks during cutscene
     m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
@@ -238,8 +238,8 @@ void App::UpdateFlagpole() {
 void App::UpdatePipeWarp() {
     if (!m_Player || !m_Level) return;
 
-    bool stillRunning = m_LevelCompleteCtrl.Update(
-        *m_Player, *m_Level, m_Camera.GetOffset());
+    bool stillRunning =
+        m_LevelCompleteCtrl.Update(*m_Player, *m_Level, m_Camera.GetOffset());
 
     if (!stillRunning && m_LevelCompleteCtrl.IsCompleted()) {
         m_GameState.SavePowerState(m_Player->GetState().GetState());
@@ -382,13 +382,15 @@ void App::LoadLevel(const std::string& levelName) {
     }
 
     // Set map background color (Sky Blue or Black for underground)
-    bool isUnderground = m_GameState.IsUnderground() || 
-                         levelName.find("u") != std::string::npos || 
+    // Alpha = 0.0f for transparent background (chroma key support)
+    bool isUnderground = m_GameState.IsUnderground() ||
+                         levelName.find("u") != std::string::npos ||
                          levelName == "1-2";
     if (isUnderground) {
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Black
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // Black (transparent)
     } else {
-        glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f, 1.0f); // Sky Blue
+        glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
+                     0.0f);  // Sky Blue (transparent)
     }
 
     LOG_INFO("Level {} loaded: {} blocks, {} entities, player at ({}, {})",
@@ -405,9 +407,7 @@ void App::StartLevel() {
     }
 }
 
-void App::RenderAll() {
-    m_Renderer.Update();
-}
+void App::RenderAll() { m_Renderer.Update(); }
 
 void App::AdvanceToNextLevel() {
     std::string nextLevel = m_GameState.AdvanceLevel();
@@ -425,9 +425,7 @@ void App::AdvanceToNextLevel() {
 // ============================================================================
 // End
 // ============================================================================
-void App::End() {
-    LOG_TRACE("End");
-}
+void App::End() { LOG_TRACE("End"); }
 
 // ============================================================================
 // Flagpole & Pipe Detection
@@ -447,8 +445,8 @@ void App::CheckFlagpoleCollision() {
         if (!playerBox.Intersects(blockBox)) continue;
 
         // Player touched the flagpole goal!
-        LOG_INFO("Flagpole reached at block ({}, {})",
-                 block->GetGridX(), block->GetGridY());
+        LOG_INFO("Flagpole reached at block ({}, {})", block->GetGridX(),
+                 block->GetGridY());
 
         m_LevelCompleteCtrl.StartFlagpole(*m_Player, m_FlagEntity, block.get());
         m_GameState.StopTime();
@@ -501,7 +499,8 @@ void App::CheckPipeCollision() {
     }
 
     // Down pipe: need both halves + player centered + pressing Down
-    // C# line 830: pipeCheck1 && pipeCheck2 && position centered && direction == "Down"
+    // C# line 830: pipeCheck1 && pipeCheck2 && position centered && direction
+    // == "Down"
     if (pipeDown1 && pipeDown2 &&
         Util::Input::IsKeyPressed(Util::Keycode::DOWN)) {
         // Check Mario is centered on the pipe
@@ -510,7 +509,8 @@ void App::CheckPipeCollision() {
         if (std::abs(playerCenter - pipeCenter) <
             Mario::GameConfig::TILE_SIZE * 0.6f) {
             LOG_INFO("Entering pipe DOWN at ({}, {})", pipeDX, pipeDY);
-            m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Down", pipeDX, pipeDY);
+            m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Down", pipeDX,
+                                              pipeDY);
             m_GameState.StopTime();
             m_CurrentState = State::PIPE_WARP;
             return;
@@ -540,7 +540,7 @@ void App::CheckEntityBlockCollision(Mario::Entity& entity) {
     int tileSize = Mario::GameConfig::TILE_SIZE;
 
     // Ground check
-    int leftTile  = static_cast<int>(box.left) / tileSize;
+    int leftTile = static_cast<int>(box.left) / tileSize;
     int rightTile = static_cast<int>(box.right - 1) / tileSize;
     int bottomTile = static_cast<int>(box.bottom) / tileSize;
 
@@ -615,17 +615,19 @@ void App::CheckPlayerEntityCollision() {
             float entityTop = entityBox.top;
             float overlapY = playerBottom - entityTop;
 
-            if (overlapY > 0 && overlapY < Mario::GameConfig::TILE_SIZE * 0.5f
-                && ps.GetVelY() >= 0 && !ps.IsGrounded()) {
+            if (overlapY > 0 &&
+                overlapY < Mario::GameConfig::TILE_SIZE * 0.5f &&
+                ps.GetVelY() >= 0 && !ps.IsGrounded()) {
                 // Stomp! Kill enemy
                 if (es.IsSquishable() || es.IsKoopaSquash()) {
                     es.Squish();
                     m_GameState.AddScore(es.GetScoreWorth());
                     // Bounce player up after stomp
-                    ps.SetFallHeight(Mario::PhysicsEngine::GetJumpHeight(0) * 0.5);
+                    ps.SetFallHeight(Mario::PhysicsEngine::GetJumpHeight(0) *
+                                     0.5);
                     ps.SetGrounded(false);
-                    LOG_DEBUG("Stomped {} (+{} score)",
-                              es.GetName(), es.GetScoreWorth());
+                    LOG_DEBUG("Stomped {} (+{} score)", es.GetName(),
+                              es.GetScoreWorth());
                 }
             } else if (!es.IsSquished()) {
                 // Player takes damage from enemy
@@ -652,7 +654,8 @@ void App::CheckPlayerEntityCollision() {
             }
             m_GameState.AddScore(es.GetScoreWorth());
             es.Delete();
-            LOG_DEBUG("Collected {} (+{} score)", es.GetName(), es.GetScoreWorth());
+            LOG_DEBUG("Collected {} (+{} score)", es.GetName(),
+                      es.GetScoreWorth());
         } else if (es.IsCoin()) {
             m_GameState.AddCoin();
             m_GameState.AddScore(es.GetScoreWorth());
@@ -662,7 +665,7 @@ void App::CheckPlayerEntityCollision() {
 }
 
 void App::CleanupDeadEntities() {
-    for (auto it = m_Entities.begin(); it != m_Entities.end(); ) {
+    for (auto it = m_Entities.begin(); it != m_Entities.end();) {
         if (!(*it)->GetState().IsActive()) {
             m_Renderer.RemoveChild(*it);
             it = m_Entities.erase(it);

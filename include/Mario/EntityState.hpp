@@ -8,10 +8,10 @@
 #ifndef MARIO_ENTITY_STATE_HPP
 #define MARIO_ENTITY_STATE_HPP
 
-#include "Mario/GameConfig.hpp"
-#include "Mario/Collider.hpp"
-
 #include <string>
+
+#include "Mario/Collider.hpp"
+#include "Mario/GameConfig.hpp"
 
 namespace Mario {
 
@@ -20,16 +20,15 @@ namespace Mario {
  * Goomba, KoopaTroopa, Mushroom, Star, etc. all use this.
  */
 class EntityState {
-public:
+   public:
     EntityState() = default;
 
     void Init(const std::string& name, float worldX, float worldY,
               int direction, bool isEnemy, bool isPowerUp, bool isCoin,
               bool isStatic, bool doesCollide, bool squishable,
-              bool koopaSquash, bool doesJump, bool isBounce,
-              int scoreWorth, bool isAnimated, int animFrames,
-              int animBuffer, bool oneLoop, bool fromBlock,
-              int powerUpState);
+              bool koopaSquash, bool doesJump, bool isBounce, int scoreWorth,
+              bool isAnimated, int animFrames, int animBuffer, bool oneLoop,
+              bool fromBlock, int powerUpState);
 
     // -- Per-frame update --
     void Tick();
@@ -39,6 +38,7 @@ public:
     float GetY() const { return m_PosY; }
     float GetVelX() const { return m_VelX; }
     double GetVelY() const { return m_VelY; }
+    double GetFallHeight() const { return m_FallHeight; }
     int GetWidth() const { return GameConfig::TILE_SIZE; }
     int GetHeight() const { return m_SizeY; }
     const std::string& GetName() const { return m_Name; }
@@ -59,14 +59,28 @@ public:
     bool IsBounce() const { return m_IsBounce; }
     bool IsFromBlock() const { return m_FromBlock; }
     bool IsDeathActive() const { return m_DeathActive; }
+    bool IsAnimated() const { return m_IsAnimated; }
+    bool IsDead() const { return !m_Active || m_DeathActive || m_Squashed; }
+    float GetWorldX() const { return m_PosX; }
+    float GetWorldY() const { return m_PosY; }
+    AABB GetCollider() const { return GetHitbox(); }
 
     // -- Setters --
     void SetX(float x) { m_PosX = x; }
     void SetY(float y) { m_PosY = y; }
+    void SetWorldX(float x) { m_PosX = x; }
+    void SetWorldY(float y) { m_PosY = y; }
     void SetVelX(float vx) { m_VelX = vx; }
     void SetVelY(double vy) { m_VelY = vy; }
     void SetGrounded(bool g) { m_IsGrounded = g; }
     void SetActive(bool a) { m_Active = a; }
+    void SetDirection(int d) { m_Direction = d; }
+    void SetFallHeight(double h) { m_FallHeight = h; }
+    void AdvanceAnimationFrame() {
+        if (m_IsAnimated && ++m_CurrentFrame >= m_AnimFrames) {
+            m_CurrentFrame = 0;
+        }
+    }
 
     // -- Actions --
     void FlipDirection();
@@ -81,7 +95,7 @@ public:
     // -- Gravity --
     float ApplyGravity();
 
-private:
+   private:
     std::string m_Name;
     float m_PosX = 0.0f;
     float m_PosY = 0.0f;
@@ -89,7 +103,7 @@ private:
     double m_VelY = 0.0;
     double m_FallHeight = 0.0;
     int m_SizeY = GameConfig::TILE_SIZE;
-    int m_Direction = 1; // 0=Left, 1=Right, 2=None
+    int m_Direction = 1;  // 0=Left, 1=Right, 2=None
 
     bool m_Active = true;
     bool m_IsEnemy = false;
@@ -121,6 +135,6 @@ private:
     int m_ActiveCounter = 0;
 };
 
-} // namespace Mario
+}  // namespace Mario
 
-#endif // MARIO_ENTITY_STATE_HPP
+#endif  // MARIO_ENTITY_STATE_HPP

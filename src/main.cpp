@@ -5,7 +5,6 @@
  * @inheritance None
  */
 #include "App.hpp"
-
 #include "Core/Context.hpp"
 
 int main(int, char**) {
@@ -21,6 +20,8 @@ int main(int, char**) {
             case App::State::TITLE:
             case App::State::LOADING:
             case App::State::PLAYING:
+            case App::State::FLAGPOLE:
+            case App::State::PIPE_WARP:
             case App::State::DEATH:
             case App::State::GAME_OVER:
             case App::State::ESC_MENU:

@@ -57,6 +57,63 @@ classDiagram
     Block <|-- MovingPlatform : 繼承
 ```
 
+---
+
+## 一-補：Phase 4 行為策略模式 (Strategy Pattern for Behaviors)
+
+Phase 4 實作了**策略模式**，讓實體的行為邏輯獨立於實體類別本身。這使得敵人、道具、火球的 AI 都能動態切換。
+
+```mermaid
+classDiagram
+    direction TB
+
+    class IEntityBehavior["IEntityBehavior (接口)"] {
+        +Update(state, level, player, timer)*
+        +OnPlayerCollision(state, player, isFromAbove)*
+        +Clone() Behavior*
+        +GetName() string*
+    }
+
+    class DefaultEntityBehavior["DefaultEntityBehavior"] {
+        +被動實體（金幣、道具）
+        +不主動行動
+    }
+
+    class EnemyBehavior["EnemyBehavior"] {
+        +巡邏邏輯
+        +碰撞方向轉向
+        +類型: Goomba, Koopa, Shell
+    }
+
+    class ItemBehavior["ItemBehavior"] {
+        +橫向移動＋彈跳
+        +類型: Mushroom, Star, etc
+    }
+
+    class FireballBehavior["FireballBehavior"] {
+        +拋物線軌跡
+        +類型: Player / Bowser
+    }
+
+    class BowserBehavior["BowserBehavior"] {
+        +Boss AI 多階段
+        +巡邏→火球→跳躍→敗北
+    }
+
+    %% 繼承關係
+    IEntityBehavior <|.. DefaultEntityBehavior : 實作
+    IEntityBehavior <|.. EnemyBehavior : 實作
+    IEntityBehavior <|.. ItemBehavior : 實作
+    IEntityBehavior <|.. FireballBehavior : 實作
+    IEntityBehavior <|.. BowserBehavior : 實作
+```
+
+### 行為系統的優勢
+
+- **策略模式**：實體行為獨立，易於新增敵人類型
+- **複合性**：多個實體合營同一個行為類別
+- **可測試性**：行為邏輯與渲染分離
+
 ### 已實作類別說明
 
 | 類別 | 繼承自 | 角色 (MVC) | 說明 |
@@ -78,6 +135,12 @@ classDiagram
 | `Collider (AABB)` | None | Data | Axis-aligned bounding box |
 | `EntityDef / BlockDef` | None | Data | CSV lookup data structures |
 | `SpritePathResolver` | None | Utility | Sprite path name builder |
+| **IEntityBehavior** | **None** | **Interface** | **Strategy pattern base for entity AI** |
+| **DefaultEntityBehavior** | **IEntityBehavior** | **Strategy** | **Passive entities (coins, power-ups)** |
+| **EnemyBehavior** | **IEntityBehavior** | **Strategy** | **Goomba & Koopa Troopa patrol AI** |
+| **ItemBehavior** | **IEntityBehavior** | **Strategy** | **Power-up bouncing behavior** |
+| **FireballBehavior** | **IEntityBehavior** | **Strategy** | **Projectile trajectory & collision** |
+| **BowserBehavior** | **IEntityBehavior** | **Strategy** | **Boss AI (8-4 duel phases)** |
 
 ---
 

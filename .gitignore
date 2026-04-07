@@ -500,12 +500,18 @@ docs/html/
 
 
 # my gitignore
+
+error.log
+
+
 Agent.md
 Constructs.md
 Refactor.md
 
 implementation_plan_8-4.md
 8-4_map_generation_guide.md
+
+PHASE4_BEHAVIORS_SUMMARY.md
 
 
 _reference_code/
