@@ -63,7 +63,10 @@ class UIManager {
 
     // Font path and size
     std::string m_FontPath = std::string(RESOURCE_DIR) + "/Font/mario.ttf";
-    int m_FontSize = 24;
+    int m_FontSize = 16;  // Adjusted for 1280x720 resolution
+
+    // HUD Background (black rectangle behind HUD text)
+    std::shared_ptr<Util::GameObject> m_HUDBackground;
 
     // HUD Text Elements
     std::shared_ptr<UIText> m_HeaderMario;

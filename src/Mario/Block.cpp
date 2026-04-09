@@ -7,12 +7,12 @@
  * @inheritance Util::GameObject -> Block
  */
 #include "Mario/Block.hpp"
-#include "Mario/SpritePathResolver.hpp"
-
-#include "Util/Logger.hpp"
 
 #include <cmath>
 #include <fstream>
+
+#include "Mario/SpritePathResolver.hpp"
+#include "Util/Logger.hpp"
 
 namespace Mario {
 
@@ -31,12 +31,12 @@ static void GridToScreen(int gridX, int gridY, float cameraOffset,
     float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
     screenY = levelHalfH -
               (static_cast<float>(gridY * GameConfig::TILE_SIZE) +
-               GameConfig::TILE_SIZE / 2.0f) + GameConfig::RENDER_Y_OFFSET;
+               GameConfig::TILE_SIZE / 2.0f) +
+              GameConfig::RENDER_Y_OFFSET;
 }
 
 Block::Block(int blockID, int gridX, int gridY, const BlockDef& def)
     : m_BlockID(blockID), m_GridX(gridX), m_GridY(gridY), m_Def(def) {
-
     m_Solid = def.solid;
 
     // Special case: multi-hit coin block (ID 5 in reference)
@@ -48,6 +48,8 @@ Block::Block(int blockID, int gridX, int gridY, const BlockDef& def)
     float sx, sy;
     GridToScreen(gridX, gridY, 0.0f, sx, sy);
     m_Transform.translation = {sx, sy};
+    // Initialize scale factor based on GameConfig
+    m_Transform.scale = {GameConfig::DRAW_SCALE, GameConfig::DRAW_SCALE};
 
     // Set Z-index based on whether it's background or foreground
     SetZIndex(def.background ? GameConfig::Z_BACKGROUND : GameConfig::Z_BLOCK);
@@ -64,7 +66,8 @@ void Block::SetupSprite() {
 
     // Try to load the block sprite
     try {
-        std::string path = SpritePathResolver::GetBlockSpritePath(m_Def.name, 0);
+        std::string path =
+            SpritePathResolver::GetBlockSpritePath(m_Def.name, 0);
         // Verify file exists before loading (avoid PTSD checkerboard)
         std::ifstream test(path);
         if (!test.good()) {
@@ -87,8 +90,8 @@ void Block::SetupSprite() {
     // Load hit sprite if available
     if (!m_Def.hitSpriteName.empty()) {
         try {
-            std::string hitPath = SpritePathResolver::GetBlockSpritePath(
-                m_Def.hitSpriteName, 0);
+            std::string hitPath =
+                SpritePathResolver::GetBlockSpritePath(m_Def.hitSpriteName, 0);
             std::ifstream test(hitPath);
             if (test.good()) {
                 m_HitSprite = std::make_shared<Util::Image>(hitPath);
@@ -120,7 +123,7 @@ void Block::Update(float cameraOffset) {
     // Block animation (e.g., question block shimmer)
     if (m_Def.animated && !m_IsHit) {
         m_AnimTimer++;
-        if (m_AnimTimer >= 10) { // Change frame every 10 ticks
+        if (m_AnimTimer >= 10) {  // Change frame every 10 ticks
             m_AnimTimer = 0;
             m_CurrentFrame = (m_CurrentFrame + 1) % (m_Def.animationFrames + 1);
             try {
@@ -182,9 +185,8 @@ AABB Block::GetAABB() const {
     // AABB uses grid-based coordinates (for collision, not screen)
     float x = GetWorldX();
     float y = GetWorldY();
-    return AABB::FromPosSize(x, y,
-        static_cast<float>(GameConfig::TILE_SIZE),
-        static_cast<float>(GameConfig::TILE_SIZE));
+    return AABB::FromPosSize(x, y, static_cast<float>(GameConfig::TILE_SIZE),
+                             static_cast<float>(GameConfig::TILE_SIZE));
 }
 
 std::string Block::GetSpawnContents(int playerState) const {
@@ -197,4 +199,4 @@ std::string Block::GetSpawnContents(int playerState) const {
     return m_Def.contents;
 }
 
-} // namespace Mario
+}  // namespace Mario

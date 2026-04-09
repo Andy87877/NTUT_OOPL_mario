@@ -30,6 +30,7 @@ UIManager::UIManager(GameStateManager* gameState) : m_GameState(gameState) {
 void UIManager::InitHUD() {
     auto colorWhite = Util::Color::FromRGB(255, 255, 255);
 
+    // --- Initialize HUD Text Elements ---
     m_HeaderMario =
         std::make_shared<UIText>(m_FontPath, m_FontSize, "MARIO", colorWhite);
     m_HeaderWorld =
@@ -37,11 +38,11 @@ void UIManager::InitHUD() {
     m_HeaderTime =
         std::make_shared<UIText>(m_FontPath, m_FontSize, "TIME", colorWhite);
 
-    // Values
+    // Values matching C# format exactly
     m_ScoreText =
         std::make_shared<UIText>(m_FontPath, m_FontSize, "000000", colorWhite);
-    m_CoinsText =
-        std::make_shared<UIText>(m_FontPath, m_FontSize, "x 00", colorWhite);
+    m_CoinsText = std::make_shared<UIText>(m_FontPath, m_FontSize, "x00",
+                                           colorWhite);  // No space!
     m_WorldText =
         std::make_shared<UIText>(m_FontPath, m_FontSize, "1-1", colorWhite);
     m_TimeText =
@@ -129,28 +130,54 @@ void UIManager::Update(State currentState, int escMenuSelection) {
 }
 
 void UIManager::UpdateHUD() {
-    float topY = 660.0f;  // Window is 720
-    float btmY = 630.0f;
+    // HUD layout for 1280x720 PTSD window
+    // Window dimensions: 1280x720
+    // PTSD coordinate system: center (0,0), left=-640, right=640, top=360,
+    // bottom=-360
 
-    m_HeaderMario->SetPosition(100.0f, topY);
-    m_ScoreText->SetPosition(100.0f, btmY);
+    // Screen coordinates in pixels: (0-1280, 0-720)
+    // Conversion to PTSD: ptsd_x = screen_x - 640, ptsd_y = 360 - screen_y
 
-    // Formatting score to 6 digits zero-padded
+    // --- MARIO Label & Score (Far Left) ---
+    float marioHeaderX = 140.0f;  // shifted right
+    float marioHeaderY = 16.0f;   // pixels from top
+    float marioScoreY = 32.0f;
+
+    m_HeaderMario->SetPosition(marioHeaderX - 640.0f, 360.0f - marioHeaderY);
+    m_ScoreText->SetPosition(marioHeaderX - 640.0f, 360.0f - marioScoreY);
+
     char scoreStr[10];
     snprintf(scoreStr, sizeof(scoreStr), "%06d", m_GameState->GetScore());
     m_ScoreText->SetTextContent(scoreStr);
 
-    m_CoinsText->SetPosition(350.0f, btmY);
+    // --- COINS (Left-Center) ---
+    float coinsX = 480.0f;  // shifted right
+    float coinsY = 32.0f;
+
+    m_CoinsText->SetPosition(coinsX - 640.0f, 360.0f - coinsY);
     char coinStr[10];
-    snprintf(coinStr, sizeof(coinStr), "x %02d", m_GameState->GetCoins());
+    snprintf(coinStr, sizeof(coinStr), "x%02d", m_GameState->GetCoins());
     m_CoinsText->SetTextContent(coinStr);
 
-    m_HeaderWorld->SetPosition(700.0f, topY);
-    m_WorldText->SetPosition(710.0f, btmY);
+    // --- WORLD Label & Level (Center-Right) ---
+    float worldHeaderX = 840.0f;  // shifted right
+    float worldHeaderY = 16.0f;
+    float worldLevelX = 860.0f;
+    float worldLevelY = 32.0f;
+
+    m_HeaderWorld->SetPosition(worldHeaderX - 640.0f, 360.0f - worldHeaderY);
+    m_WorldText->SetPosition(worldLevelX - 640.0f, 360.0f - worldLevelY);
     m_WorldText->SetTextContent(m_GameState->GetLevelName());
 
-    m_HeaderTime->SetPosition(1000.0f, topY);
-    m_TimeText->SetPosition(1010.0f, btmY);
+    // --- TIME Label & Value (Far Right) ---
+    float timeHeaderX = 1100.0f;  // pixels from left
+    float timeHeaderY = 16.0f;
+    float timeValueX = 1115.0f;
+    float timeValueY = 32.0f;
+
+    m_HeaderTime->SetPosition(timeHeaderX - 640.0f, 360.0f - timeHeaderY);
+    m_TimeText->SetPosition(timeValueX - 640.0f, 360.0f - timeValueY);
+
     char timeStr[10];
     snprintf(timeStr, sizeof(timeStr), "%03d", m_GameState->GetTimeRemaining());
     m_TimeText->SetTextContent(timeStr);
@@ -159,44 +186,47 @@ void UIManager::UpdateHUD() {
 void UIManager::UpdateTitleScreen() {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("SUPER MARIO BROS");
-    m_CenterLabel->SetPosition(400.0f, 400.0f);  // Centerish for 1280x720
+    m_CenterLabel->SetPosition(0.0f,
+                               100.0f);  // Center horizontally, upper area
 
     m_SubLabel->SetVisible(true);
     m_SubLabel->SetTextContent("PRESS ENTER TO START");
-    m_SubLabel->SetPosition(480.0f, 250.0f);
+    m_SubLabel->SetPosition(0.0f, -50.0f);  // Center horizontally, lower area
 }
 
 void UIManager::UpdateLoadingScreen() {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("WORLD " + m_GameState->GetLevelName());
-    m_CenterLabel->SetPosition(500.0f, 400.0f);
+    m_CenterLabel->SetPosition(-140.0f, 0.0f);  // Slightly left of center
 
     m_SubLabel->SetVisible(true);
     m_SubLabel->SetTextContent("x  " + std::to_string(m_GameState->GetLives()));
-    m_SubLabel->SetPosition(550.0f, 300.0f);
+    m_SubLabel->SetPosition(-90.0f, -100.0f);  // Below the WORLD label
 }
 
 void UIManager::UpdateGameOverScreen() {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("GAME OVER");
-    m_CenterLabel->SetPosition(500.0f, 360.0f);
+    m_CenterLabel->SetPosition(0.0f, 0.0f);  // Centered on screen
 }
 
 void UIManager::UpdateESCMenu(int selection) {
     m_SubLabel->SetVisible(true);
     m_SubLabel->SetTextContent("PAUSED");
-    m_SubLabel->SetPosition(580.0f, 500.0f);
+    m_SubLabel->SetPosition(-60.0f, 200.0f);  // Upper center area
 
-    float startY = 400.0f;
+    float startY = 100.0f;
     for (size_t i = 0; i < m_MenuTexts.size(); ++i) {
         m_MenuTexts[i]->SetVisible(true);
-        m_MenuTexts[i]->SetPosition(550.0f, startY - (i * 60.0f));
+        m_MenuTexts[i]->SetPosition(
+            0.0f, startY - (i * 60.0f));  // Centered, spread downward
 
         if ((int)i == selection) {
             m_MenuTexts[i]->SetTextColor(
-                Util::Color::FromRGB(255, 0, 0));  // Highlight Selection
+                Util::Color::FromRGB(255, 0, 0));  // Highlight Selection (RED)
         } else {
-            m_MenuTexts[i]->SetTextColor(Util::Color::FromRGB(255, 255, 255));
+            m_MenuTexts[i]->SetTextColor(
+                Util::Color::FromRGB(255, 255, 255));  // White
         }
     }
 }

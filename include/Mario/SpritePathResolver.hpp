@@ -15,7 +15,7 @@ namespace Mario {
  * All sprite images are stored under Resources/Sprites/.
  */
 class SpritePathResolver {
-public:
+   public:
     /**
      * Get the full path to a sprite image.
      * @param name Sprite name (e.g., "Ground", "MarioIdle")
@@ -41,8 +41,8 @@ public:
      * @param frame Frame number
      * @return Full path string
      */
-    static std::string GetPlayerSpritePath(const std::string& prefix,
-                                           int state, int frame);
+    static std::string GetPlayerSpritePath(const std::string& prefix, int state,
+                                           int frame);
 
     /**
      * Get path for an entity sprite.
@@ -53,10 +53,19 @@ public:
     static std::string GetEntitySpritePath(const std::string& entityName,
                                            int frame = 0);
 
-private:
+   private:
     static const std::string SPRITE_BASE_PATH;
+
+    /**
+     * Processes the image at the given path to remove its background color
+     * (White), saves it to a cache file, and returns the path to the new cache
+     * file. Replicates the C# MakeTransparent(Color.White) logic.
+     * @param originalPath Full path to the original sprite.
+     * @return Full path to the transparent cached sprite.
+     */
+    static std::string ProcessTransparent(const std::string& originalPath);
 };
 
-} // namespace Mario
+}  // namespace Mario
 
-#endif // MARIO_SPRITE_PATH_RESOLVER_HPP
+#endif  // MARIO_SPRITE_PATH_RESOLVER_HPP

@@ -44,6 +44,12 @@ classDiagram
         +承載玩家移動
     }
 
+    class UIText["UIText (UI 文字)"] {
+        +包裝 Util::Text
+        +設置位置、顏色、內容
+        +HUD、選單、浮動文字基礎
+    }
+
     class UIElement["UI特效類"] {
         +浮動文字 (FloatingText)
         +死亡畫面 (DeathScreen)
@@ -53,6 +59,7 @@ classDiagram
     GameObject <|-- Player : 繼承 (View layer)
     GameObject <|-- Entity : 繼承
     GameObject <|-- Block : 繼承
+    GameObject <|-- UIText : 繼承
     GameObject <|-- UIElement : 繼承
     Block <|-- MovingPlatform : 繼承
 ```
@@ -135,12 +142,15 @@ classDiagram
 | `Collider (AABB)` | None | Data | Axis-aligned bounding box |
 | `EntityDef / BlockDef` | None | Data | CSV lookup data structures |
 | `SpritePathResolver` | None | Utility | Sprite path name builder |
+| `UIText` | `Util::GameObject` | View | Wraps Util::Text, renders HUD/menu text |
+| `FloatingText` | None | Component | Manages floating score text with upward motion |
 | **IEntityBehavior** | **None** | **Interface** | **Strategy pattern base for entity AI** |
 | **DefaultEntityBehavior** | **IEntityBehavior** | **Strategy** | **Passive entities (coins, power-ups)** |
 | **EnemyBehavior** | **IEntityBehavior** | **Strategy** | **Goomba & Koopa Troopa patrol AI** |
 | **ItemBehavior** | **IEntityBehavior** | **Strategy** | **Power-up bouncing behavior** |
 | **FireballBehavior** | **IEntityBehavior** | **Strategy** | **Projectile trajectory & collision** |
 | **BowserBehavior** | **IEntityBehavior** | **Strategy** | **Boss AI (8-4 duel phases)** |
+| `UIManager` | None | Manager | HUD/Menu rendering, floating text control, scene UI state |
 
 ---
 

@@ -8,12 +8,12 @@
  * @inheritance Util::GameObject -> Player
  */
 #include "Mario/Player.hpp"
-#include "Mario/SpritePathResolver.hpp"
-
-#include "Util/Logger.hpp"
 
 #include <cmath>
 #include <fstream>
+
+#include "Mario/SpritePathResolver.hpp"
+#include "Util/Logger.hpp"
 
 namespace Mario {
 
@@ -50,15 +50,17 @@ void Player::UpdateView(float cameraOffset) {
     float playerCenterX = m_State.GetX() + GameConfig::TILE_SIZE / 2.0f;
     float playerCenterY = m_State.GetY() + m_State.GetHeight() / 2.0f;
 
-    // Subtract half window width to convert from world-left-origin to PTSD-center-origin
-    float screenX = playerCenterX - cameraOffset - GameConfig::WINDOW_WIDTH / 2.0f;
+    // Subtract half window width to convert from world-left-origin to
+    // PTSD-center-origin
+    float screenX =
+        playerCenterX - cameraOffset - GameConfig::WINDOW_WIDTH / 2.0f;
     float screenY = levelHalfH - playerCenterY + GameConfig::RENDER_Y_OFFSET;
 
     m_Transform.translation = {screenX, screenY};
 
-    // Flip sprite based on facing direction
-    float absScaleX = std::abs(m_Transform.scale.x);
-    if (absScaleX < 0.01f) absScaleX = 1.0f;
+    // Flip sprite based on facing direction, maintaining scale
+    float absScaleX = GameConfig::DRAW_SCALE;
+    m_Transform.scale.y = GameConfig::DRAW_SCALE;
 
     if (m_State.IsFacingRight()) {
         m_Transform.scale.x = absScaleX;
@@ -81,21 +83,34 @@ std::string Player::BuildSpritePath() const {
     // Map power state to C# state number
     int spriteState = 0;
     switch (m_State.GetPowerState()) {
-        case PowerState::SMALL:      spriteState = 0; break;
-        case PowerState::BIG:        spriteState = 1; break;
-        case PowerState::FIRE:       spriteState = 2; break;
-        case PowerState::SMALL_STAR: spriteState = 3; break;
-        case PowerState::BIG_STAR:   spriteState = 4; break;
-        default:                     spriteState = 0; break;
+        case PowerState::SMALL:
+            spriteState = 0;
+            break;
+        case PowerState::BIG:
+            spriteState = 1;
+            break;
+        case PowerState::FIRE:
+            spriteState = 2;
+            break;
+        case PowerState::SMALL_STAR:
+            spriteState = 3;
+            break;
+        case PowerState::BIG_STAR:
+            spriteState = 4;
+            break;
+        default:
+            spriteState = 0;
+            break;
     }
 
     // C# Walk animation uses frames 1, 2, 3 (not 0, 1, 2)
     int spriteFrame = frame;
     if (prefix == "Right") {
-        spriteFrame = frame + 1; // C# starts walk frames at 1
+        spriteFrame = frame + 1;  // C# starts walk frames at 1
     }
 
-    return SpritePathResolver::GetPlayerSpritePath(prefix, spriteState, spriteFrame);
+    return SpritePathResolver::GetPlayerSpritePath(prefix, spriteState,
+                                                   spriteFrame);
 }
 
 std::shared_ptr<Util::Image> Player::GetOrLoadSprite(const std::string& path) {
@@ -118,12 +133,13 @@ std::shared_ptr<Util::Image> Player::GetOrLoadSprite(const std::string& path) {
 
     // Fallback to basic idle sprite
     LOG_WARN("Player sprite not found: {}, trying fallback", path);
-    std::string fallback = SpritePathResolver::GetPlayerSpritePath("Idle", 0, 0);
+    std::string fallback =
+        SpritePathResolver::GetPlayerSpritePath("Idle", 0, 0);
     std::ifstream test2(fallback);
     if (test2.good()) {
         try {
             auto sprite = std::make_shared<Util::Image>(fallback);
-            m_SpriteCache[path] = sprite; // Cache fallback under original key
+            m_SpriteCache[path] = sprite;  // Cache fallback under original key
             return sprite;
         } catch (...) {
             LOG_ERROR("Failed to load fallback sprite: {}", fallback);
@@ -134,4 +150,4 @@ std::shared_ptr<Util::Image> Player::GetOrLoadSprite(const std::string& path) {
     return nullptr;
 }
 
-} // namespace Mario
+}  // namespace Mario

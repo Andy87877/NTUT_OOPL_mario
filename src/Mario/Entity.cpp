@@ -7,27 +7,23 @@
  * @inheritance Util::GameObject -> Entity
  */
 #include "Mario/Entity.hpp"
-#include "Mario/SpritePathResolver.hpp"
-
-#include "Util/Logger.hpp"
 
 #include <cmath>
 #include <fstream>
 
+#include "Mario/SpritePathResolver.hpp"
+#include "Util/Logger.hpp"
+
 namespace Mario {
 
-Entity::Entity(const EntityDef& def, float worldX, float worldY,
-               int direction, bool fromBlock) : m_Def(def) {
-
-    m_State.Init(
-        def.name, worldX, worldY, direction,
-        def.isEnemy, def.isPowerUp, def.isCoin,
-        def.isStatic, def.doesCollide, def.squishable,
-        def.koopaSquash, def.doesJump, def.isBounce,
-        def.scoreWorth, def.isAnimated, def.animFrames,
-        def.animBuffer, def.oneLoop, fromBlock,
-        def.powerUpState
-    );
+Entity::Entity(const EntityDef& def, float worldX, float worldY, int direction,
+               bool fromBlock)
+    : m_Def(def) {
+    m_State.Init(def.name, worldX, worldY, direction, def.isEnemy,
+                 def.isPowerUp, def.isCoin, def.isStatic, def.doesCollide,
+                 def.squishable, def.koopaSquash, def.doesJump, def.isBounce,
+                 def.scoreWorth, def.isAnimated, def.animFrames, def.animBuffer,
+                 def.oneLoop, fromBlock, def.powerUpState);
 
     SetZIndex(GameConfig::Z_ENTITY);
     UpdateView(0.0f);
@@ -65,8 +61,8 @@ void Entity::UpdateView(float cameraOffset) {
     m_Transform.translation = {screenX, screenY};
 
     // Flip based on direction (left-facing enemies should be flipped)
-    float absScaleX = std::abs(m_Transform.scale.x);
-    if (absScaleX < 0.01f) absScaleX = 1.0f;
+    float absScaleX = GameConfig::DRAW_SCALE;
+    m_Transform.scale.y = GameConfig::DRAW_SCALE;
 
     // Direction 0=Left (flip), 1=Right (normal)
     if (m_State.GetDirection() == 0) {
@@ -86,7 +82,7 @@ std::string Entity::BuildSpritePath() const {
 
     // Animated entities: name + frame (1-indexed in C#)
     if (m_Def.isAnimated) {
-        int frame = m_State.GetAnimFrame() + 1; // C# uses 1-indexed frames
+        int frame = m_State.GetAnimFrame() + 1;  // C# uses 1-indexed frames
         return SpritePathResolver::GetEntitySpritePath(name, frame);
     }
 
@@ -115,4 +111,4 @@ std::shared_ptr<Util::Image> Entity::GetOrLoadSprite(const std::string& path) {
     return nullptr;
 }
 
-} // namespace Mario
+}  // namespace Mario

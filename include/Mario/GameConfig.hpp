@@ -16,21 +16,23 @@ namespace Mario {
  */
 struct GameConfig {
     // -- Tile & Scale --
-    static constexpr int TILE_SIZE =
-        32;  // Pixels per tile (scaled from 16px originals)
-    static constexpr float SCALE_FACTOR = 2.0f;  // Sprite scale multiplier
-    static constexpr int ORIGINAL_TILE = 16;     // Original NES tile size
+    static constexpr int TILE_SIZE = 45;  // 720 / 16 = 45 pixels per tile to
+                                          // exactly fill the screen vertically
+    static constexpr float SCALE_FACTOR = 2.8125f;  // 45 / 16
+    static constexpr float DRAW_SCALE =
+        45.0f / 32.0f;  // Scale 32px sprites to 45px slots
+    static constexpr int ORIGINAL_TILE = 16;  // Original NES tile size
 
     // -- PTSD Window (must match PTSD config.hpp) --
     static constexpr int WINDOW_WIDTH = 1280;
     static constexpr int WINDOW_HEIGHT = 720;
 
     // -- Viewport (in tiles, based on window) --
-    static constexpr int VIEWPORT_TILES_X = WINDOW_WIDTH / TILE_SIZE;  // 40
-    static constexpr int VIEWPORT_TILES_Y =
-        WINDOW_HEIGHT / TILE_SIZE;  // 22 (720/32)
-    static constexpr float RENDER_Y_OFFSET =
-        -104.0f;  // Offset to align 512px level bottom to 720px window bottom
+    static constexpr int VIEWPORT_TILES_X = WINDOW_WIDTH / TILE_SIZE;
+    static constexpr int VIEWPORT_TILES_Y = WINDOW_HEIGHT / TILE_SIZE;
+
+    // Perfect fit means 0 offset
+    static constexpr float RENDER_Y_OFFSET = 0.0f;
 
     // -- Level dimensions --
     static constexpr int LEVEL_ROWS = 16;  // NES levels are 16 tiles tall
