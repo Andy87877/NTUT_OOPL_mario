@@ -35,9 +35,8 @@ void FireballBehavior::Update(EntityState& state, const Level& level,
     state.SetVelY(velY);
     state.SetWorldY(state.GetWorldY() + yDelta);
 
-    // Horizontal movement
-    float xDelta = state.GetVelX() * (state.GetDirection() == 1 ? 1 : -1);
-    state.SetWorldX(state.GetWorldX() + xDelta);
+    // Horizontal movement (VelX already has direction baked in)
+    state.SetWorldX(state.GetWorldX() + state.GetVelX());
 
     // Check ground collision for bouncing
     AABB footprint = state.GetCollider();

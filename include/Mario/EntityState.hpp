@@ -39,7 +39,7 @@ class EntityState {
     float GetVelX() const { return m_VelX; }
     double GetVelY() const { return m_VelY; }
     double GetFallHeight() const { return m_FallHeight; }
-    int GetWidth() const { return GameConfig::TILE_SIZE; }
+    int GetWidth() const { return m_SizeX; }
     int GetHeight() const { return m_SizeY; }
     const std::string& GetName() const { return m_Name; }
     int GetDirection() const { return m_Direction; }
@@ -76,6 +76,8 @@ class EntityState {
     void SetActive(bool a) { m_Active = a; }
     void SetDirection(int d) { m_Direction = d; }
     void SetFallHeight(double h) { m_FallHeight = h; }
+    void SetSizeX(int sizeX) { m_SizeX = sizeX; }
+    void SetSizeY(int sizeY) { m_SizeY = sizeY; }
     void AdvanceAnimationFrame() {
         if (m_IsAnimated && ++m_CurrentFrame >= m_AnimFrames) {
             m_CurrentFrame = 0;
@@ -102,6 +104,7 @@ class EntityState {
     float m_VelX = 0.0f;
     double m_VelY = 0.0;
     double m_FallHeight = 0.0;
+    int m_SizeX = GameConfig::TILE_SIZE;
     int m_SizeY = GameConfig::TILE_SIZE;
     int m_Direction = 1;  // 0=Left, 1=Right, 2=None
 

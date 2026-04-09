@@ -37,10 +37,10 @@ void EnemyBehavior::Update(EntityState& state, const Level& level,
     state.SetVelY(velY);
     state.SetWorldY(state.GetWorldY() + yDelta);
 
-    // Horizontal movement based on direction
+    // Horizontal movement: VelX already includes direction (set in
+    // EntityState::Init)
     if (!state.IsStatic()) {
-        float xDelta = state.GetVelX() * (state.GetDirection() == 1 ? 1 : -1);
-        state.SetWorldX(state.GetWorldX() + xDelta);
+        state.SetWorldX(state.GetWorldX() + state.GetVelX());
     }
 
     // Simple patrol AI: walk until hitting a wall, then turn around
@@ -60,32 +60,58 @@ void EnemyBehavior::Update(EntityState& state, const Level& level,
 
     state.SetGrounded(isGroundedNow);
 
-    // Check for wall collision by looking at direction of movement
-    AABB wallCheck = state.GetCollider();
-    if (state.GetDirection() == 1) {
-        wallCheck.left = wallCheck.right;
-        wallCheck.right += state.GetVelX();
-    } else {
-        wallCheck.right = wallCheck.left;
-        wallCheck.left -= std::abs(state.GetVelX());
-    }
+    // Check for wall collision using the same logic as CollisionManager for
+    // Mario Only change direction when actually colliding with a solid block
+    AABB enemyBox = state.GetCollider();
+    int topTile = static_cast<int>(enemyBox.top) / GameConfig::TILE_SIZE;
+    int bottomTile =
+        static_cast<int>(enemyBox.bottom - 1) / GameConfig::TILE_SIZE;
 
     bool hitWall = false;
-    for (const auto& block : blocks) {
-        if (block && wallCheck.Intersects(block->GetAABB())) {
-            hitWall = true;
-            break;
+
+    // Check collision in the direction of movement
+    if (state.GetDirection() == 1) {
+        // Moving right: check right side of enemy
+        int rightTile =
+            static_cast<int>(enemyBox.right) / GameConfig::TILE_SIZE;
+        for (int y = topTile; y <= bottomTile; y++) {
+            const Block* block = level.GetBlockAt(rightTile, y);
+            if (block && block->IsSolid()) {
+                AABB blockBox = block->GetAABB();
+                if (enemyBox.Intersects(blockBox)) {
+                    hitWall = true;
+                    break;
+                }
+            }
+        }
+    } else {
+        // Moving left: check left side of enemy
+        int leftTile = static_cast<int>(enemyBox.left) / GameConfig::TILE_SIZE;
+        for (int y = topTile; y <= bottomTile; y++) {
+            const Block* block = level.GetBlockAt(leftTile, y);
+            if (block && block->IsSolid()) {
+                AABB blockBox = block->GetAABB();
+                if (enemyBox.Intersects(blockBox)) {
+                    hitWall = true;
+                    break;
+                }
+            }
         }
     }
 
-    // Change direction if hit wall or no ground
-    if (hitWall || !isGroundedNow) {
+    // Change direction if hit wall or no ground (fell off platform)
+    // But only allow direction change every 15 frames to prevent rapid flipping
+    if ((hitWall || !isGroundedNow) &&
+        (m_DirectionChangeCounter - m_LastDirectionChangeFrame) > 15) {
         int newDir = state.GetDirection();
         if (newDir == 1) {
             state.SetDirection(0);  // Change to left
         } else {
             state.SetDirection(1);  // Change to right
         }
+        // Also reverse velocity when changing direction
+        state.SetVelX(-state.GetVelX());
+        m_LastDirectionChangeFrame = m_DirectionChangeCounter;
     }
 
     // Update animation frame

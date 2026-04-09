@@ -213,7 +213,7 @@ void UIManager::UpdateGameOverScreen() {
 void UIManager::UpdateESCMenu(int selection) {
     m_SubLabel->SetVisible(true);
     m_SubLabel->SetTextContent("PAUSED");
-    m_SubLabel->SetPosition(-60.0f, 200.0f);  // Upper center area
+    m_SubLabel->SetPosition(0.0f, 280.0f);  // Centered horizontally, above HUD
 
     float startY = 100.0f;
     for (size_t i = 0; i < m_MenuTexts.size(); ++i) {

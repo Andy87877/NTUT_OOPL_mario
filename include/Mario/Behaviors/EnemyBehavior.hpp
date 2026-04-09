@@ -58,7 +58,9 @@ class EnemyBehavior : public IEntityBehavior {
 
    private:
     EnemyType m_Type;
-    int m_DirectionChangeCounter = 0;  // For patrol behavior pattern
+    int m_DirectionChangeCounter = 0;  // Track direction change counter
+    int m_LastDirectionChangeFrame =
+        -100;  // Track last direction change to prevent rapid flipping
 };
 
 }  // namespace Mario

@@ -6,19 +6,20 @@
  * @inheritance None (pure Model)
  */
 #include "Mario/EntityState.hpp"
-#include "Mario/PhysicsEngine.hpp"
 
 #include <cmath>
+
+#include "Mario/PhysicsEngine.hpp"
 
 namespace Mario {
 
 void EntityState::Init(const std::string& name, float worldX, float worldY,
-                        int direction, bool isEnemy, bool isPowerUp, bool isCoin,
-                        bool isStatic, bool doesCollide, bool squishable,
-                        bool koopaSquash, bool doesJump, bool isBounce,
-                        int scoreWorth, bool isAnimated, int animFrames,
-                        int animBuffer, bool oneLoop, bool fromBlock,
-                        int powerUpState) {
+                       int direction, bool isEnemy, bool isPowerUp, bool isCoin,
+                       bool isStatic, bool doesCollide, bool squishable,
+                       bool koopaSquash, bool doesJump, bool isBounce,
+                       int scoreWorth, bool isAnimated, int animFrames,
+                       int animBuffer, bool oneLoop, bool fromBlock,
+                       int powerUpState) {
     m_Name = name;
     m_PosX = worldX;
     m_PosY = worldY;
@@ -39,6 +40,7 @@ void EntityState::Init(const std::string& name, float worldX, float worldY,
     m_OneLoop = oneLoop;
     m_FromBlock = fromBlock;
     m_PowerUpState = powerUpState;
+    m_SizeX = GameConfig::TILE_SIZE;
     m_SizeY = GameConfig::TILE_SIZE;
 
     // Offset up if spawned from block (C# line 121: posY -= scaleSize)
@@ -109,8 +111,10 @@ void EntityState::Tick() {
 
 void EntityState::FlipDirection() {
     m_VelX = -m_VelX;
-    if (m_VelX > 0) m_Direction = 1;
-    else if (m_VelX < 0) m_Direction = 0;
+    if (m_VelX > 0)
+        m_Direction = 1;
+    else if (m_VelX < 0)
+        m_Direction = 0;
 }
 
 void EntityState::Squish() {
@@ -118,13 +122,13 @@ void EntityState::Squish() {
         // Koopa turns into shell
         m_Squashed = true;
         m_VelX = 0.0f;
-        m_SquishCounter = m_ActiveCounter + 300; // Shell stays 6 seconds
-        m_DeathActive = false; // Shell doesn't auto-die
+        m_SquishCounter = m_ActiveCounter + 300;  // Shell stays 6 seconds
+        m_DeathActive = false;                    // Shell doesn't auto-die
     } else if (m_Squishable) {
         // Goomba squish
         m_Squashed = true;
         m_VelX = 0.0f;
-        m_SquishCounter = m_ActiveCounter + 30; // Squish sprite for 0.6s
+        m_SquishCounter = m_ActiveCounter + 30;  // Squish sprite for 0.6s
         m_DeathActive = true;
     }
 }
@@ -136,9 +140,7 @@ void EntityState::KickShell(float speed) {
     }
 }
 
-void EntityState::Delete() {
-    m_Active = false;
-}
+void EntityState::Delete() { m_Active = false; }
 
 void EntityState::Jump() {
     m_FallHeight = PhysicsEngine::GetJumpHeight(0);
@@ -155,4 +157,4 @@ float EntityState::ApplyGravity() {
     return PhysicsEngine::ApplyGravity(m_FallHeight, m_VelY, m_IsGrounded);
 }
 
-} // namespace Mario
+}  // namespace Mario

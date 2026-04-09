@@ -21,6 +21,7 @@
 
 #include <cctype>
 #include <fstream>
+#include <map>
 
 #include "Util/Logger.hpp"
 
@@ -150,17 +151,47 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
 }
 
 std::string SpritePathResolver::GetEntitySpritePath(
-    const std::string& entityName, int frame) {
+    const std::string& entityName, int frame, const std::string& levelName) {
     auto resolve = [&]() -> std::string {
+        // Build level-specific sprite path
+        std::string levelDir = SPRITE_BASE_PATH + levelName + "/";
+
+        // Try frame-suffixed version first (for animated sprites)
         if (frame >= 0) {
-            std::string path =
-                SPRITE_BASE_PATH + entityName + std::to_string(frame) + ".png";
+            std::string path = levelDir + entityName + std::to_string(frame) + ".png";
             std::ifstream test(path);
             if (test.good()) return path;
         }
-        return SPRITE_BASE_PATH + entityName + ".png";
+
+        // Fall back to base entity sprite
+        std::string basePath = levelDir + entityName + ".png";
+        std::ifstream test(basePath);
+        if (test.good()) return basePath;
+
+        // If level-specific not found, try main Sprites directory (fallback)
+        if (frame >= 0) {
+            std::string path =
+                SPRITE_BASE_PATH + entityName + std::to_string(frame) + ".png";
+            std::ifstream test2(path);
+            if (test2.good()) return path;
+        }
+        
+        std::string mainPath = SPRITE_BASE_PATH + entityName + ".png";
+        std::ifstream test3(mainPath);
+        if (test3.good()) return mainPath;
+        
+        // If nothing found, return empty string to indicate missing sprite
+        return "";
     };
-    return ProcessTransparent(resolve());
+    
+    std::string path = resolve();
+    if (path.empty()) {
+        LOG_WARN("GetEntitySpritePath: No sprite found for '{}' (frame: {}) in level '{}'",
+                 entityName, frame, levelName);
+        return "";  // Return empty path, caller should handle this
+    }
+    
+    return ProcessTransparent(path);
 }
 
 std::string SpritePathResolver::GetCastleSpritePathByID(int blockID) {

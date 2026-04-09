@@ -83,16 +83,42 @@ void BowserBehavior::UpdatePatrol(EntityState& state, const Level& level,
     float xDelta = moveSpeed * m_PatrolDirection;
     state.SetWorldX(state.GetWorldX() + xDelta);
 
-    // Check for walls to reverse patrol direction
-    AABB wallCheck = state.GetCollider();
-    wallCheck.left +=
-        (m_PatrolDirection > 0 ? wallCheck.right - wallCheck.left : -50);
+    // Check for walls to reverse patrol direction (using grid-based collision
+    // like Mario)
+    AABB bowserBox = state.GetCollider();
+    int topTile = static_cast<int>(bowserBox.top) / GameConfig::TILE_SIZE;
+    int bottomTile =
+        static_cast<int>(bowserBox.bottom - 1) / GameConfig::TILE_SIZE;
 
     bool hitWall = false;
-    for (const auto& block : level.GetAllBlocks()) {
-        if (block && wallCheck.Intersects(block->GetAABB())) {
-            hitWall = true;
-            break;
+
+    // Check collision in the direction of movement
+    if (m_PatrolDirection > 0) {
+        // Moving right: check right side of Bowser
+        int rightTile =
+            static_cast<int>(bowserBox.right) / GameConfig::TILE_SIZE;
+        for (int y = topTile; y <= bottomTile; y++) {
+            const Block* block = level.GetBlockAt(rightTile, y);
+            if (block && block->IsSolid()) {
+                AABB blockBox = block->GetAABB();
+                if (bowserBox.Intersects(blockBox)) {
+                    hitWall = true;
+                    break;
+                }
+            }
+        }
+    } else {
+        // Moving left: check left side of Bowser
+        int leftTile = static_cast<int>(bowserBox.left) / GameConfig::TILE_SIZE;
+        for (int y = topTile; y <= bottomTile; y++) {
+            const Block* block = level.GetBlockAt(leftTile, y);
+            if (block && block->IsSolid()) {
+                AABB blockBox = block->GetAABB();
+                if (bowserBox.Intersects(blockBox)) {
+                    hitWall = true;
+                    break;
+                }
+            }
         }
     }
 
@@ -143,13 +169,41 @@ void BowserBehavior::UpdateJumpAttack(EntityState& state, const Level& level,
         state.SetFallHeight(50.0f);  // High jump
     }
 
-    // Check walls and ground (same as patrol)
-    AABB wallCheck = state.GetCollider();
+    // Check walls and ground (using grid-based collision like Mario)
+    AABB bowserBox = state.GetCollider();
+    int topTile = static_cast<int>(bowserBox.top) / GameConfig::TILE_SIZE;
+    int bottomTile =
+        static_cast<int>(bowserBox.bottom - 1) / GameConfig::TILE_SIZE;
+
     bool hitWall = false;
-    for (const auto& block : level.GetAllBlocks()) {
-        if (block && wallCheck.Intersects(block->GetAABB())) {
-            hitWall = true;
-            break;
+
+    // Check collision in the direction of movement
+    if (m_PatrolDirection > 0) {
+        // Moving right: check right side of Bowser
+        int rightTile =
+            static_cast<int>(bowserBox.right) / GameConfig::TILE_SIZE;
+        for (int y = topTile; y <= bottomTile; y++) {
+            const Block* block = level.GetBlockAt(rightTile, y);
+            if (block && block->IsSolid()) {
+                AABB blockBox = block->GetAABB();
+                if (bowserBox.Intersects(blockBox)) {
+                    hitWall = true;
+                    break;
+                }
+            }
+        }
+    } else {
+        // Moving left: check left side of Bowser
+        int leftTile = static_cast<int>(bowserBox.left) / GameConfig::TILE_SIZE;
+        for (int y = topTile; y <= bottomTile; y++) {
+            const Block* block = level.GetBlockAt(leftTile, y);
+            if (block && block->IsSolid()) {
+                AABB blockBox = block->GetAABB();
+                if (bowserBox.Intersects(blockBox)) {
+                    hitWall = true;
+                    break;
+                }
+            }
         }
     }
 
@@ -161,7 +215,8 @@ void BowserBehavior::UpdateJumpAttack(EntityState& state, const Level& level,
     footprint.bottom += GameConfig::GRAVITY_ACCELERATION;
 
     bool isGrounded = false;
-    for (const auto& block : level.GetAllBlocks()) {
+    const std::vector<std::shared_ptr<Block>>& blocks = level.GetAllBlocks();
+    for (const auto& block : blocks) {
         if (block && footprint.Intersects(block->GetAABB())) {
             isGrounded = true;
             break;

@@ -48,10 +48,12 @@ class SpritePathResolver {
      * Get path for an entity sprite.
      * @param entityName Entity name from EntityList.csv
      * @param frame Frame number
+     * @param levelName Level name for directory mapping (e.g., "1-1", "8-4")
      * @return Full path string
      */
     static std::string GetEntitySpritePath(const std::string& entityName,
-                                           int frame = 0);
+                                           int frame = 0,
+                                           const std::string& levelName = "1-1");
 
     /**
      * Get path for 8-4 castle sprites by block ID (801-904).

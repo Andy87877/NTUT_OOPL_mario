@@ -150,6 +150,12 @@ void App::UpdatePlaying() {
     for (auto& entity : m_Entities) {
         if (!entity->GetState().IsActive()) continue;
 
+        // Entity behavior update (AI/strategy pattern)
+        auto behavior = entity->GetBehavior();
+        if (behavior) {
+            behavior->Update(entity->GetState(), *m_Level, *m_Player, m_Timer);
+        }
+
         // Entity Model tick (movement, animation, gravity)
         entity->GetState().Tick();
 
@@ -367,6 +373,128 @@ void App::LoadLevel(const std::string& levelName) {
     // Spawn entities (Goomba, KoopaTroopa, etc.) from level data
     m_Entities = Mario::EntityFactory::SpawnFromLevel(*m_Level);
 
+    // For 8-4 level, manually spawn Bowser and Princess if not in CSV
+    if (levelName == "8-4") {
+        // Check if Bowser is already in entities
+        bool hasBowser = false, hasPrincess = false;
+        for (const auto& entity : m_Entities) {
+            if (entity->GetState().GetName() == "Bowser") hasBowser = true;
+            if (entity->GetState().GetName() == "Princess") hasPrincess = true;
+        }
+
+        // Manually spawn Bowser at castle position (around column 320, row 8)
+        if (!hasBowser) {
+            float bowserX = 320.0f * Mario::GameConfig::TILE_SIZE;
+            float bowserY = 9.0f * Mario::GameConfig::TILE_SIZE;
+
+            // Try to get Bowser definition from level
+            const Mario::EntityDef* bowserDef = nullptr;
+            const Mario::EntityDef& defFromLevel =
+                m_Level->GetEntityDefByName("Bowser");
+            if (!defFromLevel.name.empty()) {
+                bowserDef = &defFromLevel;
+            } else {
+                // Create a fallback Bowser definition if not found
+                static Mario::EntityDef fallbackBowser{
+                    -1,        // id
+                    "Bowser",  // name
+                    false,     // isPowerUp
+                    true,      // isEnemy
+                    false,     // isCoin
+                    0,         // powerUpState
+                    false,     // isStatic
+                    false,     // isBounce
+                    false,     // fromBlock
+                    100,       // scoreWorth
+                    true,      // isAnimated (4 sprite frames: Bowser1-4)
+                    4,         // animFrames
+                    false,     // doesJump
+                    true,      // doesCollide
+                    false,     // oneLoop
+                    1,         // animBuffer
+                    true,      // squishable
+                    true       // koopaSquash
+                };
+                bowserDef = &fallbackBowser;
+            }
+
+            if (bowserDef && !bowserDef->name.empty()) {
+                LOG_DEBUG(
+                    "Attempting to spawn Bowser with entityDef: name={}, "
+                    "isEnemy={}, isStatic={}",
+                    bowserDef->name, bowserDef->isEnemy, bowserDef->isStatic);
+                auto bowser = Mario::EntityFactory::SpawnEntity(
+                    *bowserDef, bowserX, bowserY, 1, false, levelName);
+                if (bowser) {
+                    m_Entities.push_back(bowser);
+                    LOG_WARN("✓ Successfully spawned Bowser at ({}, {})",
+                             bowserX, bowserY);
+                } else {
+                    LOG_ERROR("✗ SpawnEntity returned nullptr for Bowser!");
+                }
+            } else {
+                LOG_ERROR("✗ bowserDef is null or name is empty!");
+            }
+        }
+
+        // Manually spawn Princess at castle position (around column 320, row
+        // 11)
+        if (!hasPrincess) {
+            float princessX = 325.0f * Mario::GameConfig::TILE_SIZE;
+            float princessY = 10.0f * Mario::GameConfig::TILE_SIZE;
+
+            // Try to get Princess definition from level
+            const Mario::EntityDef* princessDef = nullptr;
+            const Mario::EntityDef& defFromLevel2 =
+                m_Level->GetEntityDefByName("Princess");
+            if (!defFromLevel2.name.empty()) {
+                princessDef = &defFromLevel2;
+            } else {
+                // Create a fallback Princess definition if not found
+                static Mario::EntityDef fallbackPrincess{
+                    -1,          // id
+                    "Princess",  // name
+                    false,       // isPowerUp
+                    false,       // isEnemy
+                    false,       // isCoin
+                    0,           // powerUpState
+                    true,        // isStatic
+                    false,       // isBounce
+                    false,       // fromBlock
+                    0,           // scoreWorth
+                    true,        // isAnimated (4 sprite frames: Princess1-4)
+                    4,           // animFrames
+                    false,       // doesJump
+                    true,        // doesCollide
+                    false,       // oneLoop
+                    1,           // animBuffer
+                    false,       // squishable
+                    false        // koopaSquash
+                };
+                princessDef = &fallbackPrincess;
+            }
+
+            if (princessDef && !princessDef->name.empty()) {
+                LOG_DEBUG(
+                    "Attempting to spawn Princess with entityDef: name={}, "
+                    "isEnemy={}, isStatic={}",
+                    princessDef->name, princessDef->isEnemy,
+                    princessDef->isStatic);
+                auto princess = Mario::EntityFactory::SpawnEntity(
+                    *princessDef, princessX, princessY, 1, false, levelName);
+                if (princess) {
+                    m_Entities.push_back(princess);
+                    LOG_WARN("✓ Successfully spawned Princess at ({}, {})",
+                             princessX, princessY);
+                } else {
+                    LOG_ERROR("✗ SpawnEntity returned nullptr for Princess!");
+                }
+            } else {
+                LOG_ERROR("✗ princessDef is null or name is empty!");
+            }
+        }
+    }
+
     // Look for the Flag entity in spawn list
     for (auto& entity : m_Entities) {
         if (entity->GetState().GetName() == "Flag") {
@@ -431,11 +559,22 @@ void App::RenderAll() {
             m_UIManager->Update(Mario::UIManager::State::TITLE);
             break;
 
-        case State::LOADING:
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        case State::LOADING: {
+            // Set background color based on level being loaded
+            std::string currentLevel = m_GameState.GetLevelName();
+            bool isUnderground = m_GameState.IsUnderground() ||
+                                 currentLevel.find("u") != std::string::npos ||
+                                 currentLevel == "1-2" || currentLevel == "8-4";
+            if (isUnderground) {
+                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // Black
+            } else {
+                glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
+                             0.0f);  // Sky blue
+            }
             m_Renderer.Update();
             m_UIManager->Update(Mario::UIManager::State::LOADING);
             break;
+        }
 
         case State::PLAYING:
         case State::FLAGPOLE:

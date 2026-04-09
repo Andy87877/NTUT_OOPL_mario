@@ -1,8 +1,6 @@
 # Super Mario Bros. 專案架構概覽
 
-# Super Mario Bros. 專案架構概覽 (簡易版)
-
-這份文件旨在以最簡單、直觀的方式，展示本專案的核心**物件導向 (OOP) 架構**與系統運作方式。
+這份文件以最簡單、直觀的方式，展示本專案的核心**物件導向 (OOP) 架構**與系統運作方式。
 
 ---
 
@@ -30,7 +28,8 @@ classDiagram
     class Entity["Entity (動態實體)"] {
         +物理引擎 (重力、移動)
         +通用碰撞行為
-        +代表：敵人 (Goomba)、道具 (Mushroom)、火球
+        +Model: EntityState
+        +Def: EntityDef
     }
 
     class Block["Block (靜態方塊)"] {
@@ -121,6 +120,147 @@ classDiagram
 - **複合性**：多個實體合營同一個行為類別
 - **可測試性**：行為邏輯與渲染分離
 
+---
+
+## 一-次：Phase 4 敵人行為系統 (Enemy Behavior Strategy Pattern)
+
+8-4 關卡和遊戲內所有敵人都透過 **Strategy Pattern** 實現不同的AI行為，而非透過Entity繼承層次。每個敵人類型都有對應的 Behavior 類別實現 `IEntityBehavior` 接口。
+
+```mermaid
+classDiagram
+    direction TB
+
+    class IEntityBehavior["IEntityBehavior (策略接口)"] {
+        +Update(state, level, player, timer)*
+        +OnPlayerCollision(state, player, isFromAbove)*
+        +Clone() Behavior*
+        +GetName() string*
+    }
+
+    class EnemyBehavior["EnemyBehavior (基礎敵人)"] {
+        +類型: GOOMBA, KOOPA_TROOPA
+        +WALK_SPEED = 0.5
+        +巡邏邏輯
+        +踩踏死亡
+    }
+
+    class ParaKoopaBehavior["ParaKoopaBehavior (飛行烏龜)"] {
+        +WALK_SPEED = 0.5
+        +FLOAT_AMPLITUDE = 1.5
+        +上下浮動 (正弦波)
+        +踩踏→失去翅膀→落地
+    }
+
+    class AxeKoopaBehavior["AxeKoopaBehavior (拋斧烏龜)"] {
+        +WALK_SPEED = 0.5
+        +AXE_THROW_INTERVAL = 150 frame
+        +每2.5秒拋斧頭
+        +免疫踩踏
+    }
+
+    class BowserBehavior["BowserBehavior (Boss)"] {
+        +WALK_SPEED = 1.0
+        +多階段AI
+        +狀態: PATROL → JUMP → FIRE
+        +3點血量制度
+    }
+
+    class PrincessBehavior["PrincessBehavior (NPC)"] {
+        +完全靜態
+        +待機動畫
+        +遊戲目標標記
+    }
+
+    class DefaultEntityBehavior["DefaultEntityBehavior"] {
+        +被動實體（金幣、道具）
+        +不主動行動
+    }
+
+    class ItemBehavior["ItemBehavior"] {
+        +橫向移動＋彈跳
+        +類型: Mushroom, Star
+    }
+
+    class FireballBehavior["FireballBehavior"] {
+        +拋物線軌跡
+        +發射者: Player / Bowser
+    }
+
+    %% 策略模式實現
+    IEntityBehavior <|.. EnemyBehavior : 實作
+    IEntityBehavior <|.. ParaKoopaBehavior : 實作
+    IEntityBehavior <|.. AxeKoopaBehavior : 實作
+    IEntityBehavior <|.. BowserBehavior : 實作
+    IEntityBehavior <|.. PrincessBehavior : 實作
+    IEntityBehavior <|.. DefaultEntityBehavior : 實作
+    IEntityBehavior <|.. ItemBehavior : 實作
+    IEntityBehavior <|.. FireballBehavior : 實作
+```
+
+### 敵人行為架構設計
+
+**策略模式的優勢：**
+
+- ✅ **行為獨立**：敵人AI與Entity渲染分離
+- ✅ **易於擴展**：新增敵人只需實作新 Behavior 類別
+- ✅ **易於測試**：行為邏輯可單獨進行 Unit Test
+- ✅ **代碼複用**：多個Entity可共用同一 Behavior 實例
+- ✅ **動態切換**：敵人狀態可在運行時改變（如Koopa變殼）
+
+**實現細節：**
+
+| 敵人類型 | Behavior 類別 | 特性 | 位置 |
+|---------|-------------|------|------|
+| **Goomba** | `EnemyBehavior` (GOOMBA) | 簡單巡邏，踩死 | builtin |
+| **Koopa** | `EnemyBehavior` (KOOPA_TROOPA) | 巡邏→變殼→可射出 | builtin |
+| **ParaKoopa** | `ParaKoopaBehavior` | 飛行浮動，踩踏落地 | `include/Mario/Behaviors/ParaKoopaBehavior.hpp` |
+| **AxeKoopa** | `AxeKoopaBehavior` | 定期拋斧，免疫踩踏 | `include/Mario/Behaviors/AxeKoopaBehavior.hpp` |
+| **Bowser** | `BowserBehavior` | Boss多階段AI | `include/Mario/Behaviors/BowserBehavior.hpp` |
+| **Princess** | `PrincessBehavior` | 靜態NPC，僅動畫 | `include/Mario/Behaviors/PrincessBehavior.hpp` |
+
+---
+
+## 一-叁：Entity 與 Behavior 的關係 (Entity-Behavior Composition)
+
+```mermaid
+graph LR
+    A["Level.csv<br/>(敵人ID: 882)"] -->|負載| B["EntityDef<br/>(name: Goomba)"]
+    B -->|EntityFactory| C["Entity<br/>(Model: EntityState)"]
+    C -->|配置| D["IEntityBehavior<br/>(配置後)"]
+    D -->|每幀Update| E["EntityState<br/>(位置、動畫)"]
+    E -->|渲染| F["螢幕畫面"]
+```
+
+**OOP設計原則：**
+
+- **Model**: `EntityState` + `EntityDef` (控制資料)
+- **View**: `Entity` 的渲染 (圖片、位置)  
+- **Control**: `IEntityBehavior` (AI邏輯 & 碰撞處理)
+- **MVC分離**：行為邏輯獨立於渲染邏輯
+    Entity <|-- Bowser : 繼承 (Boss)
+    Entity <|-- Princess : 繼承 (NPC)
+    Entity <|-- Fireball : 繼承 (Projectile)
+
+```
+
+### 敵人 AI 設計總結
+
+| 敵人 | 簡單度 | 行為設計 | 8-4 ID | 說明 |
+|------|--------|--------|--------|------|
+| **Goomba** | ⭐ | 直線巡邏 + 牆體轉向 | 882 | 敵人AI基礎 |
+| **Koopa** | ⭐⭐ | 巡邏 + 殼變身 + 射出 | 886 | 多狀態管理 |
+| **ParaKoopa** | ⭐⭐ | 巡邏 + 正弦浮動 + 著陸轉換 | 875 | 三角函數動畫 |
+| **AxeKoopa** | ⭐⭐ | 巡邏 + 定期拋斧 | 878 | 定時事件系統 |
+| **Bowser** | ⭐⭐⭐ | 狀態機 (走/跳/火) + 模式轉換 | 847 | Boss級複雜度 |
+| **Princess** | ⭐ | 無AI，靜態顯示 | 879 | 視覺元素 |
+| **Fireball** | ⭐ | 拋物線軌跡 | - | 簡單物理 |
+
+### 行為系統的優勢
+
+- **策略模式**：實體行為獨立，易於新增敵人類型
+- **複合性**：多個實體合營同一個行為類別
+- **可測試性**：行為邏輯與渲染分離
+
 ### 已實作類別說明
 
 | 類別 | 繼承自 | 角色 (MVC) | 說明 |
@@ -151,6 +291,13 @@ classDiagram
 | **FireballBehavior** | **IEntityBehavior** | **Strategy** | **Projectile trajectory & collision** |
 | **BowserBehavior** | **IEntityBehavior** | **Strategy** | **Boss AI (8-4 duel phases)** |
 | `UIManager` | None | Manager | HUD/Menu rendering, floating text control, scene UI state |
+| **Goomba** | **Entity** | **Enemy** | **Simple walker, dies on jump (ID 882)** |
+| **Koopa** | **Entity** | **Enemy** | **Walker + shell transformation (ID 886)** |
+| **AxeKoopa** | **Entity** | **Enemy** | **Walks + throws axes every 2.5s (ID 878)** |
+| **ParaKoopa** | **Entity** | **Enemy** | **Flying Koopa, floats up/down, lands as Koopa (ID 875)** |
+| **Bowser** | **Entity** | **Boss** | **Multi-phase AI: walk → jump → fire breath (ID 847)** |
+| **Princess** | **Entity** | **NPC** | **Static character, goal/reward (ID 879)** |
+| **Fireball** | **Entity** | **Projectile** | **Projectile fired by Bowser & Player** |
 
 ---
 

@@ -151,6 +151,16 @@ void Level::LoadLookupTables() {
             m_BlockDefs[def.id] = def;
         }
         LOG_INFO("Loaded {} block definitions", m_BlockDefs.size());
+
+        // DEBUG: Log enemy spawner blocks
+        if (m_BlockDefs.count(882) && m_BlockDefs[882].spawner) {
+            LOG_WARN("ID 882: spawner=true, entity={}",
+                     m_BlockDefs[882].spawnEntity);
+        }
+        if (m_BlockDefs.count(886) && m_BlockDefs[886].spawner) {
+            LOG_WARN("ID 886: spawner=true, entity={}",
+                     m_BlockDefs[886].spawnEntity);
+        }
     }
 
     // Load EntityList.csv (entity definitions)
@@ -279,6 +289,8 @@ void Level::CreateBlocksFromGrid() {
                 }
 
                 m_SpawnPoints.push_back(sp);
+                LOG_DEBUG("Created spawner at ({},{}): {} (ID={})", x, y,
+                          sp.entityName, sp.entityID);
                 continue;
             }
 
@@ -292,63 +304,9 @@ void Level::CreateBlocksFromGrid() {
 }
 
 void Level::IdentifySpawnPoints() {
-    /**
-     * Scan grid and identify all entity spawn points.
-     * Supports both hardcoded legacy IDs (50=Goomba, 66=Koopa) and
-     * BlockDef-based spawner flags (compatible with 8-4 level IDs).
-     *
-     * For 8-4 (800+ ID range):
-     *   - ID 882 (800+82) = Goomba if GoombaSpawn is defined
-     *   - ID 886 (800+86) = Koopa if KoopaSpawn is defined
-     */
-    for (int y = 0; y < m_Height; y++) {
-        for (int x = 0; x < static_cast<int>(m_Grid[y].size()); x++) {
-            int blockID = m_Grid[y][x];
-
-            // Look up block definition for this ID
-            auto it = m_BlockDefs.find(blockID);
-            if (it != m_BlockDefs.end() && it->second.spawner &&
-                !it->second.spawnEntity.empty()) {
-                // Block definition says this tile spawns an entity
-                SpawnPoint sp;
-                sp.entityName = it->second.spawnEntity;
-                sp.gridX = x;
-                sp.gridY = y;
-                sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE);
-                sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE);
-
-                // Look up entity ID from name
-                auto eit = m_EntityNameToID.find(sp.entityName);
-                if (eit != m_EntityNameToID.end()) {
-                    sp.entityID = eit->second;
-                }
-
-                m_SpawnPoints.push_back(sp);
-                continue;
-            }
-
-            // Legacy hardcoded enemy spawn markers (supports 1-1, 1-2)
-            if (blockID == 50) {  // GoombaSpawn (ID list defined)
-                SpawnPoint sp;
-                sp.entityName = "Goomba";
-                sp.entityID = 13;
-                sp.gridX = x;
-                sp.gridY = y;
-                sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE);
-                sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE);
-                m_SpawnPoints.push_back(sp);
-            } else if (blockID == 66) {  // KoopaSpawn (ID list defined)
-                SpawnPoint sp;
-                sp.entityName = "KoopaTroopa";
-                sp.entityID = 17;
-                sp.gridX = x;
-                sp.gridY = y;
-                sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE);
-                sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE);
-                m_SpawnPoints.push_back(sp);
-            }
-        }
-    }
+    // Spawn points are already created in CreateBlocksFromGrid()
+    // when it processes spawner blocks and special entities (Flag, UnderCoin).
+    // This function is now a no-op placeholder for future extensions.
 }
 
 void Level::UpdateBlocks(float cameraOffset) {

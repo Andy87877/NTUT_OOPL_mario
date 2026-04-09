@@ -62,7 +62,7 @@ struct GameConfig {
         20.0;  // Height for fireball bounce
 
     // -- Entity --
-    static constexpr float ENEMY_SPEED_DIVISOR = 3.0f;
+    static constexpr float ENEMY_SPEED_DIVISOR = 6.0f;  // Halved from 3.0f
     static constexpr float SHELL_SPEED_MULTIPLIER = 1.5f;
 
     // -- Collision --
