@@ -387,11 +387,14 @@ void App::LoadLevel(const std::string& levelName) {
 
     // Set map background color (Sky Blue or Black for underground)
     // Alpha = 0.0f for transparent background (chroma key support)
+    // Determine background color: underground/castle = black, surface = sky
+    // blue
     bool isUnderground = m_GameState.IsUnderground() ||
                          levelName.find("u") != std::string::npos ||
-                         levelName == "1-2";
+                         levelName == "1-2" || levelName == "8-4";
     if (isUnderground) {
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // Black (transparent)
+        glClearColor(0.0f, 0.0f, 0.0f,
+                     0.0f);  // Black (castle/dungeon background)
     } else {
         glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
                      0.0f);  // Sky Blue (transparent)
@@ -436,18 +439,26 @@ void App::RenderAll() {
 
         case State::PLAYING:
         case State::FLAGPOLE:
-        case State::PIPE_WARP:
-            if (m_GameState.IsUnderground()) {
-                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        case State::PIPE_WARP: {
+            // Determine if current level should have underground/castle
+            // background
+            std::string currentLevel = m_GameState.GetLevelName();
+            bool isUnderground = m_GameState.IsUnderground() ||
+                                 currentLevel.find("u") != std::string::npos ||
+                                 currentLevel == "1-2" || currentLevel == "8-4";
+            if (isUnderground) {
+                glClearColor(0.0f, 0.0f, 0.0f,
+                             0.0f);  // Black for castle/dungeon
             } else {
                 glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
-                             0.0f);
+                             0.0f);  // Sky blue for surface
             }
             m_Renderer.Update();
 
             // Update UI elements
             m_UIManager->Update(Mario::UIManager::State::PLAYING);
             break;
+        }
 
         case State::DEATH:
             m_Renderer.Update();

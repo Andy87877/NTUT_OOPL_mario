@@ -53,6 +53,14 @@ class SpritePathResolver {
     static std::string GetEntitySpritePath(const std::string& entityName,
                                            int frame = 0);
 
+    /**
+     * Get path for 8-4 castle sprites by block ID (801-904).
+     * Maps directly to Sprites/8-4/tile_XXX.png
+     * @param blockID Block ID from 8-4 level (801-904)
+     * @return Full path string, or empty if ID out of range
+     */
+    static std::string GetCastleSpritePathByID(int blockID);
+
    private:
     static const std::string SPRITE_BASE_PATH;
 

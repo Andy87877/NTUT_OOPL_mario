@@ -163,4 +163,24 @@ std::string SpritePathResolver::GetEntitySpritePath(
     return ProcessTransparent(resolve());
 }
 
+std::string SpritePathResolver::GetCastleSpritePathByID(int blockID) {
+    // 8-4 castle sprites: ID 801-904 -> Sprites/8-4/tile_XXX.png
+    if (blockID < 801 || blockID > 904) {
+        return "";  // Invalid ID for 8-4
+    }
+
+    int tileIdx = blockID - 800;  // 801 -> 1, 904 -> 104
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s8-4/tile_%04d.png",
+             SPRITE_BASE_PATH.c_str(), tileIdx);
+
+    std::string path = buffer;
+    std::ifstream test(path);
+    if (test.good()) {
+        return path;  // File exists, return as-is (no ProcessTransparent
+                      // needed)
+    }
+    return "";  // File doesn't exist
+}
+
 }  // namespace Mario

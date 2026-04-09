@@ -9,6 +9,7 @@
 #include "Mario/Block.hpp"
 
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 
 #include "Mario/SpritePathResolver.hpp"
@@ -49,7 +50,15 @@ Block::Block(int blockID, int gridX, int gridY, const BlockDef& def)
     GridToScreen(gridX, gridY, 0.0f, sx, sy);
     m_Transform.translation = {sx, sy};
     // Initialize scale factor based on GameConfig
-    m_Transform.scale = {GameConfig::DRAW_SCALE, GameConfig::DRAW_SCALE};
+    // Apply additional scaling for 8-4 castle sprites (original sprites are
+    // smaller)
+    float scaleX = GameConfig::DRAW_SCALE;
+    float scaleY = GameConfig::DRAW_SCALE;
+    if (blockID >= 801 && blockID <= 904) {
+        scaleX *= 2.0f;  // Enlarge 8-4 castle blocks by 2.0x
+        scaleY *= 2.0f;
+    }
+    m_Transform.scale = {scaleX, scaleY};
 
     // Set Z-index based on whether it's background or foreground
     SetZIndex(def.background ? GameConfig::Z_BACKGROUND : GameConfig::Z_BLOCK);
@@ -66,8 +75,22 @@ void Block::SetupSprite() {
 
     // Try to load the block sprite
     try {
-        std::string path =
-            SpritePathResolver::GetBlockSpritePath(m_Def.name, 0);
+        std::string path;
+
+        // Special handling for 8-4 castle sprites (IDs 801-904)
+        // Maps directly to Sprites/8-4/tile_XXX.png where XXX = ID - 800
+        if (m_BlockID >= 801 && m_BlockID <= 904) {
+            path = SpritePathResolver::GetCastleSpritePathByID(m_BlockID);
+            if (path.empty()) {
+                // Castle sprite not found, hide block
+                SetVisible(false);
+                return;
+            }
+        } else {
+            // Standard block sprites for 1-1, 1-2
+            path = SpritePathResolver::GetBlockSpritePath(m_Def.name, 0);
+        }
+
         // Verify file exists before loading (avoid PTSD checkerboard)
         std::ifstream test(path);
         if (!test.good()) {

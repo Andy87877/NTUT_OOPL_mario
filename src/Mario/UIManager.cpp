@@ -159,14 +159,13 @@ void UIManager::UpdateHUD() {
     snprintf(coinStr, sizeof(coinStr), "x%02d", m_GameState->GetCoins());
     m_CoinsText->SetTextContent(coinStr);
 
-    // --- WORLD Label & Level (Center-Right) ---
-    float worldHeaderX = 840.0f;  // shifted right
-    float worldHeaderY = 16.0f;
-    float worldLevelX = 860.0f;
-    float worldLevelY = 32.0f;
+    // --- WORLD Label & Level (Center) ---
+    // Center horizontally (0.0f), aligned with other HUD headers at top
+    float worldHeaderY = 16.0f;  // Same level as MARIO and TIME headers
+    float worldLevelY = 32.0f;   // Same level as score and time values
 
-    m_HeaderWorld->SetPosition(worldHeaderX - 640.0f, 360.0f - worldHeaderY);
-    m_WorldText->SetPosition(worldLevelX - 640.0f, 360.0f - worldLevelY);
+    m_HeaderWorld->SetPosition(0.0f, 360.0f - worldHeaderY);
+    m_WorldText->SetPosition(0.0f, 360.0f - worldLevelY);
     m_WorldText->SetTextContent(m_GameState->GetLevelName());
 
     // --- TIME Label & Value (Far Right) ---
@@ -197,11 +196,12 @@ void UIManager::UpdateTitleScreen() {
 void UIManager::UpdateLoadingScreen() {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("WORLD " + m_GameState->GetLevelName());
-    m_CenterLabel->SetPosition(-140.0f, 0.0f);  // Slightly left of center
+    m_CenterLabel->SetPosition(0.0f, 50.0f);  // Centered horizontally
 
     m_SubLabel->SetVisible(true);
     m_SubLabel->SetTextContent("x  " + std::to_string(m_GameState->GetLives()));
-    m_SubLabel->SetPosition(-90.0f, -100.0f);  // Below the WORLD label
+    m_SubLabel->SetPosition(0.0f,
+                            -50.0f);  // Below the WORLD label, also centered
 }
 
 void UIManager::UpdateGameOverScreen() {

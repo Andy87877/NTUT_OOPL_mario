@@ -5,13 +5,13 @@
  * @inheritance None
  */
 #include "Mario/Level.hpp"
-#include "Mario/SpritePathResolver.hpp"
-
-#include "Util/Logger.hpp"
 
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+
+#include "Mario/SpritePathResolver.hpp"
+#include "Util/Logger.hpp"
 
 namespace Mario {
 
@@ -19,9 +19,7 @@ namespace Mario {
 const BlockDef Level::EMPTY_BLOCK_DEF = {};
 const EntityDef Level::EMPTY_ENTITY_DEF = {};
 
-Level::Level() {
-    LoadLookupTables();
-}
+Level::Level() { LoadLookupTables(); }
 
 bool Level::Load(const std::string& levelName) {
     m_LevelName = levelName;
@@ -32,14 +30,15 @@ bool Level::Load(const std::string& levelName) {
 
     // Determine sub-level name
     if (levelName == "1-1") {
-        m_SubLevelName = "1-1u"; // Underground bonus area
+        m_SubLevelName = "1-1u";  // Underground bonus area
     } else if (levelName == "1-2") {
-        m_SubLevelName = "1-2u"; // 1-2 is underground -> above ground exit
+        m_SubLevelName = "1-2u";  // 1-2 is underground -> above ground exit
     } else {
         m_SubLevelName = "";
     }
 
-    std::string path = std::string(RESOURCE_DIR) + "/Levels/" + levelName + ".csv";
+    std::string path =
+        std::string(RESOURCE_DIR) + "/Levels/" + levelName + ".csv";
     if (!ParseLevelCSV(path)) {
         LOG_ERROR("Failed to parse level CSV: {}", path);
         return false;
@@ -48,9 +47,19 @@ bool Level::Load(const std::string& levelName) {
     CreateBlocksFromGrid();
     IdentifySpawnPoints();
 
+    // For 8-4 level, always override spawn point to avoid player spawning in
+    // blocks Bowser's Castle requires specific spawn positioning regardless of
+    // CSV markers
+    if (levelName == "8-4") {
+        // Override spawn point: start at left side (gridX=3), well above blocks
+        // (gridY=3) to avoid spawning inside castle blocks
+        m_PlayerSpawnX = 3.0f * GameConfig::TILE_SIZE;
+        m_PlayerSpawnY = 3.0f * GameConfig::TILE_SIZE;
+    }
+
     LOG_INFO("Level {} loaded: {}x{} tiles, {} blocks, {} spawn points",
-             levelName, m_Width, m_Height,
-             m_Blocks.size(), m_SpawnPoints.size());
+             levelName, m_Width, m_Height, m_Blocks.size(),
+             m_SpawnPoints.size());
 
     return true;
 }
@@ -99,7 +108,8 @@ bool Level::ParseLevelCSV(const std::string& path) {
 void Level::LoadLookupTables() {
     // Load IDList.csv (block definitions)
     {
-        std::string path = std::string(RESOURCE_DIR) + "/LookUpSheet/IDList.csv";
+        std::string path =
+            std::string(RESOURCE_DIR) + "/LookUpSheet/IDList.csv";
         std::ifstream file(path);
         if (!file.is_open()) {
             LOG_ERROR("Cannot open IDList.csv: {}", path);
@@ -115,21 +125,27 @@ void Level::LoadLookupTables() {
             BlockDef def;
             def.id = std::stoi(tokens[0]);
             def.name = tokens[1];
-            if (tokens.size() > 2)  def.solid      = (tokens[2] == "1");
-            if (tokens.size() > 3)  def.breakable   = (tokens[3] == "1");
-            if (tokens.size() > 4)  def.background  = (tokens[4] == "1");
-            if (tokens.size() > 5)  def.isGoal      = (tokens[5] == "1");
-            if (tokens.size() > 6)  def.contentID   = tokens[6].empty() ? 0 : std::stoi(tokens[6]);
-            if (tokens.size() > 7)  def.r           = tokens[7].empty() ? 0 : std::stoi(tokens[7]);
-            if (tokens.size() > 8)  def.g           = tokens[8].empty() ? 0 : std::stoi(tokens[8]);
-            if (tokens.size() > 9)  def.b           = tokens[9].empty() ? 0 : std::stoi(tokens[9]);
+            if (tokens.size() > 2) def.solid = (tokens[2] == "1");
+            if (tokens.size() > 3) def.breakable = (tokens[3] == "1");
+            if (tokens.size() > 4) def.background = (tokens[4] == "1");
+            if (tokens.size() > 5) def.isGoal = (tokens[5] == "1");
+            if (tokens.size() > 6)
+                def.contentID = tokens[6].empty() ? 0 : std::stoi(tokens[6]);
+            if (tokens.size() > 7)
+                def.r = tokens[7].empty() ? 0 : std::stoi(tokens[7]);
+            if (tokens.size() > 8)
+                def.g = tokens[8].empty() ? 0 : std::stoi(tokens[8]);
+            if (tokens.size() > 9)
+                def.b = tokens[9].empty() ? 0 : std::stoi(tokens[9]);
             if (tokens.size() > 10) def.isContainer = (tokens[10] == "1");
-            if (tokens.size() > 11) def.contents    = tokens[11];
+            if (tokens.size() > 11) def.contents = tokens[11];
             if (tokens.size() > 12) def.hitSpriteName = tokens[12];
-            if (tokens.size() > 13) def.animated    = (tokens[13] == "1");
-            if (tokens.size() > 14) def.animationFrames = tokens[14].empty() ? 0 : std::stoi(tokens[14]);
-            if (tokens.size() > 15) def.bounceBack  = (tokens[15] == "1");
-            if (tokens.size() > 16) def.spawner     = (tokens[16] == "1");
+            if (tokens.size() > 13) def.animated = (tokens[13] == "1");
+            if (tokens.size() > 14)
+                def.animationFrames =
+                    tokens[14].empty() ? 0 : std::stoi(tokens[14]);
+            if (tokens.size() > 15) def.bounceBack = (tokens[15] == "1");
+            if (tokens.size() > 16) def.spawner = (tokens[16] == "1");
             if (tokens.size() > 17) def.spawnEntity = tokens[17];
 
             m_BlockDefs[def.id] = def;
@@ -139,7 +155,8 @@ void Level::LoadLookupTables() {
 
     // Load EntityList.csv (entity definitions)
     {
-        std::string path = std::string(RESOURCE_DIR) + "/LookUpSheet/EntityList.csv";
+        std::string path =
+            std::string(RESOURCE_DIR) + "/LookUpSheet/EntityList.csv";
         std::ifstream file(path);
         if (!file.is_open()) {
             LOG_ERROR("Cannot open EntityList.csv: {}", path);
@@ -155,21 +172,25 @@ void Level::LoadLookupTables() {
             EntityDef def;
             def.id = std::stoi(tokens[0]);
             def.name = tokens[1];
-            if (tokens.size() > 2)  def.isPowerUp   = (tokens[2] == "1");
-            if (tokens.size() > 3)  def.isEnemy     = (tokens[3] == "1");
-            if (tokens.size() > 4)  def.isCoin      = (tokens[4] == "1");
-            if (tokens.size() > 5)  def.powerUpState = tokens[5].empty() ? 0 : std::stoi(tokens[5]);
-            if (tokens.size() > 6)  def.isStatic    = (tokens[6] == "1");
-            if (tokens.size() > 7)  def.isBounce    = (tokens[7] == "1");
-            if (tokens.size() > 8)  def.fromBlock   = (tokens[8] == "1");
-            if (tokens.size() > 9)  def.scoreWorth  = tokens[9].empty() ? 0 : std::stoi(tokens[9]);
-            if (tokens.size() > 10) def.isAnimated  = (tokens[10] == "1");
-            if (tokens.size() > 11) def.animFrames  = tokens[11].empty() ? 0 : std::stoi(tokens[11]);
-            if (tokens.size() > 12) def.doesJump    = (tokens[12] == "1");
+            if (tokens.size() > 2) def.isPowerUp = (tokens[2] == "1");
+            if (tokens.size() > 3) def.isEnemy = (tokens[3] == "1");
+            if (tokens.size() > 4) def.isCoin = (tokens[4] == "1");
+            if (tokens.size() > 5)
+                def.powerUpState = tokens[5].empty() ? 0 : std::stoi(tokens[5]);
+            if (tokens.size() > 6) def.isStatic = (tokens[6] == "1");
+            if (tokens.size() > 7) def.isBounce = (tokens[7] == "1");
+            if (tokens.size() > 8) def.fromBlock = (tokens[8] == "1");
+            if (tokens.size() > 9)
+                def.scoreWorth = tokens[9].empty() ? 0 : std::stoi(tokens[9]);
+            if (tokens.size() > 10) def.isAnimated = (tokens[10] == "1");
+            if (tokens.size() > 11)
+                def.animFrames = tokens[11].empty() ? 0 : std::stoi(tokens[11]);
+            if (tokens.size() > 12) def.doesJump = (tokens[12] == "1");
             if (tokens.size() > 13) def.doesCollide = (tokens[13] == "1");
-            if (tokens.size() > 14) def.oneLoop     = (tokens[14] == "1");
-            if (tokens.size() > 15) def.animBuffer  = tokens[15].empty() ? 1 : std::stoi(tokens[15]);
-            if (tokens.size() > 16) def.squishable  = (tokens[16] == "1");
+            if (tokens.size() > 14) def.oneLoop = (tokens[14] == "1");
+            if (tokens.size() > 15)
+                def.animBuffer = tokens[15].empty() ? 1 : std::stoi(tokens[15]);
+            if (tokens.size() > 16) def.squishable = (tokens[16] == "1");
             if (tokens.size() > 17) def.koopaSquash = (tokens[17] == "1");
 
             m_EntityDefs[def.id] = def;
@@ -185,7 +206,8 @@ void Level::CreateBlocksFromGrid() {
             int blockID = m_Grid[y][x];
 
             // Skip empty cells
-            if (blockID == 0 && m_BlockDefs.find(0) == m_BlockDefs.end()) continue;
+            if (blockID == 0 && m_BlockDefs.find(0) == m_BlockDefs.end())
+                continue;
 
             // Skip empty/undefined blocks
             auto it = m_BlockDefs.find(blockID);
@@ -230,7 +252,7 @@ void Level::CreateBlocksFromGrid() {
                 sp.gridY = y;
                 sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE);
                 sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE +
-                            GameConfig::TILE_SIZE);
+                                               GameConfig::TILE_SIZE);
                 m_SpawnPoints.push_back(sp);
                 continue;
             }
@@ -270,13 +292,43 @@ void Level::CreateBlocksFromGrid() {
 }
 
 void Level::IdentifySpawnPoints() {
-    // Additional spawn point identification from grid data
+    /**
+     * Scan grid and identify all entity spawn points.
+     * Supports both hardcoded legacy IDs (50=Goomba, 66=Koopa) and
+     * BlockDef-based spawner flags (compatible with 8-4 level IDs).
+     *
+     * For 8-4 (800+ ID range):
+     *   - ID 882 (800+82) = Goomba if GoombaSpawn is defined
+     *   - ID 886 (800+86) = Koopa if KoopaSpawn is defined
+     */
     for (int y = 0; y < m_Height; y++) {
         for (int x = 0; x < static_cast<int>(m_Grid[y].size()); x++) {
             int blockID = m_Grid[y][x];
 
-            // Goomba and Koopa spawn markers
-            if (blockID == 50) { // GoombaSpawn
+            // Look up block definition for this ID
+            auto it = m_BlockDefs.find(blockID);
+            if (it != m_BlockDefs.end() && it->second.spawner &&
+                !it->second.spawnEntity.empty()) {
+                // Block definition says this tile spawns an entity
+                SpawnPoint sp;
+                sp.entityName = it->second.spawnEntity;
+                sp.gridX = x;
+                sp.gridY = y;
+                sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE);
+                sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE);
+
+                // Look up entity ID from name
+                auto eit = m_EntityNameToID.find(sp.entityName);
+                if (eit != m_EntityNameToID.end()) {
+                    sp.entityID = eit->second;
+                }
+
+                m_SpawnPoints.push_back(sp);
+                continue;
+            }
+
+            // Legacy hardcoded enemy spawn markers (supports 1-1, 1-2)
+            if (blockID == 50) {  // GoombaSpawn (ID list defined)
                 SpawnPoint sp;
                 sp.entityName = "Goomba";
                 sp.entityID = 13;
@@ -285,7 +337,7 @@ void Level::IdentifySpawnPoints() {
                 sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE);
                 sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE);
                 m_SpawnPoints.push_back(sp);
-            } else if (blockID == 66) { // KoopaSpawn
+            } else if (blockID == 66) {  // KoopaSpawn (ID list defined)
                 SpawnPoint sp;
                 sp.entityName = "KoopaTroopa";
                 sp.entityID = 17;
@@ -305,8 +357,9 @@ void Level::UpdateBlocks(float cameraOffset) {
         float worldX = block->GetWorldX();
         float screenX = worldX - cameraOffset;
 
-        bool visible = (screenX + GameConfig::TILE_SIZE > -GameConfig::TILE_SIZE * 2) &&
-                       (screenX < GameConfig::WINDOW_WIDTH + GameConfig::TILE_SIZE * 2);
+        bool visible =
+            (screenX + GameConfig::TILE_SIZE > -GameConfig::TILE_SIZE * 2) &&
+            (screenX < GameConfig::WINDOW_WIDTH + GameConfig::TILE_SIZE * 2);
 
         if (visible) {
             block->Update(cameraOffset);
@@ -333,9 +386,10 @@ Block* Level::GetBlockAtWorld(float worldX, float worldY) {
 std::vector<Block*> Level::GetBlocksInRange(float leftX, float rightX) const {
     std::vector<Block*> result;
 
-    int startCol = std::max(0, static_cast<int>(leftX) / GameConfig::TILE_SIZE - 1);
+    int startCol =
+        std::max(0, static_cast<int>(leftX) / GameConfig::TILE_SIZE - 1);
     int endCol = std::min(m_Width - 1,
-        static_cast<int>(rightX) / GameConfig::TILE_SIZE + 1);
+                          static_cast<int>(rightX) / GameConfig::TILE_SIZE + 1);
 
     for (int x = startCol; x <= endCol; x++) {
         for (int y = 0; y < m_Height; y++) {
@@ -376,4 +430,4 @@ std::vector<std::string> Level::SplitCSVLine(const std::string& line) const {
     return tokens;
 }
 
-} // namespace Mario
+}  // namespace Mario
