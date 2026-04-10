@@ -126,6 +126,7 @@ set(INCLUDE_FILES
     # UI (Phase 5)
     Mario/FloatingText.hpp
     Mario/UIText.hpp
+    Mario/UIImage.hpp
 )
 
 set(TEST_FILES

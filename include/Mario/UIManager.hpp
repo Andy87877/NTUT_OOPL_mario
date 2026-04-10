@@ -13,7 +13,10 @@
 #include "Mario/FloatingText.hpp"
 #include "Mario/GameStateManager.hpp"
 #include "Mario/UIText.hpp"
+#include "Mario/UIImage.hpp"
 #include "Util/Renderer.hpp"
+#include "Util/Image.hpp"
+#include "Util/GameObject.hpp"
 
 namespace Mario {
 
@@ -86,6 +89,10 @@ class UIManager {
 
     // Floating text effects
     std::vector<std::shared_ptr<FloatingText>> m_FloatingTexts;
+
+    // Mario sprite preview for loading screen
+    std::shared_ptr<UIImage> m_MarioPreview;
+    std::string m_CurrentPreviewSpritePath;
 };
 
 }  // namespace Mario

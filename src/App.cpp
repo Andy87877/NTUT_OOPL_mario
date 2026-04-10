@@ -521,8 +521,7 @@ void App::LoadLevel(const std::string& levelName) {
                          levelName.find("u") != std::string::npos ||
                          levelName == "1-2" || levelName == "8-4";
     if (isUnderground) {
-        glClearColor(0.0f, 0.0f, 0.0f,
-                     0.0f);  // Black (castle/dungeon background)
+        glClearColor(0.0f, 0.0f, 0.0f,                     0.0f);  // Black (castle/dungeon background)
     } else {
         glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
                      0.0f);  // Sky Blue (transparent)

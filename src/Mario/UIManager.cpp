@@ -202,6 +202,40 @@ void UIManager::UpdateLoadingScreen() {
     m_SubLabel->SetTextContent("x  " + std::to_string(m_GameState->GetLives()));
     m_SubLabel->SetPosition(0.0f,
                             -50.0f);  // Below the WORLD label, also centered
+
+    // Show Mario preview sprite based on saved power state
+    if (!m_MarioPreview) {
+        // Will be initialized with a default sprite when we load one
+        m_MarioPreview = nullptr;
+    }
+
+    // Get sprite path for current power state (idle, state 0 frame)
+    int powerState = m_GameState->GetSavedPowerState();
+    std::string spritePath = std::string(RESOURCE_DIR) + "/Sprites/MarioIdle" +
+                             (powerState > 0 ? std::to_string(powerState) : "") +
+                             ".png";
+
+    // Load sprite if different from current
+    if (spritePath != m_CurrentPreviewSpritePath) {
+        m_CurrentPreviewSpritePath = spritePath;
+        
+        // Create or recreate the preview image
+        if (!m_MarioPreview) {
+            m_MarioPreview = std::make_shared<UIImage>(spritePath);
+            m_UIRenderer.AddChild(m_MarioPreview);
+        } else {
+            m_MarioPreview->SetImagePath(spritePath);
+        }
+    }
+
+    // Ensure preview is visible and positioned
+    if (m_MarioPreview) {
+        m_MarioPreview->SetVisible(true);
+        // Position Mario preview right next to the left of "x 3" text
+        m_MarioPreview->SetPosition(-60.0f, -50.0f);
+        m_MarioPreview->m_Transform.scale = {1.0f, 1.0f};  // Match normal sprite scale
+        m_MarioPreview->SetZIndex(101.0f);                // Above text
+    }
 }
 
 void UIManager::UpdateGameOverScreen() {
@@ -211,9 +245,9 @@ void UIManager::UpdateGameOverScreen() {
 }
 
 void UIManager::UpdateESCMenu(int selection) {
-    m_SubLabel->SetVisible(true);
-    m_SubLabel->SetTextContent("PAUSED");
-    m_SubLabel->SetPosition(0.0f, 280.0f);  // Centered horizontally, above HUD
+    m_CenterLabel->SetVisible(true);
+    m_CenterLabel->SetTextContent("PAUSED");
+    m_CenterLabel->SetPosition(0.0f, 280.0f);  // Centered horizontally, above menu
 
     float startY = 100.0f;
     for (size_t i = 0; i < m_MenuTexts.size(); ++i) {

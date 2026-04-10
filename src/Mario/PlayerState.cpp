@@ -1,15 +1,16 @@
 /**
  * @file PlayerState.cpp
  * @brief Implementation of PlayerState (Model layer).
- *        All game logic: physics, power-up transitions, animation key generation.
- *        Matches the C# Player.cs logic.
+ *        All game logic: physics, power-up transitions, animation key
+ * generation. Matches the C# Player.cs logic.
  * @inheritance None (pure Model)
  */
 #include "Mario/PlayerState.hpp"
-#include "Mario/PhysicsEngine.hpp"
 
 #include <algorithm>
 #include <cmath>
+
+#include "Mario/PhysicsEngine.hpp"
 
 namespace Mario {
 
@@ -95,13 +96,13 @@ void PlayerState::Tick() {
     } else if (!m_SpecialActive) {
         if (m_Grounded) {
             if (m_MovingRight || m_MovingLeft) {
-                m_TotalFrames = 2; // Walk cycle: 3 frames (0,1,2)
+                m_TotalFrames = 2;  // Walk cycle: 3 frames (0,1,2)
             } else {
-                m_TotalFrames = 0; // Idle or crouch: single frame
+                m_TotalFrames = 0;  // Idle or crouch: single frame
                 m_AnimFrame = 0;
             }
         } else {
-            m_TotalFrames = 0; // Jump: single frame
+            m_TotalFrames = 0;  // Jump: single frame
             m_AnimFrame = 0;
         }
     } else {
@@ -147,12 +148,10 @@ float PlayerState::ApplyGravity() {
     return PhysicsEngine::ApplyGravity(m_FallHeight, m_VelY, m_Grounded);
 }
 
-void PlayerState::SetPowerState(PowerState ps) {
-    m_PowerState = ps;
-}
+void PlayerState::SetPowerState(PowerState ps) { m_PowerState = ps; }
 
 void PlayerState::TakeDamage() {
-    if (m_InvTimer > 0) return; // Already invincible
+    if (m_InvTimer > 0) return;  // Already invincible
     if (m_Dead) return;
 
     if (m_PowerState == PowerState::SMALL ||
@@ -162,13 +161,18 @@ void PlayerState::TakeDamage() {
     } else {
         // Big/Fire -> Small with invincibility frames
         m_PowerState = PowerState::SMALL;
-        m_InvTimer = 60; // ~1.2 seconds of invincibility
+        m_InvTimer = 60;  // ~1.2 seconds of invincibility
+
+        // When shrinking from big to small, adjust Y downwards
+        // (big=90px height, small=45px height, so move down by 45px to stay on
+        // ground)
+        if (!m_Crouching) {
+            SetY(GetY() + GameConfig::TILE_SIZE);
+        }
     }
 }
 
-void PlayerState::PowerUp(PowerState newState) {
-    m_PowerState = newState;
-}
+void PlayerState::PowerUp(PowerState newState) { m_PowerState = newState; }
 
 void PlayerState::StartStar() {
     if (m_PowerState == PowerState::SMALL) {
@@ -176,16 +180,13 @@ void PlayerState::StartStar() {
     } else {
         m_PowerState = PowerState::BIG_STAR;
     }
-    m_StarTimer = 500; // ~10 seconds
+    m_StarTimer = 500;  // ~10 seconds
 }
 
-int PlayerState::GetWidth() const {
-    return GameConfig::TILE_SIZE;
-}
+int PlayerState::GetWidth() const { return GameConfig::TILE_SIZE; }
 
 int PlayerState::GetHeight() const {
-    if (m_PowerState == PowerState::BIG ||
-        m_PowerState == PowerState::FIRE ||
+    if (m_PowerState == PowerState::BIG || m_PowerState == PowerState::FIRE ||
         m_PowerState == PowerState::BIG_STAR) {
         return m_Crouching ? GameConfig::TILE_SIZE : GameConfig::TILE_SIZE * 2;
     }
@@ -220,4 +221,4 @@ void PlayerState::SetFireShooting(bool v) {
     }
 }
 
-} // namespace Mario
+}  // namespace Mario
