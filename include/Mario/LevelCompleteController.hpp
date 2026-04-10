@@ -8,12 +8,12 @@
 #ifndef MARIO_LEVEL_COMPLETE_CONTROLLER_HPP
 #define MARIO_LEVEL_COMPLETE_CONTROLLER_HPP
 
-#include "Mario/GameConfig.hpp"
-#include "Mario/Player.hpp"
-#include "Mario/Level.hpp"
-#include "Mario/Entity.hpp"
-
 #include <memory>
+
+#include "Mario/Entity.hpp"
+#include "Mario/GameConfig.hpp"
+#include "Mario/Level.hpp"
+#include "Mario/Player.hpp"
 
 namespace Mario {
 
@@ -21,14 +21,14 @@ namespace Mario {
  * Phases of the level completion sequence.
  */
 enum class EndingPhase {
-    NONE,           // Normal gameplay
-    POLE_SLIDE,     // Mario sliding down the flagpole
-    POLE_WALK,      // Mario walks from pole to castle
-    ENTER_CASTLE,   // Mario enters castle door (invisible)
-    WAIT_TRANSITION,// Brief pause before loading next level
-    PIPE_DESCEND,   // Mario descending into pipe
-    PIPE_RIGHT,     // Mario walking right into pipe
-    COMPLETED       // Ready to advance
+    NONE,             // Normal gameplay
+    POLE_SLIDE,       // Mario sliding down the flagpole
+    POLE_WALK,        // Mario walks from pole to castle
+    ENTER_CASTLE,     // Mario enters castle door (invisible)
+    WAIT_TRANSITION,  // Brief pause before loading next level
+    PIPE_DESCEND,     // Mario descending into pipe
+    PIPE_RIGHT,       // Mario walking right into pipe
+    COMPLETED         // Ready to advance
 };
 
 /**
@@ -36,7 +36,7 @@ enum class EndingPhase {
  * Called by App when player touches a goal block or enters a pipe.
  */
 class LevelCompleteController {
-public:
+   public:
     LevelCompleteController() = default;
 
     /**
@@ -46,8 +46,7 @@ public:
      * @param flagEntity The flag entity that slides down with Mario
      * @param goalBlock The goal block (flagpole) that triggered this
      */
-    void StartFlagpole(Player& player,
-                       std::shared_ptr<Entity> flagEntity,
+    void StartFlagpole(Player& player, std::shared_ptr<Entity> flagEntity,
                        const Block* goalBlock);
 
     /**
@@ -58,8 +57,7 @@ public:
      * @param pipeWorldX World X of the pipe entrance
      * @param pipeWorldY World Y of the pipe entrance
      */
-    void StartPipeWarp(Player& player,
-                       const std::string& direction,
+    void StartPipeWarp(Player& player, const std::string& direction,
                        float pipeWorldX, float pipeWorldY);
 
     /**
@@ -75,8 +73,10 @@ public:
      * Check the current phase.
      */
     EndingPhase GetPhase() const { return m_Phase; }
-    bool IsActive() const { return m_Phase != EndingPhase::NONE &&
-                                   m_Phase != EndingPhase::COMPLETED; }
+    bool IsActive() const {
+        return m_Phase != EndingPhase::NONE &&
+               m_Phase != EndingPhase::COMPLETED;
+    }
     bool IsCompleted() const { return m_Phase == EndingPhase::COMPLETED; }
 
     /**
@@ -89,9 +89,10 @@ public:
      */
     void Reset();
 
-private:
+   private:
     EndingPhase m_Phase = EndingPhase::NONE;
     bool m_WasPipeWarp = false;
+    bool m_WarpSFXPlayed = false;  // Track if warp SFX has been played
 
     // Flagpole state
     std::shared_ptr<Entity> m_FlagEntity;
@@ -116,6 +117,6 @@ private:
     void UpdatePipeRight(Player& player);
 };
 
-} // namespace Mario
+}  // namespace Mario
 
-#endif // MARIO_LEVEL_COMPLETE_CONTROLLER_HPP
+#endif  // MARIO_LEVEL_COMPLETE_CONTROLLER_HPP

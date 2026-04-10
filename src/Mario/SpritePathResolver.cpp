@@ -34,6 +34,13 @@ std::string SpritePathResolver::ProcessTransparent(
     const std::string& originalPath) {
     if (originalPath.empty()) return originalPath;
 
+    // Cache dictionary for transparent paths to avoid massive file IO
+    static std::map<std::string, std::string> s_TransparentCache;
+    auto it = s_TransparentCache.find(originalPath);
+    if (it != s_TransparentCache.end()) {
+        return it->second;
+    }
+
     // Process only PNG or BMP files
     size_t dotPos = originalPath.find_last_of('.');
     std::string ext =
@@ -41,13 +48,20 @@ std::string SpritePathResolver::ProcessTransparent(
     std::string base = (dotPos != std::string::npos)
                            ? originalPath.substr(0, dotPos)
                            : originalPath;
-    if (ext != ".png" && ext != ".bmp") return originalPath;
+    if (ext != ".png" && ext != ".bmp") {
+        s_TransparentCache[originalPath] = originalPath;
+        return originalPath;
+    }
 
     std::string cachePath = base + "_tp.png";
 
-    // Return cached transparent image if it already exists
-    std::ifstream cacheFile(cachePath);
-    if (cacheFile.good()) return cachePath;
+    // Check if cached file exists without loading anything
+    std::ifstream cacheCheck(cachePath);
+    if (cacheCheck.good()) {
+        s_TransparentCache[originalPath] = cachePath;
+        return cachePath;
+    }
+    cacheCheck.close();
 
     // Load and process image to make White background transparent (replicating
     // C# MakeTransparent)
@@ -80,10 +94,12 @@ std::string SpritePathResolver::ProcessTransparent(
     if (IMG_SavePNG(rgbaSurface, cachePath.c_str()) != 0) {
         LOG_ERROR("ProcessTransparent failed to save PNG: {}", cachePath);
         SDL_FreeSurface(rgbaSurface);
+        s_TransparentCache[originalPath] = originalPath;
         return originalPath;
     }
 
     SDL_FreeSurface(rgbaSurface);
+    s_TransparentCache[originalPath] = cachePath;
     return cachePath;
 }
 
@@ -95,33 +111,68 @@ std::string SpritePathResolver::GetSpritePath(const std::string& name,
 std::string SpritePathResolver::GetBlockSpritePath(const std::string& blockName,
                                                    int frame) {
     auto resolve = [&]() -> std::string {
-        if (frame == 0) {
-            std::string basePath = SPRITE_BASE_PATH + blockName + ".png";
-            std::ifstream test(basePath);
-            if (test.good()) return basePath;
-
-            std::string path0 = SPRITE_BASE_PATH + blockName + "0.png";
-            std::ifstream test0(path0);
-            if (test0.good()) return path0;
-
-            std::string strippedName = blockName;
-            while (!strippedName.empty() && std::isdigit(strippedName.back())) {
-                strippedName.pop_back();
-            }
-
-            if (strippedName != blockName) {
-                std::string fallbackPath =
-                    SPRITE_BASE_PATH + strippedName + ".png";
-                std::ifstream testFallback(fallbackPath);
-                if (testFallback.good()) return fallbackPath;
-            }
-            return basePath;
+        // Build the C# resource name
+        std::string csName = blockName;
+        if (frame >= 0 && blockName.find("Hit") == std::string::npos &&
+            blockName.find("Break") == std::string::npos) {
+            csName += std::to_string(frame);
         }
-        std::string framePath =
-            SPRITE_BASE_PATH + blockName + std::to_string(frame) + ".png";
-        std::ifstream test(framePath);
-        if (test.good()) return framePath;
-        return SPRITE_BASE_PATH + blockName + ".png";
+
+        // C# exact mappings from .resx
+        std::string targetFile = blockName + ".png";  // standard fallback
+        if (csName == "BrickBlock20")
+            targetFile = "BrickBlock1.png";
+        else if (csName == "BrickBlock2Break")
+            targetFile = "BrickBlockBreak1.png";
+        else if (csName == "QuestionBlock10")
+            targetFile = "QuestionBlock3.png";
+        else if (csName == "QuestionBlock11")
+            targetFile = "QuestionBlock11.png";
+        else if (csName == "QuestionBlock12")
+            targetFile = "QuestionBlock21.png";
+        else if (csName == "SolidBlock10")
+            targetFile = "SolidBlock1.png";
+        else if (csName == "Ground20")
+            targetFile = "Ground2.png";
+        else if (csName == "Ground0")
+            targetFile = "Ground.png";
+        else if (csName == "BrickBlock0")
+            targetFile = "BrickBlock.png";
+        else if (csName == "SolidBlock0")
+            targetFile = "SolidBlock.png";
+        else if (csName == "QuestionBlock0")
+            targetFile = "QuestionBlock.png";
+        else if (csName == "QuestionBlock1")
+            targetFile = "QuestionBlock1.png";
+        else if (csName == "QuestionBlock2")
+            targetFile = "QuestionBlock2.png";
+        else if (csName == "QuestionBlockHit")
+            targetFile = "QuestionBlockHit.png";
+        else if (csName == "QuestionBlockHit1")
+            targetFile = "QuestionBlockHit1.png";
+        else if (frame > 0)
+            targetFile = blockName + std::to_string(frame) + ".png";
+        else
+            targetFile = blockName + ".png";
+
+        std::string path = SPRITE_BASE_PATH + targetFile;
+        std::ifstream test(path);
+        if (test.good()) return path;
+
+        // Try without trailing digits
+        std::string strippedName = blockName;
+        while (!strippedName.empty() && std::isdigit(strippedName.back())) {
+            strippedName.pop_back();
+        }
+        if (strippedName != blockName) {
+            std::string fallbackPath = SPRITE_BASE_PATH + strippedName + ".png";
+            std::ifstream testFallback(fallbackPath);
+            if (testFallback.good()) return fallbackPath;
+        }
+
+        // Ultimate fallback
+        return SPRITE_BASE_PATH + blockName +
+               (frame > 0 ? std::to_string(frame) : "") + ".png";
     };
     return ProcessTransparent(resolve());
 }

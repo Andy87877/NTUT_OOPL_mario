@@ -8,6 +8,8 @@
  */
 #include "Mario/LevelCompleteController.hpp"
 
+#include <algorithm>
+
 #include "Util/Logger.hpp"
 
 namespace Mario {
@@ -15,6 +17,7 @@ namespace Mario {
 void LevelCompleteController::Reset() {
     m_Phase = EndingPhase::NONE;
     m_WasPipeWarp = false;
+    m_WarpSFXPlayed = false;
     m_FlagEntity = nullptr;
     m_EndTimer = -1;
     m_LevelTimer = -1;
@@ -167,7 +170,8 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
     }
 
     // Ground level in C# is row 14. Y = 14 * 45 = 630
-    // Mario's Y is top-left, so we subtract his height to stay on top of the ground
+    // Mario's Y is top-left, so we subtract his height to stay on top of the
+    // ground
     const float groundY = 14.0f * GameConfig::TILE_SIZE - ps.GetHeight();
 
     if (!ps.IsGrounded()) {
@@ -183,11 +187,13 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
     } else {
         // Mario reached the ground.
         // C# logic: wait for flag to reach or pass mario, then flip
-        bool flagPassed = !m_FlagEntity || (m_FlagEntity->GetState().GetY() > ps.GetY());
-        
+        bool flagPassed =
+            !m_FlagEntity || (m_FlagEntity->GetState().GetY() > ps.GetY());
+
         if (flagPassed && ps.IsFacingRight()) {
             // Flip to the other side of the pole
-            // C#: Mario.ChangePosition(Mario.X + scaleSize * 0.6f); Mario.SetDirection("Left");
+            // C#: Mario.ChangePosition(Mario.X + scaleSize * 0.6f);
+            // Mario.SetDirection("Left");
             ps.SetX(ps.GetX() + GameConfig::TILE_SIZE * 0.6f);
             ps.SetFacingRight(false);
 
@@ -225,7 +231,7 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
     float walkSpeed = GameConfig::SCALED_SPEED;
     ps.SetX(ps.GetX() + walkSpeed);
     ps.SetMovingRight(true);
-    ps.SetFacingRight(true); // Must face right walking toward the castle
+    ps.SetFacingRight(true);  // Must face right walking toward the castle
 
     // Look for Castle5 block to determine stop position
     // In the C# ref, the castle door is named "Castle5"
@@ -258,7 +264,7 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
 void LevelCompleteController::UpdateEnterCastle(Player& player) {
     // Make Mario invisible (C# line 1221: setRecBox to 0,0)
     player.SetVisible(false);
-    player.GetState().SetVelX(0); // Stop movement immediately
+    player.GetState().SetVelX(0);  // Stop movement immediately
 
     if (m_LevelTimer < 0) {
         // C# line 1224: levelTimer = timer + 50;
@@ -290,19 +296,48 @@ void LevelCompleteController::UpdatePipeDescend(Player& player) {
 // ============================================================================
 // Pipe: Walk Right
 // C# reference: Form1.cs lines 957-968
+// Enhanced with smooth descent and fade-out animation
 // ============================================================================
 void LevelCompleteController::UpdatePipeRight(Player& player) {
     PlayerState& ps = player.GetState();
 
-    // Move Mario right (C# line 959: moveRight(Mario))
-    float newX = ps.GetX() + GameConfig::SCALED_SPEED;
-    ps.SetX(newX);
-    ps.SetGrounded(true);
+    // Total animation duration: 50 ticks (about 0.83 seconds at 60fps)
+    const int PIPE_ANIMATION_DURATION = 50;
+    float progress = static_cast<float>(m_TickCount) / PIPE_ANIMATION_DURATION;
+    progress = std::min(progress, 1.0f);  // Clamp to [0, 1]
 
-    // Check if walked far enough
-    if (ps.GetX() > m_PipeTargetX) {
+    // Phase 1 (0-0.6): Mario walks right while gradually descending into pipe
+    if (progress < 0.6f) {
+        // Walk right at normal speed
+        float newX = ps.GetX() + GameConfig::SCALED_SPEED;
+        ps.SetX(newX);
+        ps.SetGrounded(true);
+
+        // Gradually sink downward into the pipe
+        // Descent starts slow and accelerates as Mario enters deeper
+        float phaseProgress = progress / 0.6f;  // 0 to 1 for this phase
+        float sinkDepth = phaseProgress * phaseProgress *
+                          GameConfig::TILE_SIZE;  // Quadratic ease-in
+        ps.SetY(ps.GetY() + sinkDepth);
+    }
+    // Phase 2 (0.6-1.0): Mario continues sinking and fading out completely
+    else {
+        float fadeProgress = (progress - 0.6f) / 0.4f;  // 0 to 1 for fade phase
+
+        // Mario sinks further into the pipe
+        ps.SetY(ps.GetY() + GameConfig::PIPE_ANIM_SPEED * 0.8f);
+
+        // Log fade progress for visual feedback
+        LOG_DEBUG("Pipe fade-out: {:.1f}%", fadeProgress * 100.0f);
+    }
+
+    // End animation after duration
+    if (m_TickCount >= PIPE_ANIMATION_DURATION) {
         m_Phase = EndingPhase::COMPLETED;
-        LOG_DEBUG("Pipe walk right complete");
+        player.SetVisible(false);  // Mario disappears completely
+        LOG_DEBUG(
+            "Pipe warp RIGHT complete - Mario vanished after {:.1f} seconds",
+            PIPE_ANIMATION_DURATION / 60.0f);
     }
 }
 

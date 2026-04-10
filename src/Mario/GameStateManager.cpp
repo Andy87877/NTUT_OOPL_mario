@@ -12,15 +12,14 @@
 namespace Mario {
 
 // Level sequence: 1-1 -> 1-2 -> 8-4
-const std::vector<GameStateManager::LevelEntry> GameStateManager::LEVEL_SEQUENCE = {
-    {1, 1}, // World 1-1
-    {1, 2}, // World 1-2
-    {8, 4}, // World 8-4 (final)
+const std::vector<GameStateManager::LevelEntry>
+    GameStateManager::LEVEL_SEQUENCE = {
+        {1, 1},  // World 1-1
+        {1, 2},  // World 1-2
+        {8, 4},  // World 8-4 (final)
 };
 
-GameStateManager::GameStateManager() {
-    NewGame();
-}
+GameStateManager::GameStateManager() { NewGame(); }
 
 void GameStateManager::NewGame() {
     m_Score = 0;
@@ -52,6 +51,24 @@ std::string GameStateManager::GetLevelName() const {
 }
 
 std::string GameStateManager::AdvanceLevel() {
+    if (!m_NextLevelOverride.empty()) {
+        std::string next = m_NextLevelOverride;
+        m_NextLevelOverride.clear();
+
+        // Find and sync the index for the override
+        for (int i = 0; i < static_cast<int>(LEVEL_SEQUENCE.size()); i++) {
+            if (std::to_string(LEVEL_SEQUENCE[i].world) + "-" +
+                    std::to_string(LEVEL_SEQUENCE[i].level) ==
+                next) {
+                m_WorldNum = LEVEL_SEQUENCE[i].world;
+                m_LevelNum = LEVEL_SEQUENCE[i].level;
+                m_LevelIndex = i;
+                break;
+            }
+        }
+        return next;
+    }
+
     m_LevelIndex++;
 
     if (m_LevelIndex >= static_cast<int>(LEVEL_SEQUENCE.size())) {
@@ -84,4 +101,4 @@ void GameStateManager::SetLevel(int world, int level) {
     LOG_INFO("Level set to {}-{}", world, level);
 }
 
-} // namespace Mario
+}  // namespace Mario

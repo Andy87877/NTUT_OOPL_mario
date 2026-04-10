@@ -7,17 +7,16 @@
 #ifndef MARIO_BLOCK_HPP
 #define MARIO_BLOCK_HPP
 
-#include "pch.hpp"
-#include "Util/GameObject.hpp"
-#include "Util/Image.hpp"
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "Mario/Collider.hpp"
 #include "Mario/EntityDef.hpp"
 #include "Mario/GameConfig.hpp"
-
-#include <memory>
-#include <string>
-#include <vector>
+#include "Util/GameObject.hpp"
+#include "Util/Image.hpp"
+#include "pch.hpp"
 
 namespace Mario {
 
@@ -32,7 +31,7 @@ namespace Mario {
  *   - Support animation (e.g., question blocks)
  */
 class Block : public Util::GameObject {
-public:
+   public:
     /**
      * Construct a block from its grid position and definition data.
      * @param blockID The block type ID from the level CSV
@@ -86,13 +85,14 @@ public:
 
     /**
      * Get the contents/entity to spawn when this block is hit.
-     * If the player is big/fire and contents = "Mushroom", returns "FireFlower".
+     * If the player is big/fire and contents = "Mushroom", returns
+     * "FireFlower".
      */
     std::string GetSpawnContents(int playerState) const;
 
     const BlockDef& GetDef() const { return m_Def; }
 
-protected:
+   protected:
     int m_BlockID;
     int m_GridX;
     int m_GridY;
@@ -112,10 +112,18 @@ protected:
     // Sprites
     std::shared_ptr<Util::Image> m_Sprite;
     std::shared_ptr<Util::Image> m_HitSprite;
+    std::vector<std::shared_ptr<Util::Image>> m_AnimFrames;
+
+    // Lazy loading support
+    bool m_SpriteLoaded = false;
+    std::string m_SpritePath;
+    std::vector<std::string> m_AnimPaths;
+    std::string m_HitSpritePath;
 
     void SetupSprite();
+    void LoadSpriteOnDemand();  // Called on first Render()
 };
 
-} // namespace Mario
+}  // namespace Mario
 
-#endif // MARIO_BLOCK_HPP
+#endif  // MARIO_BLOCK_HPP

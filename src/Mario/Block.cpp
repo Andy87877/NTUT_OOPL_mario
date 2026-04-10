@@ -73,59 +73,105 @@ void Block::SetupSprite() {
         return;
     }
 
-    // Try to load the block sprite
+    // Lazy-load: Just collect paths, don't load images yet
     try {
-        std::string path;
-
         // Special handling for 8-4 castle sprites (IDs 801-904)
-        // Maps directly to Sprites/8-4/tile_XXX.png where XXX = ID - 800
         if (m_BlockID >= 801 && m_BlockID <= 904) {
-            path = SpritePathResolver::GetCastleSpritePathByID(m_BlockID);
-            if (path.empty()) {
-                // Castle sprite not found, hide block
+            m_SpritePath =
+                SpritePathResolver::GetCastleSpritePathByID(m_BlockID);
+            if (m_SpritePath.empty()) {
                 SetVisible(false);
                 return;
             }
         } else {
-            // Standard block sprites for 1-1, 1-2
-            path = SpritePathResolver::GetBlockSpritePath(m_Def.name, 0);
+            // Standard block sprites: only resolve path, don't load
+            m_SpritePath =
+                SpritePathResolver::GetBlockSpritePath(m_Def.name, 0);
         }
 
-        // Verify file exists before loading (avoid PTSD checkerboard)
-        std::ifstream test(path);
+        // Verify file exists (without loading it yet)
+        std::ifstream test(m_SpritePath);
         if (!test.good()) {
             SetVisible(false);
             return;
         }
-        m_Sprite = std::make_shared<Util::Image>(path);
-        SetDrawable(m_Sprite);
+
+        // For animated blocks, collect all frame paths (don't load yet)
+        if (m_Def.animated) {
+            for (int i = 0; i <= m_Def.animationFrames; ++i) {
+                std::string animPath =
+                    SpritePathResolver::GetBlockSpritePath(m_Def.name, i);
+                std::ifstream testAnim(animPath);
+                if (testAnim.good()) {
+                    m_AnimPaths.push_back(animPath);
+                } else {
+                    m_AnimPaths.push_back(m_SpritePath);  // fallback to base
+                }
+            }
+        }
+
+        // Collect hit sprite path if available
+        if (!m_Def.hitSpriteName.empty()) {
+            m_HitSpritePath =
+                SpritePathResolver::GetBlockSpritePath(m_Def.hitSpriteName, 0);
+            std::ifstream test(m_HitSpritePath);
+            if (!test.good()) {
+                m_HitSpritePath.clear();
+            }
+        }
+
+        // Mark as ready but not yet loaded
+        m_SpriteLoaded = false;
         SetVisible(true);
 
-        // Invisible question blocks start hidden
-        if (m_Def.name == "InvisQuestionBlock") {
-            SetVisible(false);
-        }
     } catch (...) {
-        // If sprite not found, hide the block
+        SetVisible(false);
+    }
+}
+
+void Block::LoadSpriteOnDemand() {
+    if (m_SpriteLoaded) return;
+    m_SpriteLoaded = true;
+
+    if (m_SpritePath.empty()) {
+        SetVisible(false);
+        return;
+    }
+
+    // Now actually load the sprite images
+    try {
+        m_Sprite = std::make_shared<Util::Image>(m_SpritePath);
+        SetDrawable(m_Sprite);
+
+        // Load animated frames if any
+        if (!m_AnimPaths.empty()) {
+            for (const auto& path : m_AnimPaths) {
+                m_AnimFrames.push_back(std::make_shared<Util::Image>(path));
+            }
+        }
+
+        // Load hit sprite if available
+        if (!m_HitSpritePath.empty()) {
+            m_HitSprite = std::make_shared<Util::Image>(m_HitSpritePath);
+        }
+
+    } catch (...) {
         SetVisible(false);
     }
 
-    // Load hit sprite if available
-    if (!m_Def.hitSpriteName.empty()) {
-        try {
-            std::string hitPath =
-                SpritePathResolver::GetBlockSpritePath(m_Def.hitSpriteName, 0);
-            std::ifstream test(hitPath);
-            if (test.good()) {
-                m_HitSprite = std::make_shared<Util::Image>(hitPath);
-            }
-        } catch (...) {
-            // No hit sprite available
-        }
+    // Invisible question blocks start hidden
+    if (m_Def.name == "InvisQuestionBlock") {
+        SetVisible(false);
     }
 }
 
 void Block::Update(float cameraOffset) {
+    // Load sprite on first update (lazy loading)
+    // This spreads sprite loading across frames instead of all at level load
+    if (!m_SpriteLoaded) {
+        LoadSpriteOnDemand();
+    }
+
     // Convert grid position to screen position with camera offset
     float sx, sy;
     GridToScreen(m_GridX, m_GridY, cameraOffset, sx, sy);
@@ -144,22 +190,13 @@ void Block::Update(float cameraOffset) {
     }
 
     // Block animation (e.g., question block shimmer)
-    if (m_Def.animated && !m_IsHit) {
+    if (m_Def.animated && !m_IsHit && !m_AnimFrames.empty()) {
         m_AnimTimer++;
         if (m_AnimTimer >= 10) {  // Change frame every 10 ticks
             m_AnimTimer = 0;
-            m_CurrentFrame = (m_CurrentFrame + 1) % (m_Def.animationFrames + 1);
-            try {
-                std::string path = SpritePathResolver::GetBlockSpritePath(
-                    m_Def.name, m_CurrentFrame);
-                std::ifstream test(path);
-                if (test.good()) {
-                    m_Sprite = std::make_shared<Util::Image>(path);
-                    SetDrawable(m_Sprite);
-                }
-            } catch (...) {
-                // Keep current frame if next frame not found
-            }
+            m_CurrentFrame = (m_CurrentFrame + 1) % m_AnimFrames.size();
+            m_Sprite = m_AnimFrames[m_CurrentFrame];
+            SetDrawable(m_Sprite);
         }
     }
 }

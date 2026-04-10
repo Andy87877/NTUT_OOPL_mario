@@ -248,13 +248,27 @@ void App::UpdateFlagpole() {
 void App::UpdatePipeWarp() {
     if (!m_Player || !m_Level) return;
 
+    // Play warp SFX on first frame of pipe warp
+    // Ensure it plays when animation begins
+    static bool warpSFXPlayed = false;
+    if (!warpSFXPlayed) {
+        warpSFXPlayed = true;
+        // TODO: Integrate with AudioManager or PTSD audio system
+        // AudioManager::GetInstance().PlaySFX("20. Warp");
+        LOG_DEBUG("▶️ Playing Warp SFX: Resources/Audio/SFX/20. Warp.mp3");
+    }
+
     bool stillRunning =
         m_LevelCompleteCtrl.Update(*m_Player, *m_Level, m_Camera.GetOffset());
 
     if (!stillRunning && m_LevelCompleteCtrl.IsCompleted()) {
         m_GameState.SavePowerState(m_Player->GetState().GetState());
+        warpSFXPlayed = false;  // Reset for next pipe warp
 
-        if (!m_GameState.IsUnderground()) {
+        if (m_GameState.HasNextLevelOverride()) {
+            // Standard warp to a completely new level (e.g. 1-2 pipe to 8-4)
+            AdvanceToNextLevel();
+        } else if (!m_GameState.IsUnderground()) {
             // We were in the main level, now load the sub-level (underground)
             m_GameState.SetUnderground(true);
             std::string subLevel = m_Level->GetSubLevelName();
@@ -521,7 +535,8 @@ void App::LoadLevel(const std::string& levelName) {
                          levelName.find("u") != std::string::npos ||
                          levelName == "1-2" || levelName == "8-4";
     if (isUnderground) {
-        glClearColor(0.0f, 0.0f, 0.0f,                     0.0f);  // Black (castle/dungeon background)
+        glClearColor(0.0f, 0.0f, 0.0f,
+                     0.0f);  // Black (castle/dungeon background)
     } else {
         glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
                      0.0f);  // Sky Blue (transparent)
@@ -735,11 +750,56 @@ void App::CheckPipeCollision() {
     // C# lines 834-837
     if ((pipeRight1 || pipeRight2) && ps.IsGrounded() &&
         Util::Input::IsKeyPressed(Util::Keycode::RIGHT)) {
-        LOG_INFO("Entering pipe RIGHT at ({}, {})", pipeRX, pipeRY);
-        m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Right", pipeRX, pipeRY);
-        m_GameState.StopTime();
-        m_CurrentState = State::PIPE_WARP;
-        return;
+        // Ensure Mario isn't above the pipe trying to jump over it
+        float playerBot = ps.GetY() - ps.GetHeight();
+        if (playerBot < pipeRY + Mario::GameConfig::TILE_SIZE * 0.1f) {
+            LOG_INFO("Entering pipe RIGHT at ({}, {})", pipeRX, pipeRY);
+            m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Right", pipeRX,
+                                              pipeRY);
+            m_GameState.StopTime();
+            m_CurrentState = State::PIPE_WARP;
+
+            // Warp exactly to 8-4 from 1-2 based on C# code spec "from pipe
+            // teleport to 8-4"
+            if (m_GameState.GetLevelName() == "1-2") {
+                m_GameState.SetNextLevelOverride("8-4");
+            }
+
+            return;
+        }
+    }
+
+    // Auto-trigger pipe warp for ID 42/43 (right pipe in 1-2)
+    // Simply touching these pipe blocks triggers the warp animation
+    // regardless of key input (automatic pipe entry for seamless progression)
+    if (m_GameState.GetLevelName() == "1-2") {
+        // Expand Mario's hitbox slightly since the collision manager will
+        // prevent actual intersection with the solid pipe block
+        Mario::AABB expandedBox = playerBox;
+        expandedBox.left -= 2.0f;
+        expandedBox.right += 2.0f;
+
+        for (const auto& block : m_Level->GetAllBlocks()) {
+            int id = block->GetBlockID();
+            if (id == Mario::GameConfig::PIPE_RIGHT_TOP ||
+                id == Mario::GameConfig::PIPE_RIGHT_BOT) {
+                Mario::AABB bBox = block->GetAABB();
+                if (expandedBox.Intersects(bBox) && ps.IsGrounded()) {
+                    LOG_INFO("Auto-warp triggered by pipe contact at 1-2");
+                    m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Right",
+                                                      block->GetWorldX(),
+                                                      block->GetWorldY());
+                    // TODO: Play warp SFX "Resources/Audio/SFX/20. Warp.mp3"
+                    // This would be: AudioManager::GetInstance().PlaySFX("20.
+                    // Warp");
+                    LOG_DEBUG("Warp SFX should play now: 20. Warp.mp3");
+                    m_GameState.StopTime();
+                    m_CurrentState = State::PIPE_WARP;
+                    m_GameState.SetNextLevelOverride("8-4");
+                    return;
+                }
+            }
+        }
     }
 }
 
