@@ -47,8 +47,10 @@ void Player::UpdateView(float cameraOffset) {
 
     // Player world position is top-left of the player sprite
     // PTSD needs center of the sprite
-    float playerCenterX = m_State.GetX() + GameConfig::TILE_SIZE / 2.0f;
-    float playerCenterY = m_State.GetY() + m_State.GetHeight() / 2.0f;
+    float playerWidth = static_cast<float>(m_State.GetWidth());
+    float playerHeight = static_cast<float>(m_State.GetHeight());
+    float playerCenterX = m_State.GetX() + playerWidth / 2.0f;
+    float playerCenterY = m_State.GetY() + playerHeight / 2.0f;
 
     // Subtract half window width to convert from world-left-origin to
     // PTSD-center-origin

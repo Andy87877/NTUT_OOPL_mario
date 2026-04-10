@@ -127,18 +127,33 @@ void CollisionManager::CheckCeilingCollision(
                     state.SetFallHeight(0.0);
 
                     // Trigger block hit
-                    if (!block->IsHit() && block->GetDef().spawner &&
-                        !block->GetDef().spawnEntity.empty()) {
-                        if (outSpawns) {
+                    if (!block->IsHit()) {
+                        std::string spawnEntity;
+
+                        // Handle container blocks (question blocks, coin
+                        // blocks) Use GetSpawnContents for powerup conversion
+                        // logic
+                        if (block->GetDef().isContainer) {
+                            spawnEntity =
+                                block->GetSpawnContents(state.GetState());
+                        }
+                        // Handle explicit spawner blocks
+                        else if (block->GetDef().spawner) {
+                            spawnEntity = block->GetDef().spawnEntity;
+                        }
+
+                        // Spawn the entity if we determined one
+                        if (!spawnEntity.empty() && outSpawns) {
                             Level::SpawnPoint sp;
-                            sp.entityName = block->GetDef().spawnEntity;
+                            sp.entityName = spawnEntity;
                             sp.gridX = block->GetGridX();
                             sp.gridY = block->GetGridY();
                             sp.worldX = static_cast<float>(
                                 block->GetGridX() * GameConfig::TILE_SIZE);
+                            // EntityState::Init will handle the fromBlock
+                            // offset (posY -= TILE_SIZE)
                             sp.worldY = static_cast<float>(
-                                block->GetGridY() * GameConfig::TILE_SIZE -
-                                GameConfig::TILE_SIZE);
+                                block->GetGridY() * GameConfig::TILE_SIZE);
                             sp.spawned = true;
                             outSpawns->push_back(sp);
                         }

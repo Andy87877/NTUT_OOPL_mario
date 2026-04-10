@@ -855,10 +855,19 @@ void App::CheckPlayerEntityCollision() {
             if (puState == 1) {
                 // Mushroom -> Big
                 if (ps.GetState() == 0) {
+                    // When growing from small to big, adjust Y position upward
+                    // (small=32px height, big=64px height, so move up by 32px)
+                    // C# reference: SetState translates brush by scaleSize when
+                    // small->big
+                    ps.SetY(ps.GetY() - Mario::GameConfig::TILE_SIZE);
                     ps.PowerUp(Mario::PowerState::BIG);
                 }
             } else if (puState == 2) {
                 // Fire Flower
+                if (ps.GetState() == 0) {
+                    // Same adjustment for small->fire
+                    ps.SetY(ps.GetY() - Mario::GameConfig::TILE_SIZE);
+                }
                 ps.PowerUp(Mario::PowerState::FIRE);
             } else if (puState == 3) {
                 // Star

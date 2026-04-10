@@ -48,11 +48,14 @@ void EntityState::Init(const std::string& name, float worldX, float worldY,
         m_PosY -= GameConfig::TILE_SIZE;
     }
 
-    // Enemy speed = base speed / 3 (C# line 155)
+    // Enemy/Item speed configuration (C# line 155)
     if (!m_IsStatic) {
         float baseSpeed = GameConfig::SCALED_SPEED;
         if (m_IsEnemy) {
             m_VelX = baseSpeed / GameConfig::ENEMY_SPEED_DIVISOR;
+        } else if (m_IsPowerUp) {
+            // Slow down power-up items (mushroom, fire flower, etc.)
+            m_VelX = baseSpeed / GameConfig::ITEM_SPEED_DIVISOR;
         } else {
             m_VelX = baseSpeed;
         }

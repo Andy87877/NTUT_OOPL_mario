@@ -25,12 +25,34 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
     std::string levelName = level.GetLevelName();
 
     for (const auto& sp : level.GetSpawnPoints()) {
-        // Skip non-entity spawn points (Flag, UnderCoin, etc.)
-        if (sp.entityName == "Flag" || sp.entityName == "UnderCoin") {
+        // Handle Flag entity - should only appear in 1-1
+        if (sp.entityName == "Flag") {
+            // Only create Flag in 1-1 level
+            if (levelName == "1-1" ||
+                levelName.find("1-1") != std::string::npos) {
+                const EntityDef& def = level.GetEntityDefByName("Flag");
+                if (!def.name.empty()) {
+                    auto flag = SpawnEntity(def, sp.worldX, sp.worldY, 0, false,
+                                            levelName);
+                    if (flag) {
+                        LOG_DEBUG("Spawned Flag at worldX={}, worldY={}",
+                                  sp.worldX, sp.worldY);
+                        entities.push_back(flag);
+                    }
+                } else {
+                    LOG_WARN(
+                        "Flag entity definition not found in EntityList.csv");
+                }
+            }
             continue;
         }
 
-        // Look up entity definition
+        // Skip UnderCoin and other non-entity spawn points
+        if (sp.entityName == "UnderCoin") {
+            continue;
+        }
+
+        // Look up entity definition from EntityList.csv
         const EntityDef& def = level.GetEntityDefByName(sp.entityName);
         if (def.name.empty()) {
             LOG_WARN("EntityFactory: Unknown entity '{}' at ({}, {})",

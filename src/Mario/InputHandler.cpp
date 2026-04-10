@@ -40,7 +40,21 @@ void InputHandler::HandleInput(PlayerState& state, float speed) {
     m_Crouch = Util::Input::IsKeyPressed(Util::Keycode::DOWN) ||
                Util::Input::IsKeyPressed(Util::Keycode::S);
     if (state.GetState() > 0) { // Only big/fire mario can crouch
+        bool wasCrouching = state.IsCrouching();
         state.SetCrouching(m_Crouch);
+        
+        // Adjust Y position when crouch state changes (to keep feet in same place)
+        // When crouching: height decrease by TILE_SIZE, so move down by TILE_SIZE/2
+        // When standing: height increase by TILE_SIZE, so move up by TILE_SIZE/2
+        if (wasCrouching != m_Crouch && state.GetState() > 0) {
+            if (m_Crouch) {
+                // Entering crouch: height decreases, move down
+                state.SetY(state.GetY() + GameConfig::TILE_SIZE / 2.0f);
+            } else {
+                // Exiting crouch: height increases, move up
+                state.SetY(state.GetY() - GameConfig::TILE_SIZE / 2.0f);
+            }
+        }
     } else {
         state.SetCrouching(false);
     }

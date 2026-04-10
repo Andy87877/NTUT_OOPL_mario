@@ -26,8 +26,8 @@ void LevelCompleteController::Reset() {
 // C# reference: Form1.cs lines 1231-1265
 // ============================================================================
 void LevelCompleteController::StartFlagpole(Player& player,
-                                             std::shared_ptr<Entity> flagEntity,
-                                             const Block* goalBlock) {
+                                            std::shared_ptr<Entity> flagEntity,
+                                            const Block* goalBlock) {
     m_Phase = EndingPhase::POLE_SLIDE;
     m_WasPipeWarp = false;
     m_FlagEntity = flagEntity;
@@ -47,18 +47,32 @@ void LevelCompleteController::StartFlagpole(Player& player,
     // Snap Mario to the pole position (C# line 1249: offset by scaleSize/2.5)
     float poleX = m_GoalBlockX + GameConfig::TILE_SIZE * 0.4f;
     player.GetState().SetX(poleX);
+
+    // Set Mario's Y to flagpole's Y position (start of descent)
+    if (flagEntity) {
+        float poleY = flagEntity->GetState().GetY();
+        player.GetState().SetY(poleY);
+        LOG_DEBUG("Starting pole slide from Y={}", poleY);
+    }
+
     player.GetState().SetVelX(0.0f);
     player.GetState().SetVelY(0.0);
+
+    // Mario must NOT be grounded during pole slide phase
+    // This allows UpdatePoleSlide to trigger descent (checks !ps.IsGrounded())
+    player.GetState().SetGrounded(false);
 
     // Stop star if active (C# line 1237-1239)
     if (player.GetState().GetPowerState() == PowerState::SMALL_STAR ||
         player.GetState().GetPowerState() == PowerState::BIG_STAR) {
-        player.GetState().SetPowerState(
-            player.GetState().GetPowerState() == PowerState::BIG_STAR
-                ? PowerState::BIG : PowerState::SMALL);
+        player.GetState().SetPowerState(player.GetState().GetPowerState() ==
+                                                PowerState::BIG_STAR
+                                            ? PowerState::BIG
+                                            : PowerState::SMALL);
     }
 
-    LOG_INFO("Flagpole sequence started at ({}, {})", m_GoalBlockX, m_GoalBlockY);
+    LOG_INFO("Flagpole sequence started at ({}, {})", m_GoalBlockX,
+             m_GoalBlockY);
 }
 
 // ============================================================================
@@ -66,8 +80,9 @@ void LevelCompleteController::StartFlagpole(Player& player,
 // C# reference: Form1.cs lines 941-968
 // ============================================================================
 void LevelCompleteController::StartPipeWarp(Player& player,
-                                             const std::string& direction,
-                                             float pipeWorldX, float pipeWorldY) {
+                                            const std::string& direction,
+                                            float pipeWorldX,
+                                            float pipeWorldY) {
     m_WasPipeWarp = true;
     m_PipeDirection = direction;
     m_PipeX = pipeWorldX;
@@ -97,7 +112,7 @@ void LevelCompleteController::StartPipeWarp(Player& player,
 // Per-frame Update
 // ============================================================================
 bool LevelCompleteController::Update(Player& player, Level& level,
-                                      float cameraOffset) {
+                                     float cameraOffset) {
     if (m_Phase == EndingPhase::NONE || m_Phase == EndingPhase::COMPLETED) {
         return false;
     }
@@ -158,29 +173,43 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
     }
 
     // Check if Mario reached the ground
-    // (ground is at row 13 in a 16-row level = 13*32 = 416)
-    if (ps.IsGrounded() || ps.GetY() >= (GameConfig::LEVEL_ROWS - 3) * GameConfig::TILE_SIZE) {
+    // Ground level = bottom of row 13 (top of row 14 which contains ground
+    // blocks) Row 13: Y = 13 * TILE_SIZE = 585 For small Mario (height =
+    // TILE_SIZE = 45), Y=585 positions bottom at Y=630 which is exactly on top
+    // of the ground blocks starting at row 14
+    const float groundY = 13.0f * GameConfig::TILE_SIZE;
+
+    if (ps.GetY() >= groundY) {
         ps.SetGrounded(true);
         ps.SetPoleSliding(false);
+        ps.SetY(groundY);  // Snap to exact ground level
+        ps.SetVelY(0);
 
-        // C# lines 1258-1263: Flip direction and start walking
-        // After landing, Mario turns around briefly then walks right
+        // C# lines 1258-1263: After landing, start walk phase
         m_Phase = EndingPhase::POLE_WALK;
         m_TickCount = 0;
-        LOG_DEBUG("Flagpole slide complete, starting walk phase");
+        LOG_DEBUG("Flagpole slide complete. Mario landed at Y={}", groundY);
     }
 }
 
 // ============================================================================
 // Flagpole: Walk to Castle
-// C# reference: Form1.cs lines 1206-1228
-// Mario walks right until reaching Castle5 block
+// C# reference: Form1.cs lines 1215-1250
+// After sliding down pole, Mario waits then walks toward castle
 // ============================================================================
 void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
     PlayerState& ps = player.GetState();
 
-    // Brief delay before walking (C# line 1262: endTime = timer + 20)
+    // Maintain Mario on ground level throughout walk phase
+    const float groundY = 13.0f * GameConfig::TILE_SIZE;
+    ps.SetY(groundY);
+    ps.SetGrounded(true);
+    ps.SetVelY(0);
+
+    // C# reference (lines 1244-1247): Brief delay before starting walk
+    // endTime = timer + 20 (20 ticks = ~0.4 seconds)
     if (m_TickCount < GameConfig::ENDING_WALK_DELAY) {
+        ps.SetMovingRight(false);
         return;
     }
 
@@ -225,7 +254,8 @@ void LevelCompleteController::UpdateEnterCastle(Player& player) {
     }
 
     m_Phase = EndingPhase::WAIT_TRANSITION;
-    LOG_DEBUG("Mario entered castle, waiting {} ticks", GameConfig::LEVEL_TRANSITION_DELAY);
+    LOG_DEBUG("Mario entered castle, waiting {} ticks",
+              GameConfig::LEVEL_TRANSITION_DELAY);
 }
 
 // ============================================================================
@@ -265,4 +295,4 @@ void LevelCompleteController::UpdatePipeRight(Player& player) {
     }
 }
 
-} // namespace Mario
+}  // namespace Mario

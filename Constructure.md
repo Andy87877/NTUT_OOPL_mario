@@ -297,6 +297,7 @@ graph LR
 | **ParaKoopa** | **Entity** | **Enemy** | **Flying Koopa, floats up/down, lands as Koopa (ID 875)** |
 | **Bowser** | **Entity** | **Boss** | **Multi-phase AI: walk → jump → fire breath (ID 847)** |
 | **Princess** | **Entity** | **NPC** | **Static character, goal/reward (ID 879)** |
+| **Flag** | **Entity** | **Static Object** | **Flagpole flag from EntityList.csv (ID 4), slides down with Mario in 1-1 ending** |
 | **Fireball** | **Entity** | **Projectile** | **Projectile fired by Bowser & Player** |
 
 ---

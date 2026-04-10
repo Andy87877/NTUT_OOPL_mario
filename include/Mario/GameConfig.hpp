@@ -63,6 +63,8 @@ struct GameConfig {
 
     // -- Entity --
     static constexpr float ENEMY_SPEED_DIVISOR = 6.0f;  // Halved from 3.0f
+    static constexpr float ITEM_SPEED_DIVISOR =
+        3.0f;  // Slow down items (mushroom, fire flower)
     static constexpr float SHELL_SPEED_MULTIPLIER = 1.5f;
 
     // -- Collision --
