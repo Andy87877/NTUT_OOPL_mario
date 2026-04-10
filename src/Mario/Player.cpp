@@ -23,21 +23,42 @@ Player::Player(float worldX, float worldY, int startState) {
     // Set initial Z-index for player rendering layer
     SetZIndex(GameConfig::Z_PLAYER);
 
+    // Initialize current sprite path
+    m_CurrentSpritePath = "";
+
     // Load initial sprite
-    UpdateView(0.0f);
+    std::string initialPath =
+        SpritePathResolver::GetPlayerSpritePath("Idle", startState, 0);
+    if (!initialPath.empty()) {
+        auto sprite = GetOrLoadSprite(initialPath);
+        if (sprite) {
+            SetDrawable(sprite);
+            m_CurrentSpritePath = initialPath;
+        }
+    }
 }
 
 void Player::UpdateView(float cameraOffset) {
-    // Build the sprite path from current state
-    std::string spritePath = BuildSpritePath();
+    // Build the sprite path from current state following C# logic:
+    // sprite_name = "Mario" + prefix + state + frame
+    std::string prefix = m_State.GetAnimPrefix();
+    int frame = m_State.GetAnimFrame();
+
+    // Map power state to C# state number
+    int spriteState = static_cast<int>(m_State.GetPowerState());
+
+    // Get the sprite path
+    std::string spritePath =
+        SpritePathResolver::GetPlayerSpritePath(prefix, spriteState, frame);
 
     // Only reload sprite if it changed
-    if (spritePath != m_CurrentSpritePath) {
+    if (!spritePath.empty() && spritePath != m_CurrentSpritePath) {
         m_CurrentSpritePath = spritePath;
         auto sprite = GetOrLoadSprite(spritePath);
         if (sprite) {
             SetDrawable(sprite);
         }
+        // If loading fails, keep the previous sprite
     }
 
     // Convert world coordinates to PTSD screen coordinates
@@ -78,77 +99,34 @@ void Player::UpdateView(float cameraOffset) {
     }
 }
 
-std::string Player::BuildSpritePath() const {
-    std::string prefix = m_State.GetAnimPrefix();
-    int frame = m_State.GetAnimFrame();
-
-    // Map power state to C# state number
-    int spriteState = 0;
-    switch (m_State.GetPowerState()) {
-        case PowerState::SMALL:
-            spriteState = 0;
-            break;
-        case PowerState::BIG:
-            spriteState = 1;
-            break;
-        case PowerState::FIRE:
-            spriteState = 2;
-            break;
-        case PowerState::SMALL_STAR:
-            spriteState = 3;
-            break;
-        case PowerState::BIG_STAR:
-            spriteState = 4;
-            break;
-        default:
-            spriteState = 0;
-            break;
-    }
-
-    // C# Walk animation uses frames 1, 2, 3 (not 0, 1, 2)
-    int spriteFrame = frame;
-    if (prefix == "Right") {
-        spriteFrame = frame + 1;  // C# starts walk frames at 1
-    }
-
-    return SpritePathResolver::GetPlayerSpritePath(prefix, spriteState,
-                                                   spriteFrame);
-}
-
 std::shared_ptr<Util::Image> Player::GetOrLoadSprite(const std::string& path) {
+    if (path.empty()) {
+        LOG_ERROR("GetOrLoadSprite: Received empty path");
+        return nullptr;
+    }
+
+    // Check cache first
     auto it = m_SpriteCache.find(path);
     if (it != m_SpriteCache.end()) {
         return it->second;
     }
 
-    // Verify file exists first to avoid PTSD checkerboard
+    // Verify file exists before loading
     std::ifstream test(path);
     if (test.good()) {
         try {
             auto sprite = std::make_shared<Util::Image>(path);
             m_SpriteCache[path] = sprite;
+            LOG_DEBUG("Loaded sprite: {}", path);
             return sprite;
-        } catch (...) {
-            LOG_WARN("Failed to create Image from: {}", path);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Failed to create Image from {}: {}", path, e.what());
+            return nullptr;
         }
     }
 
-    // Fallback to basic idle sprite
-    LOG_WARN("Player sprite not found: {}, trying fallback", path);
-    std::string fallback =
-        SpritePathResolver::GetPlayerSpritePath("Idle", 0, 0);
-    std::ifstream test2(fallback);
-    if (test2.good()) {
-        try {
-            auto sprite = std::make_shared<Util::Image>(fallback);
-            m_SpriteCache[path] = sprite;  // Cache fallback under original key
-            return sprite;
-        } catch (...) {
-            LOG_ERROR("Failed to load fallback sprite: {}", fallback);
-        }
-    }
-
-    LOG_ERROR("No valid player sprite found!");
+    // File doesn't exist - this is a critical error
+    LOG_ERROR("Sprite file not found: {}", path);
     return nullptr;
 }
 

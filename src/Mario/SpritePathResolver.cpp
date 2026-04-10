@@ -126,28 +126,62 @@ std::string SpritePathResolver::GetBlockSpritePath(const std::string& blockName,
 
 std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
                                                     int state, int frame) {
-    auto resolve = [&]() -> std::string {
-        std::string name = "Mario" + prefix;
-        if (state > 0) name += std::to_string(state);
-        if (frame > 0) name += std::to_string(frame);
+    // 這裡我們直接實現 C# 的 Resources.resx 映射對應
+    // C# 的 name 組合總是: "Mario" + prefix + state + frame
+    // 例如: state=0, frame=0, prefix="Right" => "MarioRight00"
+    // 然後 C# 的 Resources.resx 將這些名字對應到具體的檔名
+    
+    std::string csName = "Mario" + prefix + std::to_string(state) + std::to_string(frame);
+    std::string fileName = "MarioIdle.png"; // Default fallback
 
-        std::string fullPath = SPRITE_BASE_PATH + name + ".png";
-        std::ifstream test(fullPath);
-        if (test.good()) return fullPath;
+    // --- Idle ---
+    if (csName == "MarioIdle00") fileName = "MarioIdle.png";
+    else if (csName == "MarioIdle10") fileName = "MarioIdle1.png";
+    else if (csName == "MarioIdle20") fileName = "MarioIdle2.png";
+    // --- Right ---
+    else if (csName == "MarioRight00") fileName = "MarioRight1.png";
+    else if (csName == "MarioRight01") fileName = "MarioRight2.png";
+    else if (csName == "MarioRight02") fileName = "MarioRight3.png";
+    // Big Right
+    else if (csName == "MarioRight10") fileName = "MarioRight11.png";
+    else if (csName == "MarioRight11") fileName = "MarioRight21.png";
+    else if (csName == "MarioRight12") fileName = "MarioRight31.png";
+    // Fire Right
+    else if (csName == "MarioRight20") fileName = "MarioRight12.png";
+    else if (csName == "MarioRight21") fileName = "MarioRight22.png";
+    else if (csName == "MarioRight22") fileName = "MarioRight32.png";
+    // --- Jump ---
+    else if (csName == "MarioJump00") fileName = "MarioJump.png";
+    else if (csName == "MarioJump10") fileName = "MarioJump1.png";
+    else if (csName == "MarioJump20") fileName = "MarioJump2.png";
+    // --- Crouch ---
+    else if (csName == "MarioCrouch10") fileName = "MarioCrouch1.png";
+    else if (csName == "MarioCrouch20") fileName = "MarioCrouch2.png";
+    // --- Pole ---
+    else if (csName == "MarioPole00") fileName = "MarioPole10.png";
+    else if (csName == "MarioPole01") fileName = "MarioPole20.png";
+    else if (csName == "MarioPole10") fileName = "MarioPole11.png";
+    else if (csName == "MarioPole11") fileName = "MarioPole21.png";
+    else if (csName == "MarioPole20") fileName = "MarioPole12.png";
+    else if (csName == "MarioPole21") fileName = "MarioPole22.png";
 
-        if (state == 0 && frame == 0) {
-            return SPRITE_BASE_PATH + "Mario" + prefix + ".png";
-        }
-        if (frame > 0) {
-            std::string noFrame = SPRITE_BASE_PATH + "Mario" + prefix;
-            if (state > 0) noFrame += std::to_string(state);
-            noFrame += ".png";
-            std::ifstream test2(noFrame);
-            if (test2.good()) return noFrame;
-        }
-        return fullPath;
-    };
-    return ProcessTransparent(resolve());
+    // --- Fire (Throw fireball) ---
+    else if (csName == "MarioFire20") fileName = "MarioFire2.png";
+
+    // Star power-ups are states 3 and 4, we can add them later if needed.
+
+
+    // 將計算出的 fileName 組合為相對專案根目錄的完整路徑
+    std::string path = SPRITE_BASE_PATH + fileName;
+    
+    // 檢查檔案是否存在，否則使用嚴格的備用方案
+    std::ifstream test(path);
+    if (!test.good()) {
+        LOG_WARN("GetPlayerSpritePath: Could not find {}, using MarioIdle fallback", path);
+        return SPRITE_BASE_PATH + "MarioIdle.png";
+    }
+
+    return path;
 }
 
 std::string SpritePathResolver::GetEntitySpritePath(
@@ -158,7 +192,8 @@ std::string SpritePathResolver::GetEntitySpritePath(
 
         // Try frame-suffixed version first (for animated sprites)
         if (frame >= 0) {
-            std::string path = levelDir + entityName + std::to_string(frame) + ".png";
+            std::string path =
+                levelDir + entityName + std::to_string(frame) + ".png";
             std::ifstream test(path);
             if (test.good()) return path;
         }
@@ -175,22 +210,24 @@ std::string SpritePathResolver::GetEntitySpritePath(
             std::ifstream test2(path);
             if (test2.good()) return path;
         }
-        
+
         std::string mainPath = SPRITE_BASE_PATH + entityName + ".png";
         std::ifstream test3(mainPath);
         if (test3.good()) return mainPath;
-        
+
         // If nothing found, return empty string to indicate missing sprite
         return "";
     };
-    
+
     std::string path = resolve();
     if (path.empty()) {
-        LOG_WARN("GetEntitySpritePath: No sprite found for '{}' (frame: {}) in level '{}'",
-                 entityName, frame, levelName);
+        LOG_WARN(
+            "GetEntitySpritePath: No sprite found for '{}' (frame: {}) in "
+            "level '{}'",
+            entityName, frame, levelName);
         return "";  // Return empty path, caller should handle this
     }
-    
+
     return ProcessTransparent(path);
 }
 

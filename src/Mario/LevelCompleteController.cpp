@@ -158,12 +158,6 @@ bool LevelCompleteController::Update(Player& player, Level& level,
 void LevelCompleteController::UpdatePoleSlide(Player& player) {
     PlayerState& ps = player.GetState();
 
-    // Slide Mario down
-    if (!ps.IsGrounded()) {
-        float newY = ps.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
-        ps.SetY(newY);
-    }
-
     // Slide flag entity down with Mario
     if (m_FlagEntity && m_FlagEntity->GetState().IsActive()) {
         EntityState& fs = m_FlagEntity->GetState();
@@ -172,23 +166,35 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
         }
     }
 
-    // Check if Mario reached the ground
-    // Ground level = bottom of row 13 (top of row 14 which contains ground
-    // blocks) Row 13: Y = 13 * TILE_SIZE = 585 For small Mario (height =
-    // TILE_SIZE = 45), Y=585 positions bottom at Y=630 which is exactly on top
-    // of the ground blocks starting at row 14
-    const float groundY = 13.0f * GameConfig::TILE_SIZE;
+    // Ground level in C# is row 14. Y = 14 * 45 = 630
+    // Mario's Y is top-left, so we subtract his height to stay on top of the ground
+    const float groundY = 14.0f * GameConfig::TILE_SIZE - ps.GetHeight();
 
-    if (ps.GetY() >= groundY) {
-        ps.SetGrounded(true);
-        ps.SetPoleSliding(false);
-        ps.SetY(groundY);  // Snap to exact ground level
-        ps.SetVelY(0);
+    if (!ps.IsGrounded()) {
+        float newY = ps.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
+        if (newY >= groundY) {
+            newY = groundY;
+            ps.SetY(newY);
+            ps.SetGrounded(true);
+            ps.SetVelY(0);
+        } else {
+            ps.SetY(newY);
+        }
+    } else {
+        // Mario reached the ground.
+        // C# logic: wait for flag to reach or pass mario, then flip
+        bool flagPassed = !m_FlagEntity || (m_FlagEntity->GetState().GetY() > ps.GetY());
+        
+        if (flagPassed && ps.IsFacingRight()) {
+            // Flip to the other side of the pole
+            // C#: Mario.ChangePosition(Mario.X + scaleSize * 0.6f); Mario.SetDirection("Left");
+            ps.SetX(ps.GetX() + GameConfig::TILE_SIZE * 0.6f);
+            ps.SetFacingRight(false);
 
-        // C# lines 1258-1263: After landing, start walk phase
-        m_Phase = EndingPhase::POLE_WALK;
-        m_TickCount = 0;
-        LOG_DEBUG("Flagpole slide complete. Mario landed at Y={}", groundY);
+            m_Phase = EndingPhase::POLE_WALK;
+            m_TickCount = 0;
+            LOG_DEBUG("Flagpole slide complete. Mario flipped side.");
+        }
     }
 }
 
@@ -200,23 +206,26 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
 void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
     PlayerState& ps = player.GetState();
 
-    // Maintain Mario on ground level throughout walk phase
-    const float groundY = 13.0f * GameConfig::TILE_SIZE;
+    const float groundY = 14.0f * GameConfig::TILE_SIZE - ps.GetHeight();
     ps.SetY(groundY);
     ps.SetGrounded(true);
     ps.SetVelY(0);
 
     // C# reference (lines 1244-1247): Brief delay before starting walk
-    // endTime = timer + 20 (20 ticks = ~0.4 seconds)
-    if (m_TickCount < GameConfig::ENDING_WALK_DELAY) {
+    // endTime = timer + 20 (20 ticks)
+    if (m_TickCount < 20) {
         ps.SetMovingRight(false);
         return;
     }
+
+    // Wait is over, ending = true in C#. Mario starts walking right
+    ps.SetPoleSliding(false);
 
     // Walk right toward the castle
     float walkSpeed = GameConfig::SCALED_SPEED;
     ps.SetX(ps.GetX() + walkSpeed);
     ps.SetMovingRight(true);
+    ps.SetFacingRight(true); // Must face right walking toward the castle
 
     // Look for Castle5 block to determine stop position
     // In the C# ref, the castle door is named "Castle5"
@@ -224,6 +233,7 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
     for (const auto& block : level.GetAllBlocks()) {
         if (block->GetName() == "Castle5" || block->GetName() == "CastleDoor") {
             float castleX = block->GetWorldX();
+            // C#: if (Mario.X >= block.X) { enter castle }
             if (ps.GetX() >= castleX) {
                 m_Phase = EndingPhase::ENTER_CASTLE;
                 m_TickCount = 0;
@@ -248,14 +258,15 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
 void LevelCompleteController::UpdateEnterCastle(Player& player) {
     // Make Mario invisible (C# line 1221: setRecBox to 0,0)
     player.SetVisible(false);
+    player.GetState().SetVelX(0); // Stop movement immediately
 
     if (m_LevelTimer < 0) {
-        m_LevelTimer = m_TickCount + GameConfig::LEVEL_TRANSITION_DELAY;
+        // C# line 1224: levelTimer = timer + 50;
+        m_LevelTimer = m_TickCount + 50;
     }
 
     m_Phase = EndingPhase::WAIT_TRANSITION;
-    LOG_DEBUG("Mario entered castle, waiting {} ticks",
-              GameConfig::LEVEL_TRANSITION_DELAY);
+    LOG_DEBUG("Mario entered castle, waiting 50 ticks");
 }
 
 // ============================================================================

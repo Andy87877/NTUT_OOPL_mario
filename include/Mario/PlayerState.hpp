@@ -97,6 +97,7 @@ public:
     bool IsMoving() const    { return m_MovingRight || m_MovingLeft; }
     bool IsJumping() const   { return !m_Grounded; }
     bool IsFacingRight() const { return m_FacingRight; }
+    void SetFacingRight(bool v) { m_FacingRight = v; }
     bool IsRunning() const   { return m_Running; }
     bool IsDead() const      { return m_Dead; }
     bool IsInvincible() const { return m_InvTimer > 0; }
