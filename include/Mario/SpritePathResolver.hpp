@@ -42,7 +42,7 @@ class SpritePathResolver {
      * @return Full path string
      */
     static std::string GetPlayerSpritePath(const std::string& prefix, int state,
-                                           int frame);
+                                           int frame, int starState = 0);
 
     /**
      * Get path for an entity sprite.

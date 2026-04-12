@@ -44,8 +44,9 @@ void LevelCompleteController::StartFlagpole(Player& player,
     // Set pole sliding state
     player.GetState().SetPoleSliding(true);
 
-    // Snap Mario to the pole position (C# line 1249: offset by scaleSize/2.5)
-    float poleX = m_GoalBlockX + GameConfig::TILE_SIZE * 0.4f;
+    // Snap Mario exactly to grip the pole (shift left so visual connects)
+    // We adjust position relative to the block so Mario's right hand touches it
+    float poleX = m_GoalBlockX - GameConfig::TILE_SIZE * 0.4f;
     player.GetState().SetX(poleX);
 
     // Set Mario's Y to flagpole's Y position (start of descent)
@@ -77,7 +78,6 @@ void LevelCompleteController::StartFlagpole(Player& player,
 
 // ============================================================================
 // Pipe Warp Sequence Start
-// C# reference: Form1.cs lines 941-968
 // ============================================================================
 void LevelCompleteController::StartPipeWarp(Player& player,
                                             const std::string& direction,
@@ -158,37 +158,44 @@ bool LevelCompleteController::Update(Player& player, Level& level,
 void LevelCompleteController::UpdatePoleSlide(Player& player) {
     PlayerState& ps = player.GetState();
 
-    // Slide Mario down
-    if (!ps.IsGrounded()) {
-        float newY = ps.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
-        ps.SetY(newY);
-    }
+    // C# Form1.cs line 1252-1255 flagpole ending sequence:
+    // Flag slides down, Mario slides down
+    // Both move at: FLAG_SPEED = 2 (pixels per tick)
+
+    // Slide Mario down the pole
+    // Mario must NOT be grounded during pole slide (controlled descent)
+    float marioY = ps.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
+    ps.SetY(marioY);
+    ps.SetGrounded(false);  // Stay ungrounded while sliding
 
     // Slide flag entity down with Mario
+    // Flag continues sliding as long as its Y is above Mario
     if (m_FlagEntity && m_FlagEntity->GetState().IsActive()) {
         EntityState& fs = m_FlagEntity->GetState();
-        if (fs.GetY() <= ps.GetY()) {
-            fs.SetY(fs.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED);
-        }
+        // Flag slides parallel to Mario
+        float flagY = fs.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
+        fs.SetY(flagY);
     }
 
-    // Check if Mario reached the ground
-    // Ground level = bottom of row 13 (top of row 14 which contains ground
-    // blocks) Row 13: Y = 13 * TILE_SIZE = 585 For small Mario (height =
-    // TILE_SIZE = 45), Y=585 positions bottom at Y=630 which is exactly on top
-    // of the ground blocks starting at row 14
-    const float groundY = 13.0f * GameConfig::TILE_SIZE;
+    // Check if Mario reached the ground (ground blocks in row 13)
+    // Ground level Y = 13 * 45 = 585 pixels. This is where Mario's BOTTOM
+    // should rest.
+    const float groundSurfaceY = 13.0f * GameConfig::TILE_SIZE;
 
-    if (ps.GetY() >= groundY) {
-        ps.SetGrounded(true);
-        ps.SetPoleSliding(false);
-        ps.SetY(groundY);  // Snap to exact ground level
+    // Mario's bottom is Y + height
+    if (ps.GetY() + ps.GetHeight() >= groundSurfaceY) {
+        // Mario hit the ground
+        ps.SetY(groundSurfaceY -
+                ps.GetHeight());  // Snap his bottom to the ground surface
+        ps.SetGrounded(true);     // Now grounded
         ps.SetVelY(0);
+        ps.SetPoleSliding(false);
 
-        // C# lines 1258-1263: After landing, start walk phase
+        // Transition to walking phase (C# lines 1256-1258)
         m_Phase = EndingPhase::POLE_WALK;
         m_TickCount = 0;
-        LOG_DEBUG("Flagpole slide complete. Mario landed at Y={}", groundY);
+        LOG_INFO("Flagpole slide complete - Mario landed at bottom Y={}",
+                 groundSurfaceY);
     }
 }
 
@@ -200,44 +207,57 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
 void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
     PlayerState& ps = player.GetState();
 
-    // Maintain Mario on ground level throughout walk phase
-    const float groundY = 13.0f * GameConfig::TILE_SIZE;
-    ps.SetY(groundY);
+    // Keep Mario grounded and his bottom exactly at ground level throughout
+    // walk phase
+    const float groundSurfaceY = 13.0f * GameConfig::TILE_SIZE;
+    ps.SetY(groundSurfaceY - ps.GetHeight());
     ps.SetGrounded(true);
     ps.SetVelY(0);
 
-    // C# reference (lines 1244-1247): Brief delay before starting walk
-    // endTime = timer + 20 (20 ticks = ~0.4 seconds)
+    // C# reference (Form1.cs lines 1244-1247):
+    // Wait 20 ticks (0.4 seconds) before starting to walk
     if (m_TickCount < GameConfig::ENDING_WALK_DELAY) {
+        // Just wait, don't move
+        ps.SetVelX(0);
         ps.SetMovingRight(false);
         return;
     }
 
-    // Walk right toward the castle
-    float walkSpeed = GameConfig::SCALED_SPEED;
-    ps.SetX(ps.GetX() + walkSpeed);
+    // Walk right toward the castle at normal Mario speed
+    // C# Form1.cs 1218: moveRight(Mario)
+    // This applies SCALED_SPEED to Mario's X position
+    float castleWalkSpeed = GameConfig::SCALED_SPEED;
+    ps.SetX(ps.GetX() + castleWalkSpeed);
     ps.SetMovingRight(true);
+    ps.SetFacingRight(true);
 
-    // Look for Castle5 block to determine stop position
-    // In the C# ref, the castle door is named "Castle5"
-    bool foundCastle = false;
+    // Look for the Castle5 (door) block to detect when to enter castle
+    // C# Form1.cs lines 1219-1227: searches for block named "Castle5"
     for (const auto& block : level.GetAllBlocks()) {
-        if (block->GetName() == "Castle5" || block->GetName() == "CastleDoor") {
+        if (block && (block->GetName() == "Castle5" ||
+                      block->GetName() == "CastleDoor")) {
             float castleX = block->GetWorldX();
+            // Stop when reached the castle door
             if (ps.GetX() >= castleX) {
+                // Transition to entering castle
                 m_Phase = EndingPhase::ENTER_CASTLE;
                 m_TickCount = 0;
-                foundCastle = true;
-                LOG_DEBUG("Reached castle at X={}", castleX);
-                break;
+                ps.SetMovingRight(false);
+                ps.SetVelX(0);
+                LOG_INFO("Flagpole walk complete - reached castle at X={}",
+                         castleX);
+                return;
             }
         }
     }
 
-    // Fallback: if no castle block, walk a fixed distance past the goal
-    if (!foundCastle && ps.GetX() > m_GoalBlockX + GameConfig::TILE_SIZE * 8) {
+    // Fallback: if no castle block found, walk a fixed distance
+    if (ps.GetX() > m_GoalBlockX + GameConfig::TILE_SIZE * 8) {
         m_Phase = EndingPhase::ENTER_CASTLE;
         m_TickCount = 0;
+        ps.SetMovingRight(false);
+        ps.SetVelX(0);
+        LOG_WARN("Castle block not found - using fallback distance");
     }
 }
 

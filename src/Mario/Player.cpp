@@ -39,6 +39,12 @@ Player::Player(float worldX, float worldY, int startState) {
 }
 
 void Player::UpdateView(float cameraOffset) {
+    // Check visibility flag (for ending sequences like entering castle)
+    if (!m_Visible) {
+        SetVisible(false);
+        return;  // Skip rendering if invisible
+    }
+
     // Build the sprite path from current state following C# logic:
     // sprite_name = "Mario" + prefix + state + frame
     std::string prefix = m_State.GetAnimPrefix();
@@ -47,9 +53,17 @@ void Player::UpdateView(float cameraOffset) {
     // Map power state to C# state number
     int spriteState = static_cast<int>(m_State.GetPowerState());
 
+    // Calculate star state loop (0, 1, 2, 3), changes every 10 frames
+    int starState = 0;
+    if (m_State.GetPowerState() == PowerState::SMALL_STAR ||
+        m_State.GetPowerState() == PowerState::BIG_STAR) {
+        // Match C# star mode animation logic (flashing colors)
+        starState = (m_State.GetStarTimer() / 10) % 4;
+    }
+
     // Get the sprite path
-    std::string spritePath =
-        SpritePathResolver::GetPlayerSpritePath(prefix, spriteState, frame);
+    std::string spritePath = SpritePathResolver::GetPlayerSpritePath(
+        prefix, spriteState, frame, starState);
 
     // Only reload sprite if it changed
     if (!spritePath.empty() && spritePath != m_CurrentSpritePath) {

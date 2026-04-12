@@ -109,6 +109,8 @@ void UIManager::Update(State currentState, int escMenuSelection) {
             UpdateTitleScreen();
             break;
         case State::LOADING:
+            // Only show UI, do NOT load level yet
+            // UpdateLoadingScreen() displays WORLD and lives preview
             UpdateLoadingScreen();
             break;
         case State::GAME_OVER:
@@ -204,47 +206,34 @@ void UIManager::UpdateTitleScreen() {
 void UIManager::UpdateLoadingScreen() {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("WORLD " + m_GameState->GetLevelName());
-    m_CenterLabel->SetPosition(0.0f, 50.0f);  // Centered horizontally
+    m_CenterLabel->SetPosition(0.0f, 50.0f);
 
     m_SubLabel->SetVisible(true);
-    m_SubLabel->SetTextContent("x  " + std::to_string(m_GameState->GetLives()));
-    m_SubLabel->SetPosition(0.0f,
-                            -50.0f);  // Below the WORLD label, also centered
 
-    // Show Mario preview sprite based on saved power state
+    // C# reference format: "x 0N" (e.g. "x 03")
+    int lives = m_GameState->GetLives();
+    std::string livesStr =
+        "x " + std::string(lives < 10 ? "0" : "") + std::to_string(lives);
+    m_SubLabel->SetTextContent(livesStr);
+
+    // Position text slightly to the right
+    m_SubLabel->SetPosition(10.0f, -10.0f);
+
+    std::string marioSpritePath =
+        std::string(RESOURCE_DIR) + "/Sprites/MarioIdle0.png";
+
     if (!m_MarioPreview) {
-        // Will be initialized with a default sprite when we load one
-        m_MarioPreview = nullptr;
+        m_MarioPreview = std::make_shared<UIImage>(marioSpritePath);
+        m_UIRenderer.AddChild(m_MarioPreview);
     }
 
-    // Get sprite path for current power state (idle, state 0 frame)
-    int powerState = m_GameState->GetSavedPowerState();
-    std::string spritePath =
-        std::string(RESOURCE_DIR) + "/Sprites/MarioIdle" +
-        (powerState > 0 ? std::to_string(powerState) : "") + ".png";
+    m_MarioPreview->SetImagePath(marioSpritePath);
+    m_MarioPreview->SetVisible(true);
 
-    // Load sprite if different from current
-    if (spritePath != m_CurrentPreviewSpritePath) {
-        m_CurrentPreviewSpritePath = spritePath;
-
-        // Create or recreate the preview image
-        if (!m_MarioPreview) {
-            m_MarioPreview = std::make_shared<UIImage>(spritePath);
-            m_UIRenderer.AddChild(m_MarioPreview);
-        } else {
-            m_MarioPreview->SetImagePath(spritePath);
-        }
-    }
-
-    // Ensure preview is visible and positioned
-    if (m_MarioPreview) {
-        m_MarioPreview->SetVisible(true);
-        // Position Mario preview right next to the left of "x 3" text
-        m_MarioPreview->SetPosition(-60.0f, -50.0f);
-        m_MarioPreview->m_Transform.scale = {
-            1.0f, 1.0f};                    // Match normal sprite scale
-        m_MarioPreview->SetZIndex(101.0f);  // Above text
-    }
+    // Position Mario left of the text, aligned vertically
+    m_MarioPreview->SetPosition(-35.0f, -10.0f);
+    m_MarioPreview->m_Transform.scale = {1.0f, 1.0f};
+    m_MarioPreview->SetZIndex(101.0f);
 }
 
 void UIManager::UpdateGameOverScreen() {

@@ -8,16 +8,15 @@
 #ifndef MARIO_PLAYER_HPP
 #define MARIO_PLAYER_HPP
 
-#include "pch.hpp"
-#include "Util/GameObject.hpp"
-#include "Util/Image.hpp"
-
-#include "Mario/PlayerState.hpp"
-#include "Mario/GameConfig.hpp"
-
 #include <memory>
 #include <string>
 #include <unordered_map>
+
+#include "Mario/GameConfig.hpp"
+#include "Mario/PlayerState.hpp"
+#include "Util/GameObject.hpp"
+#include "Util/Image.hpp"
+#include "pch.hpp"
 
 namespace Mario {
 
@@ -31,7 +30,7 @@ namespace Mario {
  *   - Delegate all logic to PlayerState (Model)
  */
 class Player : public Util::GameObject {
-public:
+   public:
     /**
      * Construct the player at a world position.
      * @param worldX Starting X position (pixels)
@@ -66,7 +65,14 @@ public:
     float GetWorldX() const { return m_State.GetX(); }
     float GetWorldY() const { return m_State.GetY(); }
 
-private:
+    /**
+     * Set visibility for special sequences (e.g., entering castle).
+     * C# reference: Form1.cs line 1221 setRecBox(0, 0) makes Mario invisible.
+     */
+    void SetVisible(bool visible) { m_Visible = visible; }
+    bool IsVisible() const { return m_Visible; }
+
+   private:
     /**
      * Load or retrieve a cached sprite by path.
      */
@@ -77,15 +83,18 @@ private:
      */
     std::string BuildSpritePath() const;
 
-    PlayerState m_State; // The Model
+    PlayerState m_State;  // The Model
 
     // Sprite cache: path -> Image
     std::unordered_map<std::string, std::shared_ptr<Util::Image>> m_SpriteCache;
 
     // Current sprite path for change detection
     std::string m_CurrentSpritePath;
+
+    // Visibility flag (used during ending sequences)
+    bool m_Visible = true;
 };
 
-} // namespace Mario
+}  // namespace Mario
 
-#endif // MARIO_PLAYER_HPP
+#endif  // MARIO_PLAYER_HPP

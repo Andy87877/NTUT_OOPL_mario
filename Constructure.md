@@ -138,10 +138,17 @@ classDiagram
     }
 
     class EnemyBehavior["EnemyBehavior (基礎敵人)"] {
-        +類型: GOOMBA, KOOPA_TROOPA
+        +類型: GOOMBA, PIRANHA_PLANT
         +WALK_SPEED = 0.5
         +巡邏邏輯
         +踩踏死亡
+    }
+
+    class KoopaBehavior["KoopaBehavior (烏龜專用)"] {
+        +類型: TROOPA, SHELL
+        +TROOPA: 巡邏移動（踩踏時→生成Shell）
+        +SHELL: 被踩踏時反彈（1.5倍速）
+        +(完全參考C# Entity.cs Squish方法)
     }
 
     class ParaKoopaBehavior["ParaKoopaBehavior (飛行烏龜)"] {
@@ -188,6 +195,7 @@ classDiagram
 
     %% 策略模式實現
     IEntityBehavior <|.. EnemyBehavior : 實作
+    IEntityBehavior <|.. KoopaBehavior : 實作 (Koopa專用)
     IEntityBehavior <|.. ParaKoopaBehavior : 實作
     IEntityBehavior <|.. AxeKoopaBehavior : 實作
     IEntityBehavior <|.. BowserBehavior : 實作
@@ -212,11 +220,81 @@ classDiagram
 | 敵人類型 | Behavior 類別 | 特性 | 位置 |
 |---------|-------------|------|------|
 | **Goomba** | `EnemyBehavior` (GOOMBA) | 簡單巡邏，踩死 | builtin |
-| **Koopa** | `EnemyBehavior` (KOOPA_TROOPA) | 巡邏→變殼→可射出 | builtin |
+| **Koopa Troopa** | `KoopaBehavior` (TROOPA) | 巡邏移動，踩踏→生成Shell | `include/Mario/Behaviors/KoopaBehavior.hpp` |
+| **KoopaTroopaShell** | `KoopaBehavior` (SHELL) | 靜止直到被踩踏→快速反彈（1.5倍速） | 動態生成 |
 | **ParaKoopa** | `ParaKoopaBehavior` | 飛行浮動，踩踏落地 | `include/Mario/Behaviors/ParaKoopaBehavior.hpp` |
 | **AxeKoopa** | `AxeKoopaBehavior` | 定期拋斧，免疫踩踏 | `include/Mario/Behaviors/AxeKoopaBehavior.hpp` |
 | **Bowser** | `BowserBehavior` | Boss多階段AI | `include/Mario/Behaviors/BowserBehavior.hpp` |
 | **Princess** | `PrincessBehavior` | 靜態NPC，僅動畫 | `include/Mario/Behaviors/PrincessBehavior.hpp` |
+
+### KoopaTroopa → KoopaTroopaShell 轉換流程 (完全參考C#)
+
+**設計改進：** 創建專門的 `KoopaBehavior` 類處理Koopa邏輯（完全參考C# Entity.cs Squish方法）。
+
+**轉換流程：**
+
+```
+玩家從上方踩踏 KoopaTroopa
+    ↓
+App::CheckPlayerEntityCollision() [App.cpp L940-1050]
+    ↓
+偵測 es.IsKoopaSquash() == true (C# 對應: koopaSquash字段)
+    ↓
+├─ EntityFactory::SpawnEntity("KoopaTroopaShell", ...)  [生成殼實體]
+│  └─ KoopaBehavior::KoopaType::SHELL
+├─ 原始 KoopaTroopa 被 Delete()                          [移除原實體]
+├─ 播放 SFX Squish 音效
+├─ AddScore() 增加分數
+└─ 浮動分數文字 "+100"
+```
+
+**KoopaBehavior 架構詳解（C# Entity.cs 參考）：**
+
+| 類型 | 行為 | 邏輯源自 |
+|------|------|--------|
+| **TROOPA** | 巡邏移動 + 牆壁/坑洞轉向 | C# Entity.cs Update() |
+| **SHELL** | 重力應用 + 速度由App控制 | C# Entity.cs Squish() L356-379 |
+
+**具體邏輯：**
+
+1. **TROOPA 模式**（KoopaTroopa）
+   - 初始化：`direction = 0` (左)，負敵人速度
+   - Update(): 巡邏 + 牆壁檢測 + 動畫更新（與EnemyBehavior相同）
+   - 踩踏時：App層生成Shell實體
+
+2. **SHELL 模式**（KoopaTroopaShell）
+   - 生成時：`direction = 2` (NONE)，`velX = 0`（完全靜止）
+   - Update(): 僅應用重力，被動移動（由App設置速度）
+   - 踩踏時：App層根據玩家位置設置 `velX = ±(speed * 1.5f)`
+
+**C# 原始代碼邏輯：**
+
+```csharp
+// Entity.cs Squish() L367-370: KoopaTroopa踩踏
+else if (koopaSquash)  // koopaSquash == true
+{
+    entityListRef.Add(new Entity(name + "Shell", ...));  // 生成Shell
+    Delete();  // 刪除原Koopa
+}
+
+// Entity.cs Squish() L372-379: Shell踩踏
+if (Convert.ToInt32(ID) == 18)  // ID == 18 = Shell
+{
+    if (Mario.GetRecPosition().X + 16 > recPosition.X + 16)
+    {
+        SetFltXVel(-(speed * 1.5f));  // 玩家右邊 → Shell左飛
+    } else {
+        SetFltXVel((speed * 1.5f));   // 玩家左邊 → Shell右飛
+    }
+}
+```
+
+**實現檔案位置：**
+
+- `include/Mario/Behaviors/KoopaBehavior.hpp`: KoopaBehavior 類定義
+- `src/Mario/Behaviors/KoopaBehavior.cpp`: KoopaBehavior 實現（巡邏 + 被動移動）
+- `src/Mario/EntityFactory.cpp`: Koopa使用KoopaBehavior配置
+- `src/App.cpp` L940-1050: CheckPlayerEntityCollision() 完整Squish邏輯
 
 ---
 

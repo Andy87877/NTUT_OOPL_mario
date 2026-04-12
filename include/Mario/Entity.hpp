@@ -73,6 +73,11 @@ class Entity : public Util::GameObject {
      */
     const std::string& GetLevelName() const { return m_LevelName; }
 
+    /**
+     * Get entity definition (entity type, properties).
+     */
+    const EntityDef& GetDef() const { return m_Def; }
+
     // -- Model access --
     EntityState& GetState() { return m_State; }
     const EntityState& GetState() const { return m_State; }

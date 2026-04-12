@@ -8,10 +8,10 @@
 #ifndef MARIO_PLAYER_STATE_HPP
 #define MARIO_PLAYER_STATE_HPP
 
+#include <string>
+
 #include "Mario/Collider.hpp"
 #include "Mario/GameConfig.hpp"
-
-#include <string>
 
 namespace Mario {
 
@@ -20,12 +20,12 @@ namespace Mario {
  *   0=Small, 1=Big, 2=Fire, 3=SmallStar, 4=BigStar, 5=AddLife
  */
 enum class PowerState {
-    SMALL      = 0,
-    BIG        = 1,
-    FIRE       = 2,
+    SMALL = 0,
+    BIG = 1,
+    FIRE = 2,
     SMALL_STAR = 3,
-    BIG_STAR   = 4,
-    ADD_LIFE   = 5,
+    BIG_STAR = 4,
+    ADD_LIFE = 5,
 };
 
 /**
@@ -39,7 +39,7 @@ enum class PowerState {
  * Separated from rendering (Player class) per MVC.
  */
 class PlayerState {
-public:
+   public:
     PlayerState();
 
     /**
@@ -58,10 +58,10 @@ public:
 
     // -- Movement Input (called by Controller) --
     void SetMovingRight(bool v) { m_MovingRight = v; }
-    void SetMovingLeft(bool v)  { m_MovingLeft = v; }
+    void SetMovingLeft(bool v) { m_MovingLeft = v; }
     void SetJumping(bool v);
-    void SetCrouching(bool v)   { m_Crouching = v; }
-    void SetRunning(bool v)     { m_Running = v; }
+    void SetCrouching(bool v) { m_Crouching = v; }
+    void SetRunning(bool v) { m_Running = v; }
 
     /**
      * Apply horizontal velocity based on current input flags.
@@ -80,7 +80,10 @@ public:
     float GetY() const { return m_PosY; }
     void SetX(float x) { m_PosX = x; }
     void SetY(float y) { m_PosY = y; }
-    void SetPosition(float x, float y) { m_PosX = x; m_PosY = y; }
+    void SetPosition(float x, float y) {
+        m_PosX = x;
+        m_PosY = y;
+    }
 
     float GetVelX() const { return m_VelX; }
     float GetVelY() const { return static_cast<float>(m_VelY); }
@@ -92,20 +95,20 @@ public:
     PowerState GetPowerState() const { return m_PowerState; }
     void SetPowerState(PowerState ps);
 
-    bool IsGrounded() const  { return m_Grounded; }
+    bool IsGrounded() const { return m_Grounded; }
     bool IsCrouching() const { return m_Crouching; }
-    bool IsMoving() const    { return m_MovingRight || m_MovingLeft; }
-    bool IsJumping() const   { return !m_Grounded; }
+    bool IsMoving() const { return m_MovingRight || m_MovingLeft; }
+    bool IsJumping() const { return !m_Grounded; }
     bool IsFacingRight() const { return m_FacingRight; }
     void SetFacingRight(bool v) { m_FacingRight = v; }
-    bool IsRunning() const   { return m_Running; }
-    bool IsDead() const      { return m_Dead; }
+    bool IsRunning() const { return m_Running; }
+    bool IsDead() const { return m_Dead; }
     bool IsInvincible() const { return m_InvTimer > 0; }
     bool IsPoleSliding() const { return m_PoleSliding; }
     bool IsControllable() const { return m_Controllable; }
 
     void SetGrounded(bool v) { m_Grounded = v; }
-    void SetDead(bool v)     { m_Dead = v; }
+    void SetDead(bool v) { m_Dead = v; }
     void SetControllable(bool v) { m_Controllable = v; }
     void SetPoleSliding(bool v) { m_PoleSliding = v; }
 
@@ -143,6 +146,7 @@ public:
 
     // -- Special --
     bool IsFireShooting() const { return m_SpecialActive; }
+    int GetSpecialCounter() const { return m_SpecialCounter; }
     void SetFireShooting(bool v);
 
     // -- Jump Height --
@@ -151,9 +155,10 @@ public:
 
     // -- Invincibility --
     int GetInvTimer() const { return m_InvTimer; }
+    int GetStarTimer() const { return m_StarTimer; }
     void SetInvTimer(int t) { m_InvTimer = t; }
 
-private:
+   private:
     // Position & velocity
     float m_PosX = 0.0f;
     float m_PosY = 0.0f;
@@ -165,15 +170,15 @@ private:
 
     // State
     PowerState m_PowerState = PowerState::SMALL;
-    bool m_Grounded     = false;
-    bool m_Crouching    = false;
-    bool m_MovingRight  = false;
-    bool m_MovingLeft   = false;
-    bool m_FacingRight  = true;
-    bool m_Running      = false;
-    bool m_Dead         = false;
+    bool m_Grounded = false;
+    bool m_Crouching = false;
+    bool m_MovingRight = false;
+    bool m_MovingLeft = false;
+    bool m_FacingRight = true;
+    bool m_Running = false;
+    bool m_Dead = false;
     bool m_Controllable = true;
-    bool m_PoleSliding  = false;
+    bool m_PoleSliding = false;
 
     // Invincibility / star
     int m_InvTimer = -1;
@@ -188,11 +193,11 @@ private:
     int m_TargetRate = 20;
 
     // Fire shooting
-    bool m_SpecialActive    = false;
-    int  m_SpecialCounter   = 0;
-    int  m_SpecialLength    = 30;
+    bool m_SpecialActive = false;
+    int m_SpecialCounter = 0;
+    int m_SpecialLength = 30;
 };
 
-} // namespace Mario
+}  // namespace Mario
 
-#endif // MARIO_PLAYER_STATE_HPP
+#endif  // MARIO_PLAYER_STATE_HPP

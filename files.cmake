@@ -24,6 +24,7 @@ set(SRC_FILES
     # Behaviors (Phase 4 - Strategy Pattern)
     Mario/Behaviors/DefaultEntityBehavior.cpp
     Mario/Behaviors/EnemyBehavior.cpp
+    Mario/Behaviors/KoopaBehavior.cpp
     Mario/Behaviors/AxeKoopaBehavior.cpp
     Mario/Behaviors/ParaKoopaBehavior.cpp
     Mario/Behaviors/PrincessBehavior.cpp
@@ -90,6 +91,7 @@ set(INCLUDE_FILES
     Mario/Behaviors/IEntityBehavior.hpp
     Mario/Behaviors/DefaultEntityBehavior.hpp
     Mario/Behaviors/EnemyBehavior.hpp
+    Mario/Behaviors/KoopaBehavior.hpp
     Mario/Behaviors/AxeKoopaBehavior.hpp
     Mario/Behaviors/ParaKoopaBehavior.hpp
     Mario/Behaviors/PrincessBehavior.hpp

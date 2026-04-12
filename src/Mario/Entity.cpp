@@ -148,15 +148,24 @@ std::string Entity::BuildSpritePath() const {
                                                        m_LevelName);
     }
 
+    // Special handling: KoopaTroopaShell uses KoopaShell sprite
+    // (KoopaTroopaShell is a dynamic entity created when KoopaTroopa is
+    // stomped)
+    std::string displayName = name;
+    if (name == "KoopaTroopaShell") {
+        displayName = "KoopaShell";
+    }
+
     // Animated entities: name + frame (1-indexed in C#)
     if (m_Def.isAnimated) {
         int frame = m_State.GetAnimFrame() + 1;  // C# uses 1-indexed frames
-        return SpritePathResolver::GetEntitySpritePath(name, frame,
+        return SpritePathResolver::GetEntitySpritePath(displayName, frame,
                                                        m_LevelName);
     }
 
     // Static/single-frame entities
-    return SpritePathResolver::GetEntitySpritePath(name, -1, m_LevelName);
+    return SpritePathResolver::GetEntitySpritePath(displayName, -1,
+                                                   m_LevelName);
 }
 
 std::shared_ptr<Util::Image> Entity::GetOrLoadSprite(const std::string& path) {

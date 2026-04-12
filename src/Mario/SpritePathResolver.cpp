@@ -105,14 +105,17 @@ std::string SpritePathResolver::GetBlockSpritePath(const std::string& blockName,
 }
 
 std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
-                                                    int state, int frame) {
-    // 這裡我們直接實現 C# 的 Resources.resx 映射對應
-    // C# 的 name 組合總是: "Mario" + prefix + state + frame
-    // 例如: state=0, frame=0, prefix="Right" => "MarioRight00"
-    // 然後 C# 的 Resources.resx 將這些名字對應到具體的檔名
-
+                                                    int state, int frame,
+                                                    int starState) {
+    // C# reference name: "Mario" + prefix + state + frame + (starState if
+    // state==3||4)
     std::string csName =
         "Mario" + prefix + std::to_string(state) + std::to_string(frame);
+
+    if (state == 3 || state == 4) {
+        csName += std::to_string(starState);
+    }
+
     std::string fileName = "MarioIdle.png";  // Default fallback
 
     // --- Idle ---

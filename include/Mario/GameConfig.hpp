@@ -67,6 +67,10 @@ struct GameConfig {
         3.0f;  // Slow down items (mushroom, fire flower)
     static constexpr float SHELL_SPEED_MULTIPLIER = 1.5f;
 
+    // Fireball configuration
+    static constexpr float FIREBALL_SPEED = SCALED_SPEED;
+    static constexpr int MAX_FIREBALLS = 2;
+
     // -- Collision --
     static constexpr float INTERSECT_STRICTNESS = 0.75f;
     static constexpr float HITBOX_WIDTH_RATIO =

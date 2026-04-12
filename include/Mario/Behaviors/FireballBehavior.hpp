@@ -62,7 +62,7 @@ class FireballBehavior : public IEntityBehavior {
     FireballType m_Type;
     int m_LifetimeFrames = 240;  // 4 seconds at 60fps
     int m_BounceCount = 0;       // Max bounces on ground
-    static constexpr int MAX_BOUNCES = 1;
+    static constexpr int MAX_BOUNCES = 9999;
 };
 
 }  // namespace Mario

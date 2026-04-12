@@ -11,8 +11,10 @@
 #include "Mario/Behaviors/BowserBehavior.hpp"
 #include "Mario/Behaviors/DefaultEntityBehavior.hpp"
 #include "Mario/Behaviors/EnemyBehavior.hpp"
+#include "Mario/Behaviors/FireballBehavior.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
 #include "Mario/Behaviors/ItemBehavior.hpp"
+#include "Mario/Behaviors/KoopaBehavior.hpp"
 #include "Mario/Behaviors/ParaKoopaBehavior.hpp"
 #include "Mario/Behaviors/PrincessBehavior.hpp"
 #include "Util/Logger.hpp"
@@ -95,14 +97,23 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
         behavior =
             std::make_unique<EnemyBehavior>(EnemyBehavior::EnemyType::GOOMBA);
     } else if (def.name == "Koopa" || def.name == "KoopaTroopa") {
-        behavior = std::make_unique<EnemyBehavior>(
-            EnemyBehavior::EnemyType::KOOPA_TROOPA);
+        // KoopaTroopa uses dedicated KoopaBehavior (C# Entity.cs reference)
+        behavior =
+            std::make_unique<KoopaBehavior>(KoopaBehavior::KoopaType::TROOPA);
+    } else if (def.name == "KoopaTroopaShell") {
+        // Shell behavior (spawned by App when KoopaTroopa is stomped)
+        behavior =
+            std::make_unique<KoopaBehavior>(KoopaBehavior::KoopaType::SHELL);
     } else if (def.name == "ParaKoopa") {
         behavior = std::make_unique<ParaKoopaBehavior>();
     } else if (def.name == "AxeKoopa") {
         behavior = std::make_unique<AxeKoopaBehavior>();
     } else if (def.name == "Bowser") {
         behavior = std::make_unique<BowserBehavior>();
+    } else if (def.name == "Fire") {
+        // Player's fireball uses default FIREBALL type
+        behavior = std::make_unique<FireballBehavior>(
+            FireballBehavior::FireballType::PLAYER);
     } else if (def.name == "Princess") {
         behavior = std::make_unique<PrincessBehavior>();
     } else if (def.isEnemy) {
