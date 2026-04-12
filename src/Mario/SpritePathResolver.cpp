@@ -116,6 +116,13 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
         csName += std::to_string(starState);
     }
 
+    // Try direct file match first (especially for Star states!)
+    std::string directPath = SPRITE_BASE_PATH + csName + ".png";
+    std::ifstream directTest(directPath);
+    if (directTest.good()) {
+        return directPath;
+    }
+
     std::string fileName = "MarioIdle.png";  // Default fallback
 
     // --- Idle ---
@@ -176,7 +183,10 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
     else if (csName == "MarioFire20")
         fileName = "MarioFire2.png";
 
-    // Star power-ups are states 3 and 4, we can add them later if needed.
+    // Star power-ups are states 3 and 4
+    else if (state == 3 || state == 4) {
+        fileName = csName + ".png";
+    }
 
     // Return the computed file path
     std::string path = SPRITE_BASE_PATH + fileName;
@@ -203,6 +213,11 @@ std::string SpritePathResolver::GetEntitySpritePath(
                 levelDir + entityName + std::to_string(frame) + ".png";
             std::ifstream test(path);
             if (test.good()) return path;
+
+            std::string path1based =
+                levelDir + entityName + std::to_string(frame + 1) + ".png";
+            std::ifstream test1based(path1based);
+            if (test1based.good()) return path1based;
         }
 
         // Fall back to base entity sprite
@@ -216,6 +231,11 @@ std::string SpritePathResolver::GetEntitySpritePath(
                 SPRITE_BASE_PATH + entityName + std::to_string(frame) + ".png";
             std::ifstream test2(path);
             if (test2.good()) return path;
+
+            std::string path1based = SPRITE_BASE_PATH + entityName +
+                                     std::to_string(frame + 1) + ".png";
+            std::ifstream test1based(path1based);
+            if (test1based.good()) return path1based;
         }
 
         std::string mainPath = SPRITE_BASE_PATH + entityName + ".png";

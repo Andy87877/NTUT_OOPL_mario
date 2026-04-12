@@ -49,48 +49,20 @@ void ItemBehavior::Update(EntityState& state, const Level& level,
     // Horizontal movement (VelX already has direction baked in)
     state.SetWorldX(state.GetWorldX() + state.GetVelX());
 
-    // Check ground collision for bouncing
-    AABB footprint = state.GetCollider();
-    footprint.top = footprint.bottom;
-    footprint.bottom += GameConfig::GRAVITY_ACCELERATION;
-
-    bool isGroundedNow = false;
-    const std::vector<std::shared_ptr<Block>>& blocks = level.GetAllBlocks();
-    for (const auto& block : blocks) {
-        if (block && footprint.Intersects(block->GetAABB())) {
-            isGroundedNow = true;
-            break;
+    // Ground bounding is managed by App::CheckEntityBlockCollision.
+    // If App.cpp set us as grounded, we bounce!
+    // But only specific items bounce continuously?
+    // Wait, do mushrooms bounce? In SMB1, mushrooms just fall and slide.
+    // In C# `doesJump` for mushroom (ID=0) is 0! Star (ID=2) is 1!
+    // Let's implement conditionally.
+    if (state.IsGrounded()) {
+        if (m_Type == ItemType::STAR) {
+            state.SetGrounded(false);   // jump up
+            state.SetFallHeight(20.0);  // Star jump height
         }
     }
 
-    if (isGroundedNow && !state.IsGrounded()) {
-        // Just landed - bounce
-        state.SetFallHeight(GameConfig::MUSHROOM_BOUNCE_HEIGHT);
-    }
-
-    state.SetGrounded(isGroundedNow);
-
-    // Check for walls - change direction
-    AABB wallCheck = state.GetCollider();
-    if (state.GetDirection() == 1) {
-        wallCheck.left = wallCheck.right;
-    } else {
-        wallCheck.right = wallCheck.left;
-    }
-
-    bool hitWall = false;
-    for (const auto& block : blocks) {
-        if (block && wallCheck.Intersects(block->GetAABB())) {
-            hitWall = true;
-            break;
-        }
-    }
-
-    if (hitWall) {
-        // Reverse direction
-        int dir = state.GetDirection();
-        state.SetDirection(dir == 1 ? 0 : 1);
-    }
+    // Wall check and reverse is mapped inside App.cpp
 
     // Animation
     if (state.IsAnimated()) {

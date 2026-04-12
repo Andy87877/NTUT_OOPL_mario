@@ -38,6 +38,7 @@ void PlayerState::Init(float worldX, float worldY, int startState) {
     m_InvTimer = -1;
     m_StarTimer = 0;
     m_SpecialActive = false;
+    m_MemoryState = PowerState::SMALL;
 }
 
 void PlayerState::Tick() {
@@ -52,9 +53,9 @@ void PlayerState::Tick() {
         if (m_StarTimer <= 0) {
             // Revert from star state
             if (m_PowerState == PowerState::SMALL_STAR) {
-                m_PowerState = PowerState::SMALL;
+                m_PowerState = m_MemoryState;
             } else if (m_PowerState == PowerState::BIG_STAR) {
-                m_PowerState = PowerState::BIG;
+                m_PowerState = m_MemoryState;
             }
         }
     }
@@ -157,7 +158,7 @@ float PlayerState::ApplyGravity() {
 void PlayerState::SetPowerState(PowerState ps) { m_PowerState = ps; }
 
 void PlayerState::TakeDamage() {
-    if (m_InvTimer > 0) return;  // Already invincible
+    if (m_InvTimer > 0 || m_StarTimer > 0) return;  // Already invincible
     if (m_Dead) return;
 
     if (m_PowerState == PowerState::SMALL ||
@@ -181,6 +182,7 @@ void PlayerState::TakeDamage() {
 void PlayerState::PowerUp(PowerState newState) { m_PowerState = newState; }
 
 void PlayerState::StartStar() {
+    m_MemoryState = m_PowerState;
     if (m_PowerState == PowerState::SMALL) {
         m_PowerState = PowerState::SMALL_STAR;
     } else {

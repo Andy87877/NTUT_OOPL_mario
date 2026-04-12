@@ -38,23 +38,12 @@ void FireballBehavior::Update(EntityState& state, const Level& level,
     // Horizontal movement (VelX already has direction baked in)
     state.SetWorldX(state.GetWorldX() + state.GetVelX());
 
-    // Check ground collision for bouncing
-    AABB footprint = state.GetCollider();
-    footprint.top = footprint.bottom;
-    footprint.bottom += GameConfig::GRAVITY_ACCELERATION;
-
-    bool isGroundedNow = false;
-    const std::vector<std::shared_ptr<Block>>& blocks = level.GetAllBlocks();
-    for (const auto& block : blocks) {
-        if (block && footprint.Intersects(block->GetAABB())) {
-            isGroundedNow = true;
-            break;
-        }
-    }
-
-    if (isGroundedNow && !state.IsGrounded()) {
+    // Ground bounding is managed by App::CheckEntityBlockCollision.
+    // If App.cpp set us as grounded, we bounce!
+    if (state.IsGrounded()) {
         // Bounce logic
         if (m_BounceCount < MAX_BOUNCES) {
+            state.SetGrounded(false);  // jump up
             state.SetFallHeight(GameConfig::FIREBALL_BOUNCE_HEIGHT);
             m_BounceCount++;
         } else {
@@ -64,29 +53,8 @@ void FireballBehavior::Update(EntityState& state, const Level& level,
         }
     }
 
-    state.SetGrounded(isGroundedNow);
-
-    // Check for wall collision
-    AABB wallCheck = state.GetCollider();
-    if (state.GetDirection() == 1) {
-        wallCheck.left = wallCheck.right;
-    } else {
-        wallCheck.right = wallCheck.left;
-    }
-
-    bool hitWall = false;
-    for (const auto& block : blocks) {
-        if (block && wallCheck.Intersects(block->GetAABB())) {
-            hitWall = true;
-            break;
-        }
-    }
-
-    if (hitWall) {
-        // Fireball destroyed on wall collision
-        state.Delete();
-        return;
-    }
+    // All collision checking (ground, wall, entities) is handled by App.cpp
+    // This behavior only updates position and animation
 
     // Animation
     if (state.IsAnimated()) {

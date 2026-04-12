@@ -2,7 +2,7 @@
  * @file PlayerState.hpp
  * @brief Model layer for the Player in MVC architecture.
  *        Manages Mario's physics state, power-up state, and animation keys.
- *        Does NOT handle rendering — that is the Player (View) class's job.
+ *        Does NOT handle rendering ??that is the Player (View) class's job.
  * @inheritance None (pure Model)
  */
 #ifndef MARIO_PLAYER_STATE_HPP
@@ -103,6 +103,7 @@ class PlayerState {
     void SetFacingRight(bool v) { m_FacingRight = v; }
     bool IsRunning() const { return m_Running; }
     bool IsDead() const { return m_Dead; }
+    bool IsStar() const { return m_StarTimer > 0; }
     bool IsInvincible() const { return m_InvTimer > 0; }
     bool IsPoleSliding() const { return m_PoleSliding; }
     bool IsControllable() const { return m_Controllable; }
@@ -184,6 +185,7 @@ class PlayerState {
     int m_InvTimer = -1;
     int m_StarTimer = 0;
     int m_StarState = 0;
+    PowerState m_MemoryState = PowerState::SMALL;
 
     // Animation
     int m_AnimFrame = 0;

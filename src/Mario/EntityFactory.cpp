@@ -104,8 +104,8 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
         // Shell behavior (spawned by App when KoopaTroopa is stomped)
         behavior =
             std::make_unique<KoopaBehavior>(KoopaBehavior::KoopaType::SHELL);
-    } else if (def.name == "ParaKoopa") {
-        behavior = std::make_unique<ParaKoopaBehavior>();
+        // } else if (def.name == "ParaKoopa") {
+        //     behavior = std::make_unique<ParaKoopaBehavior>();
     } else if (def.name == "AxeKoopa") {
         behavior = std::make_unique<AxeKoopaBehavior>();
     } else if (def.name == "Bowser") {

@@ -73,6 +73,7 @@ class App {
     void AdvanceToNextLevel();
     void CheckEntityBlockCollision(Mario::Entity& entity);
     void CheckPlayerEntityCollision();
+    void CheckEntityEntityCollision();
     void CheckFlagpoleCollision();
     void CheckPipeCollision();
     void CleanupDeadEntities();

@@ -148,6 +148,17 @@ void App::UpdatePlaying() {
     // -- Update player state (Model tick) --
     m_Player->GetState().Tick();
 
+    if (m_Player->GetState().IsFireShooting() && m_Player->GetState().GetSpecialCounter() == 1) {
+        int dir = m_Player->GetState().IsFacingRight() ? 1 : -1;
+        float fbX = m_Player->GetWorldX() + (dir == 1 ? m_Player->GetState().GetWidth() / 2.0f : 0);
+        float fbY = m_Player->GetWorldY() + (m_Player->GetState().GetHeight() / 2.0f);
+        auto fbEntity = Mario::EntityFactory::SpawnEntity(m_Level->GetEntityDefByName("Fire"), fbX, fbY, dir, false, m_GameState.GetLevelName());
+        if (fbEntity) {
+            m_Entities.push_back(fbEntity);
+            m_Renderer.AddChild(fbEntity);
+        }
+    }
+
     // -- Update entities --
     for (auto& entity : m_Entities) {
         if (!entity->GetState().IsActive()) continue;
@@ -173,6 +184,7 @@ void App::UpdatePlaying() {
 
     // -- Player-Entity collision --
     CheckPlayerEntityCollision();
+    CheckEntityEntityCollision();
 
     // -- Check flagpole collision (goal block) --
     CheckFlagpoleCollision();
@@ -264,7 +276,7 @@ void App::UpdatePipeWarp() {
         warpSFXPlayed = true;
         // TODO: Integrate with AudioManager or PTSD audio system
         // AudioManager::GetInstance().PlaySFX("20. Warp");
-        LOG_DEBUG("▶️ Playing Warp SFX: Resources/Audio/SFX/20. Warp.mp3");
+        LOG_DEBUG("?��? Playing Warp SFX: Resources/Audio/SFX/20. Warp.mp3");
     }
 
     bool stillRunning =
@@ -455,13 +467,13 @@ void App::LoadLevel(const std::string& levelName) {
                     *bowserDef, bowserX, bowserY, 1, false, levelName);
                 if (bowser) {
                     m_Entities.push_back(bowser);
-                    LOG_WARN("✓ Successfully spawned Bowser at ({}, {})",
+                    LOG_WARN("??Successfully spawned Bowser at ({}, {})",
                              bowserX, bowserY);
                 } else {
-                    LOG_ERROR("✗ SpawnEntity returned nullptr for Bowser!");
+                    LOG_ERROR("??SpawnEntity returned nullptr for Bowser!");
                 }
             } else {
-                LOG_ERROR("✗ bowserDef is null or name is empty!");
+                LOG_ERROR("??bowserDef is null or name is empty!");
             }
         }
 
@@ -512,13 +524,13 @@ void App::LoadLevel(const std::string& levelName) {
                     *princessDef, princessX, princessY, 1, false, levelName);
                 if (princess) {
                     m_Entities.push_back(princess);
-                    LOG_WARN("✓ Successfully spawned Princess at ({}, {})",
+                    LOG_WARN("??Successfully spawned Princess at ({}, {})",
                              princessX, princessY);
                 } else {
-                    LOG_ERROR("✗ SpawnEntity returned nullptr for Princess!");
+                    LOG_ERROR("??SpawnEntity returned nullptr for Princess!");
                 }
             } else {
-                LOG_ERROR("✗ princessDef is null or name is empty!");
+                LOG_ERROR("??princessDef is null or name is empty!");
             }
         }
     }
@@ -979,7 +991,7 @@ void App::CheckPlayerEntityCollision() {
                 }
             } else if (!es.IsSquished()) {
                 // Player takes damage from enemy
-                ps.TakeDamage();
+                if (ps.IsStar()) { es.Squish(); m_GameState.AddScore(es.GetScoreWorth()); } else { if (ps.IsStar()) { es.Squish(); m_GameState.AddScore(es.GetScoreWorth()); } else { ps.TakeDamage(); } }
                 LOG_DEBUG("Player hit by {}", es.GetName());
             }
         } else if (es.IsPowerUp()) {
@@ -1075,6 +1087,26 @@ void App::CleanupDeadEntities() {
             it = m_Entities.erase(it);
         } else {
             ++it;
+        }
+    }
+}
+void App::CheckEntityEntityCollision() {
+    for (auto& proj : m_Entities) {
+        if (!proj->GetState().IsActive()) continue;
+        if (proj->GetState().GetName() == "Fire" || (proj->GetState().GetName() == "KoopaTroopaShell" && proj->GetState().GetVelX() != 0)) {
+            Mario::AABB pBox = proj->GetState().GetHitbox();
+            for (auto& enemy : m_Entities) {
+                if (proj == enemy || !enemy->GetState().IsActive() || !enemy->GetState().IsEnemy() || enemy->GetState().IsDead()) continue;
+                if (pBox.Intersects(enemy->GetState().GetHitbox())) {
+                    enemy->GetState().Squish();
+                    Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Kick);
+                    int worth = enemy->GetState().GetScoreWorth();
+                    if (worth > 0) m_GameState.AddScore(worth);
+                    if (proj->GetState().GetName() == "Fire") {
+                        proj->GetState().Delete();
+                    }
+                }
+            }
         }
     }
 }
