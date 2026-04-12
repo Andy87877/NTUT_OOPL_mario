@@ -51,9 +51,9 @@ class SpritePathResolver {
      * @param levelName Level name for directory mapping (e.g., "1-1", "8-4")
      * @return Full path string
      */
-    static std::string GetEntitySpritePath(const std::string& entityName,
-                                           int frame = 0,
-                                           const std::string& levelName = "1-1");
+    static std::string GetEntitySpritePath(
+        const std::string& entityName, int frame = 0,
+        const std::string& levelName = "1-1");
 
     /**
      * Get path for 8-4 castle sprites by block ID (801-904).
@@ -65,15 +65,6 @@ class SpritePathResolver {
 
    private:
     static const std::string SPRITE_BASE_PATH;
-
-    /**
-     * Processes the image at the given path to remove its background color
-     * (White), saves it to a cache file, and returns the path to the new cache
-     * file. Replicates the C# MakeTransparent(Color.White) logic.
-     * @param originalPath Full path to the original sprite.
-     * @return Full path to the transparent cached sprite.
-     */
-    static std::string ProcessTransparent(const std::string& originalPath);
 };
 
 }  // namespace Mario

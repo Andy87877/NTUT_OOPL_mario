@@ -220,6 +220,103 @@ classDiagram
 
 ---
 
+## 一-貳：Floating Text 系統 (所有得分機制的視覺反饋)
+
+遊戲中所有會增加分數的事件都配備了**浮動文字 (Floating Text)** 視覺反饋。每當玩家:
+
+- 踩敵人、
+- 收集道具、
+- 拾取金幣實體、
+- 或撞擊金幣方塊
+
+...時，屏幕上都會彈出該事件的分數值，強化遊戲反饋感。
+
+### 全局得分事件總表
+
+| 事件 | 得分值 | 浮動文字 | 實裝位置 | 坐標來源 |
+|------|--------|---------|--------|--------|
+| **撞問號/金幣方塊** | 200 | "+200" | CollisionManager.cpp: 154 | 方塊中心 |
+| **踩敵人** | scoreWorth (100~500) | "+{分數}" | App.cpp: 960 | 敵人中心 |
+| **收集蘑菇** | scoreWorth | "+{分數}" | App.cpp: 1030 | 物品中心 |
+| **收集火焰花** | scoreWorth | "+{分數}" | App.cpp: 1030 | 物品中心 |
+| **收集星星** | scoreWorth | "+{分數}" | App.cpp: 1030 | 物品中心 |
+| **收集1-UP** | (無分數) | "+1UP" | App.cpp: 1018 | 物品中心 |
+| **拾取金幣實體** | 200 | "+200" | App.cpp: 1047 | 金幣中心 |
+
+### FloatingText 座標系統 (PTSD 座標空間)
+
+所有浮動文字在**屏幕空間 (Screen Space)** 工作，不隨遊戲邏輯座標系統移動。坐標轉換流程:
+
+```
+世界座標 (world coords)
+    ↓  Camera::WorldToScreenX/Y()
+屏幕座標 (screen pixels)
+    ↓  PTSD 轉換 (pixel → rendering coords)
+PTSD座標 (rendering space: -640~640, -360~360)
+    ↓  UIManager::AddFloatingText()
+屏幕顯示 (on-screen display)
+```
+
+### FloatingText 轉換公式
+
+```cpp
+// 取得實體世界座標
+float worldX = entity.GetWorldX() + offset;
+float worldY = entity.GetWorldY();
+
+// 世界座標 → 屏幕座標 (相對於攝像機)
+float screenPixelX = m_Camera.WorldToScreenX(worldX);
+float screenPixelY = m_Camera.WorldToScreenY(worldY);
+
+// 屏幕像素 → PTSD座標 (渲染系統統一座標)
+float ptsdX = screenPixelX - 640.0f;      // 屏幕中心 X = 640
+float ptsdY = 360.0f - screenPixelY;      // 屏幕中心 Y = 360 (上下反轉)
+
+// 傳遞至 UIManager
+m_UIManager->AddFloatingText(ptsdX, ptsdY, "+{分數}", 60);
+```
+
+### FloatingText 運動與渲染
+
+| 屬性 | 值 | 說明 |
+|------|-----|------|
+| **持續時間** | 60 frames | 約 1 秒 (60 FPS) |
+| **垂直運動** | y -= 1.0f/frame | 每幀向上移動 1 單位 (屏幕空間) |
+| **字體** | mario.ttf | 遊戲專用像素字體 |
+| **大小** | 16px | HUD 標準尺寸 |
+| **顏色** | 白色 (255, 255, 255) | 高對比度顏色 |
+| **座標系** | PTSD (屏幕空間) | 固定在屏幕位置，不隨攝像機移動 |
+| **層級** | UI Layer | 渲染在遊戲物件之上 |
+
+### CoinGet Block 直接獎勵設計
+
+金幣方塊 (Block ID 5, 28) 採用**直接獎勵 (Direct Reward)** 機制，無需生成中間實體:
+
+```
+玩家頭撞擊方塊
+    ↓
+CollisionManager::CheckCeilingCollision()
+    ↓
+偵測 spawnEntity == "CoinGet"
+    ↓
+├─ GameStateManager::AddCoin()              [直接增加金幣]
+├─ GameStateManager::AddScore(200)          [增加分數]
+├─ AudioManager::PlaySFX(Coin)              [播放金幣音效]
+└─ UIManager::AddFloatingText(ptsdX, ptsdY, "+200") [顯示浮動文字]
+```
+
+### 架構設計優勢
+
+| 設計特點 | 效果 |
+|--------|------|
+| **統一座標轉換** | 所有浮動文字使用相同公式，確保位置正確 |
+| **PTSD 座標系** | 與渲染引擎相符，無經過多層轉換 |
+| **屏幕空間渲染** | 浮動文字始終在玩家眼前，不隱沒於背景 |
+| **OOP 分離** | UIManager 負責顯示，GameStateManager 負責邏輯 |
+| **可擴展設計** | 新加分機制可輕易添加浮動文字 |
+
+---
+
 ## 一-貳之補：Audio Service 架構 (Audio System)
 
 Phase 4 實作了完整的**音頻系統**，使用 SDL2_mixer 與**絕對路徑解析器**確保跨平臺音頻加載穩定性。
@@ -405,10 +502,11 @@ classDiagram
     class Managers["Subsystems (Managers)"] {
         +Level (CSV map loading, block grid)
         +PhysicsEngine (gravity & jump)
-        +CollisionManager (player-block, entity-block)
+        +CollisionManager (player-block, entity-block, coin rewards)
         +InputHandler (keyboard -> PlayerState)
         +EntityFactory (spawn entities from level data)
         +Camera (viewport scrolling)
+        +UIManager (HUD, floating text effects)
         +SpritePathResolver (sprite paths)
     }
 

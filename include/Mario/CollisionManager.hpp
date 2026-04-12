@@ -7,13 +7,18 @@
 #ifndef MARIO_COLLISION_MANAGER_HPP
 #define MARIO_COLLISION_MANAGER_HPP
 
-#include "Mario/Player.hpp"
-#include "Mario/Level.hpp"
-
 #include <memory>
 #include <vector>
 
+#include "Mario/Level.hpp"
+#include "Mario/Player.hpp"
+
 namespace Mario {
+
+// Forward declarations
+class GameStateManager;
+class UIManager;
+class Camera;
 
 /**
  * Handles all collision detection and resolution between the player
@@ -26,17 +31,21 @@ namespace Mario {
  *   3. Wall (left/right - block movement)
  */
 class CollisionManager {
-public:
+   public:
     CollisionManager() = default;
 
     /**
      * Check and resolve all Player-Block collisions for one frame.
      * @param player The player to check
      * @param level The current level with block data
-     * @param cameraOffset Current camera offset
+     * @param camera Camera for coordinate conversion (world to screen)
+     * @param gameState Game state manager for handling coin blocks (CoinGet)
+     * @param uiManager UI manager for displaying floating text effects
      */
-    void CheckPlayerBlockCollision(Player& player, Level& level,
-                                   float cameraOffset, std::vector<Level::SpawnPoint>* outSpawns = nullptr);
+    void CheckPlayerBlockCollision(
+        Player& player, Level& level, Camera& camera,
+        GameStateManager& gameState, UIManager& uiManager,
+        std::vector<Level::SpawnPoint>* outSpawns = nullptr);
 
     /**
      * Check if the player has fallen into a pit.
@@ -45,7 +54,7 @@ public:
      */
     bool CheckPitFall(const Player& player) const;
 
-private:
+   private:
     /**
      * Check ground collision: is the player standing on a solid block?
      */
@@ -53,8 +62,14 @@ private:
 
     /**
      * Check ceiling collision: did the player hit a block from below?
+     * Directly grants coins for CoinGet blocks instead of spawning entities.
+     * Applies camera offset to display floating text at correct screen
+     * position.
      */
-    void CheckCeilingCollision(PlayerState& state, Level& level, std::vector<Level::SpawnPoint>* outSpawns = nullptr);
+    void CheckCeilingCollision(
+        PlayerState& state, Level& level, Camera& camera,
+        GameStateManager& gameState, UIManager& uiManager,
+        std::vector<Level::SpawnPoint>* outSpawns = nullptr);
 
     /**
      * Check horizontal wall collision: left and right sides.
@@ -63,6 +78,6 @@ private:
                             float cameraOffset);
 };
 
-} // namespace Mario
+}  // namespace Mario
 
-#endif // MARIO_COLLISION_MANAGER_HPP
+#endif  // MARIO_COLLISION_MANAGER_HPP

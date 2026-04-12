@@ -9,12 +9,15 @@
 #include <cmath>
 
 #include "Mario/AudioManager.hpp"
+#include "Mario/Camera.hpp"
+#include "Mario/GameStateManager.hpp"
+#include "Mario/UIManager.hpp"
 
 namespace Mario {
 
 void CollisionManager::CheckPlayerBlockCollision(
-    Player& player, Level& level, float cameraOffset,
-    std::vector<Level::SpawnPoint>* outSpawns) {
+    Player& player, Level& level, Camera& camera, GameStateManager& gameState,
+    UIManager& uiManager, std::vector<Level::SpawnPoint>* outSpawns) {
     PlayerState& state = player.GetState();
 
     // Apply gravity first
@@ -29,8 +32,9 @@ void CollisionManager::CheckPlayerBlockCollision(
 
     // Resolve collisions in order: ground, ceiling, walls
     CheckGroundCollision(state, level);
-    CheckCeilingCollision(state, level, outSpawns);
-    CheckWallCollision(state, level, cameraOffset);
+    CheckCeilingCollision(state, level, camera, gameState, uiManager,
+                          outSpawns);
+    CheckWallCollision(state, level, camera.GetOffset());
 
     // Prevent player from going past left boundary
     if (state.GetX() < 0.0f) {
@@ -106,7 +110,8 @@ void CollisionManager::CheckGroundCollision(PlayerState& state, Level& level) {
 }
 
 void CollisionManager::CheckCeilingCollision(
-    PlayerState& state, Level& level,
+    PlayerState& state, Level& level, Camera& camera,
+    GameStateManager& gameState, UIManager& uiManager,
     std::vector<Level::SpawnPoint>* outSpawns) {
     AABB playerBox = state.GetHitbox();
 
@@ -144,8 +149,34 @@ void CollisionManager::CheckCeilingCollision(
                             spawnEntity = block->GetDef().spawnEntity;
                         }
 
-                        // Spawn the entity if we determined one
-                        if (!spawnEntity.empty() && outSpawns) {
+                        // Special handling for CoinGet blocks: directly add
+                        // coins instead of spawning entities
+                        if (spawnEntity == "CoinGet") {
+                            gameState.AddCoin();
+                            gameState.AddScore(200);
+                            Mario::AudioManager::GetInstance().PlaySFX(
+                                Mario::SFXName::Coin);
+
+                            // Display floating text "+200" effect at block
+                            // position Convert world coordinates to screen
+                            // coordinates using camera
+                            float blockCenterX = block->GetWorldX() +
+                                                 GameConfig::TILE_SIZE * 0.5f;
+                            float blockCenterY = block->GetWorldY();
+                            float screenPixelX =
+                                camera.WorldToScreenX(blockCenterX);
+                            float screenPixelY =
+                                camera.WorldToScreenY(blockCenterY);
+
+                            // Convert pixel coordinates (0-1280, 0-720) to PTSD
+                            // coordinates (-640~640, -360~360)
+                            float ptsdX = screenPixelX - 640.0f;
+                            float ptsdY = 360.0f - screenPixelY;
+                            uiManager.AddFloatingText(ptsdX, ptsdY, "+200", 60);
+                        }
+                        // Spawn the entity if we determined one (and it's not
+                        // CoinGet)
+                        else if (!spawnEntity.empty() && outSpawns) {
                             Level::SpawnPoint sp;
                             sp.entityName = spawnEntity;
                             sp.gridX = block->GetGridX();

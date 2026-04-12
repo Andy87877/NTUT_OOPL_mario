@@ -10,13 +10,14 @@
 #include <string>
 #include <vector>
 
+#include "Mario/CoinUI.hpp"
 #include "Mario/FloatingText.hpp"
 #include "Mario/GameStateManager.hpp"
-#include "Mario/UIText.hpp"
 #include "Mario/UIImage.hpp"
-#include "Util/Renderer.hpp"
-#include "Util/Image.hpp"
+#include "Mario/UIText.hpp"
 #include "Util/GameObject.hpp"
+#include "Util/Image.hpp"
+#include "Util/Renderer.hpp"
 
 namespace Mario {
 
@@ -36,9 +37,14 @@ class UIManager {
     void Update(State currentState, int escMenuSelection = 0);
 
     /**
-     * Add a floating text (for points, 1UP, etc) at world coordinates.
+     * Add a floating text (for points, 1UP, etc) at screen coordinates.
+     * @param screenX Screen X position (PTSD coordinates, after camera offset
+     * applied)
+     * @param screenY Screen Y position (PTSD coordinates)
+     * @param text Text to display (e.g., "+200", "+1UP")
+     * @param frames Duration in frames (default 60 frames ~1 second at 60 FPS)
      */
-    void AddFloatingText(float worldX, float worldY, const std::string& text,
+    void AddFloatingText(float screenX, float screenY, const std::string& text,
                          int frames = 60);
 
     /**
@@ -76,9 +82,11 @@ class UIManager {
     std::shared_ptr<UIText> m_HeaderWorld;
     std::shared_ptr<UIText> m_HeaderTime;
     std::shared_ptr<UIText> m_ScoreText;
-    std::shared_ptr<UIText> m_CoinsText;
     std::shared_ptr<UIText> m_WorldText;
     std::shared_ptr<UIText> m_TimeText;
+
+    // Coin UI (animated coin counter)
+    std::shared_ptr<CoinUI> m_CoinUI;
 
     // Title / Loading / Game Over Text Elements
     std::shared_ptr<UIText> m_CenterLabel;

@@ -130,7 +130,7 @@ void App::UpdatePlaying() {
     // -- Physics & Collision --
     std::vector<Mario::Level::SpawnPoint> newSpawns;
     m_CollisionManager.CheckPlayerBlockCollision(
-        *m_Player, *m_Level, m_Camera.GetOffset(), &newSpawns);
+        *m_Player, *m_Level, m_Camera, m_GameState, *m_UIManager, &newSpawns);
 
     // -- Process newly spawned entities (e.g. from hitting blocks) --
     if (!newSpawns.empty()) {
@@ -956,13 +956,26 @@ void App::CheckPlayerEntityCollision() {
                         Mario::AudioManager::GetInstance().PlaySFX(
                             Mario::SFXName::Squish);
                     }
-                    m_GameState.AddScore(es.GetScoreWorth());
+                    int scoreWorth = es.GetScoreWorth();
+                    m_GameState.AddScore(scoreWorth);
+
+                    // Display floating score text at enemy position
+                    float enemyWorldX =
+                        es.GetWorldX() + Mario::GameConfig::TILE_SIZE * 0.5f;
+                    float enemyWorldY = es.GetWorldY();
+                    float screenPixelX = m_Camera.WorldToScreenX(enemyWorldX);
+                    float screenPixelY = m_Camera.WorldToScreenY(enemyWorldY);
+                    float ptsdX = screenPixelX - 640.0f;
+                    float ptsdY = 360.0f - screenPixelY;
+                    m_UIManager->AddFloatingText(
+                        ptsdX, ptsdY, "+" + std::to_string(scoreWorth), 60);
+
                     // Bounce player up after stomp
                     ps.SetFallHeight(Mario::PhysicsEngine::GetJumpHeight(0) *
                                      0.5);
                     ps.SetGrounded(false);
                     LOG_DEBUG("Stomped {} (+{} score)", es.GetName(),
-                              es.GetScoreWorth());
+                              scoreWorth);
                 }
             } else if (!es.IsSquished()) {
                 // Player takes damage from enemy
@@ -1005,15 +1018,51 @@ void App::CheckPlayerEntityCollision() {
                 m_GameState.AddLife();
                 Mario::AudioManager::GetInstance().PlaySFX(
                     Mario::SFXName::_1up);
+
+                // Display "+1UP" floating text
+                float oneupWorldX =
+                    es.GetWorldX() + Mario::GameConfig::TILE_SIZE * 0.5f;
+                float oneupWorldY = es.GetWorldY();
+                float oneupScreenPixelX = m_Camera.WorldToScreenX(oneupWorldX);
+                float oneupScreenPixelY = m_Camera.WorldToScreenY(oneupWorldY);
+                float oneupPtsdX = oneupScreenPixelX - 640.0f;
+                float oneupPtsdY = 360.0f - oneupScreenPixelY;
+                m_UIManager->AddFloatingText(oneupPtsdX, oneupPtsdY, "+1UP",
+                                             60);
             }
-            m_GameState.AddScore(es.GetScoreWorth());
+            int scoreWorth = es.GetScoreWorth();
+            m_GameState.AddScore(scoreWorth);
+
+            // Display floating score text at powerup position
+            float puWorldX =
+                es.GetWorldX() + Mario::GameConfig::TILE_SIZE * 0.5f;
+            float puWorldY = es.GetWorldY();
+            float puScreenPixelX = m_Camera.WorldToScreenX(puWorldX);
+            float puScreenPixelY = m_Camera.WorldToScreenY(puWorldY);
+            float puPtsdX = puScreenPixelX - 640.0f;
+            float puPtsdY = 360.0f - puScreenPixelY;
+            m_UIManager->AddFloatingText(puPtsdX, puPtsdY,
+                                         "+" + std::to_string(scoreWorth), 60);
+
             es.Delete();
-            LOG_DEBUG("Collected {} (+{} score)", es.GetName(),
-                      es.GetScoreWorth());
+            LOG_DEBUG("Collected {} (+{} score)", es.GetName(), scoreWorth);
         } else if (es.IsCoin()) {
             m_GameState.AddCoin();
-            m_GameState.AddScore(es.GetScoreWorth());
+            int coinScore = es.GetScoreWorth();
+            m_GameState.AddScore(coinScore);
             Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Coin);
+
+            // Display floating score text at coin position
+            float coinWorldX =
+                es.GetWorldX() + Mario::GameConfig::TILE_SIZE * 0.5f;
+            float coinWorldY = es.GetWorldY();
+            float coinScreenPixelX = m_Camera.WorldToScreenX(coinWorldX);
+            float coinScreenPixelY = m_Camera.WorldToScreenY(coinWorldY);
+            float coinPtsdX = coinScreenPixelX - 640.0f;
+            float coinPtsdY = 360.0f - coinScreenPixelY;
+            m_UIManager->AddFloatingText(coinPtsdX, coinPtsdY,
+                                         "+" + std::to_string(coinScore), 60);
+
             es.Delete();
         }
     }

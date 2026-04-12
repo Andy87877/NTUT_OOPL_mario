@@ -54,6 +54,7 @@ set(SRC_FILES
 
     # UI (Phase 5)
     Mario/FloatingText.cpp
+    Mario/CoinUI.cpp
 
     # Render
 )
@@ -130,6 +131,7 @@ set(INCLUDE_FILES
     Mario/FloatingText.hpp
     Mario/UIText.hpp
     Mario/UIImage.hpp
+    Mario/CoinUI.hpp
 )
 
 set(TEST_FILES

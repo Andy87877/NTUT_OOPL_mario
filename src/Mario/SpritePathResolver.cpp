@@ -30,79 +30,6 @@ namespace Mario {
 const std::string SpritePathResolver::SPRITE_BASE_PATH =
     std::string(RESOURCE_DIR) + "/Sprites/";
 
-std::string SpritePathResolver::ProcessTransparent(
-    const std::string& originalPath) {
-    if (originalPath.empty()) return originalPath;
-
-    // Cache dictionary for transparent paths to avoid massive file IO
-    static std::map<std::string, std::string> s_TransparentCache;
-    auto it = s_TransparentCache.find(originalPath);
-    if (it != s_TransparentCache.end()) {
-        return it->second;
-    }
-
-    // Process only PNG or BMP files
-    size_t dotPos = originalPath.find_last_of('.');
-    std::string ext =
-        (dotPos != std::string::npos) ? originalPath.substr(dotPos) : ".png";
-    std::string base = (dotPos != std::string::npos)
-                           ? originalPath.substr(0, dotPos)
-                           : originalPath;
-    if (ext != ".png" && ext != ".bmp") {
-        s_TransparentCache[originalPath] = originalPath;
-        return originalPath;
-    }
-
-    std::string cachePath = base + "_tp.png";
-
-    // Check if cached file exists without loading anything
-    std::ifstream cacheCheck(cachePath);
-    if (cacheCheck.good()) {
-        s_TransparentCache[originalPath] = cachePath;
-        return cachePath;
-    }
-    cacheCheck.close();
-
-    // Load and process image to make White background transparent (replicating
-    // C# MakeTransparent)
-    SDL_Surface* surface = IMG_Load(originalPath.c_str());
-    if (!surface) {
-        LOG_ERROR("ProcessTransparent failed to load: {}", originalPath);
-        return originalPath;
-    }
-
-    SDL_Surface* rgbaSurface =
-        SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_ABGR8888, 0);
-    SDL_FreeSurface(surface);
-    if (!rgbaSurface) return originalPath;
-
-    Uint32* pixels = static_cast<Uint32*>(rgbaSurface->pixels);
-    int pixelCount = rgbaSurface->w * rgbaSurface->h;
-
-    for (int i = 0; i < pixelCount; ++i) {
-        Uint8 r, g, b, a;
-        SDL_GetRGBA(pixels[i], rgbaSurface->format, &r, &g, &b, &a);
-        // Turn perfectly white or near-white pixels to fully transparent.
-        // Use strict threshold (254+) to match exact white (255,255,255),
-        // avoiding edge artifacts from semi-transparent anti-aliasing.
-        // This matches NES sprite sheet white color exactly.
-        if (r >= 254 && g >= 254 && b >= 254) {
-            pixels[i] = SDL_MapRGBA(rgbaSurface->format, 255, 255, 255, 0);
-        }
-    }
-
-    if (IMG_SavePNG(rgbaSurface, cachePath.c_str()) != 0) {
-        LOG_ERROR("ProcessTransparent failed to save PNG: {}", cachePath);
-        SDL_FreeSurface(rgbaSurface);
-        s_TransparentCache[originalPath] = originalPath;
-        return originalPath;
-    }
-
-    SDL_FreeSurface(rgbaSurface);
-    s_TransparentCache[originalPath] = cachePath;
-    return cachePath;
-}
-
 std::string SpritePathResolver::GetSpritePath(const std::string& name,
                                               const std::string& suffix) {
     return SPRITE_BASE_PATH + name + suffix + ".png";
@@ -174,7 +101,7 @@ std::string SpritePathResolver::GetBlockSpritePath(const std::string& blockName,
         return SPRITE_BASE_PATH + blockName +
                (frame > 0 ? std::to_string(frame) : "") + ".png";
     };
-    return ProcessTransparent(resolve());
+    return resolve();
 }
 
 std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
@@ -248,19 +175,17 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
 
     // Star power-ups are states 3 and 4, we can add them later if needed.
 
-    // 將計算出的 fileName 組合為相對專案根目錄的完整路徑
+    // Return the computed file path
     std::string path = SPRITE_BASE_PATH + fileName;
-
-    // 檢查檔案是否存在，否則使用嚴格的備用方案
-    std::ifstream test(path);
-    if (!test.good()) {
+    if (path.empty()) {
         LOG_WARN(
-            "GetPlayerSpritePath: Could not find {}, using MarioIdle fallback",
-            path);
+            "GetPlayerSpritePath: Could not resolve sprite for state={}, "
+            "prefix={}, frame={}",
+            state, prefix, frame);
         path = SPRITE_BASE_PATH + "MarioIdle.png";
     }
 
-    return ProcessTransparent(path);
+    return path;
 }
 
 std::string SpritePathResolver::GetEntitySpritePath(
@@ -307,7 +232,7 @@ std::string SpritePathResolver::GetEntitySpritePath(
         return "";  // Return empty path, caller should handle this
     }
 
-    return ProcessTransparent(path);
+    return path;
 }
 
 std::string SpritePathResolver::GetCastleSpritePathByID(int blockID) {

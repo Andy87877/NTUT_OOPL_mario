@@ -41,20 +41,26 @@ void UIManager::InitHUD() {
     // Values matching C# format exactly
     m_ScoreText =
         std::make_shared<UIText>(m_FontPath, m_FontSize, "000000", colorWhite);
-    m_CoinsText = std::make_shared<UIText>(m_FontPath, m_FontSize, "x00",
-                                           colorWhite);  // No space!
     m_WorldText =
         std::make_shared<UIText>(m_FontPath, m_FontSize, "1-1", colorWhite);
     m_TimeText =
         std::make_shared<UIText>(m_FontPath, m_FontSize, "400", colorWhite);
 
+    // Initialize CoinUI at position (420, 32) - left-center of HUD, shifted
+    // more left 2x scale, positioned to the left
+    m_CoinUI =
+        std::make_shared<CoinUI>(m_FontPath, m_FontSize, 420.0f, 32.0f, 2.0f);
+
     m_UIRenderer.AddChild(m_HeaderMario);
     m_UIRenderer.AddChild(m_HeaderWorld);
     m_UIRenderer.AddChild(m_HeaderTime);
     m_UIRenderer.AddChild(m_ScoreText);
-    m_UIRenderer.AddChild(m_CoinsText);
     m_UIRenderer.AddChild(m_WorldText);
     m_UIRenderer.AddChild(m_TimeText);
+
+    // Add CoinUI components
+    m_UIRenderer.AddChild(m_CoinUI->GetCoinImage());
+    m_UIRenderer.AddChild(m_CoinUI->GetCountText());
 }
 
 void UIManager::InitESCMenu() {
@@ -81,9 +87,14 @@ void UIManager::Update(State currentState, int escMenuSelection) {
     m_HeaderWorld->SetVisible(showHUD);
     m_HeaderTime->SetVisible(showHUD);
     m_ScoreText->SetVisible(showHUD);
-    m_CoinsText->SetVisible(showHUD);
     m_WorldText->SetVisible(showHUD);
     m_TimeText->SetVisible(showHUD);
+
+    // Show/hide CoinUI components
+    if (m_CoinUI) {
+        m_CoinUI->GetCoinImage()->SetVisible(showHUD);
+        m_CoinUI->GetCountText()->SetVisible(showHUD);
+    }
 
     for (auto& menuText : m_MenuTexts) {
         menuText->SetVisible(false);
@@ -150,14 +161,11 @@ void UIManager::UpdateHUD() {
     snprintf(scoreStr, sizeof(scoreStr), "%06d", m_GameState->GetScore());
     m_ScoreText->SetTextContent(scoreStr);
 
-    // --- COINS (Left-Center) ---
-    float coinsX = 480.0f;  // shifted right
-    float coinsY = 32.0f;
-
-    m_CoinsText->SetPosition(coinsX - 640.0f, 360.0f - coinsY);
-    char coinStr[10];
-    snprintf(coinStr, sizeof(coinStr), "x%02d", m_GameState->GetCoins());
-    m_CoinsText->SetTextContent(coinStr);
+    // --- COINS (Left-Center) with animated icon ---
+    // CoinUI handles its own positioning and animation
+    if (m_CoinUI) {
+        m_CoinUI->Update(m_GameState->GetCoins());
+    }
 
     // --- WORLD Label & Level (Center) ---
     // Center horizontally (0.0f), aligned with other HUD headers at top
@@ -211,14 +219,14 @@ void UIManager::UpdateLoadingScreen() {
 
     // Get sprite path for current power state (idle, state 0 frame)
     int powerState = m_GameState->GetSavedPowerState();
-    std::string spritePath = std::string(RESOURCE_DIR) + "/Sprites/MarioIdle" +
-                             (powerState > 0 ? std::to_string(powerState) : "") +
-                             ".png";
+    std::string spritePath =
+        std::string(RESOURCE_DIR) + "/Sprites/MarioIdle" +
+        (powerState > 0 ? std::to_string(powerState) : "") + ".png";
 
     // Load sprite if different from current
     if (spritePath != m_CurrentPreviewSpritePath) {
         m_CurrentPreviewSpritePath = spritePath;
-        
+
         // Create or recreate the preview image
         if (!m_MarioPreview) {
             m_MarioPreview = std::make_shared<UIImage>(spritePath);
@@ -233,8 +241,9 @@ void UIManager::UpdateLoadingScreen() {
         m_MarioPreview->SetVisible(true);
         // Position Mario preview right next to the left of "x 3" text
         m_MarioPreview->SetPosition(-60.0f, -50.0f);
-        m_MarioPreview->m_Transform.scale = {1.0f, 1.0f};  // Match normal sprite scale
-        m_MarioPreview->SetZIndex(101.0f);                // Above text
+        m_MarioPreview->m_Transform.scale = {
+            1.0f, 1.0f};                    // Match normal sprite scale
+        m_MarioPreview->SetZIndex(101.0f);  // Above text
     }
 }
 
@@ -247,7 +256,8 @@ void UIManager::UpdateGameOverScreen() {
 void UIManager::UpdateESCMenu(int selection) {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("PAUSED");
-    m_CenterLabel->SetPosition(0.0f, 280.0f);  // Centered horizontally, above menu
+    m_CenterLabel->SetPosition(0.0f,
+                               280.0f);  // Centered horizontally, above menu
 
     float startY = 100.0f;
     for (size_t i = 0; i < m_MenuTexts.size(); ++i) {
@@ -265,13 +275,14 @@ void UIManager::UpdateESCMenu(int selection) {
     }
 }
 
-void UIManager::AddFloatingText(float worldX, float worldY,
+void UIManager::AddFloatingText(float screenX, float screenY,
                                 const std::string& text, int frames) {
     auto floatingText =
-        std::make_shared<FloatingText>(worldX, worldY, text, frames);
+        std::make_shared<FloatingText>(screenX, screenY, text, frames);
     m_FloatingTexts.push_back(floatingText);
     m_UIRenderer.AddChild(floatingText->GetUIText());
-    LOG_DEBUG("Added floating text: '{}' at ({}, {})", text, worldX, worldY);
+    LOG_DEBUG("Added floating text: '{}' at screen ({}, {})", text, screenX,
+              screenY);
 }
 
 }  // namespace Mario
