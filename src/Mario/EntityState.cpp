@@ -9,6 +9,7 @@
 
 #include <cmath>
 
+#include "Mario/AudioManager.hpp"
 #include "Mario/PhysicsEngine.hpp"
 
 namespace Mario {
@@ -140,6 +141,7 @@ void EntityState::KickShell(float speed) {
     if (m_Squashed) {
         m_VelX = speed * GameConfig::SHELL_SPEED_MULTIPLIER;
         m_Squashed = false;
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Kick);
     }
 }
 

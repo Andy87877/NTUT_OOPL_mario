@@ -5,6 +5,7 @@
  */
 #include "Mario/Behaviors/BowserBehavior.hpp"
 
+#include "Mario/AudioManager.hpp"
 #include "Mario/Collider.hpp"
 #include "Mario/EntityFactory.hpp"
 #include "Mario/EntityState.hpp"
@@ -145,6 +146,9 @@ void BowserBehavior::UpdatePatrol(EntityState& state, const Level& level,
 
 void BowserBehavior::UpdateFireAttackPhase() {
     m_AttackCounter++;
+    if (m_AttackCounter == 10) {
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::EnemyFire);
+    }
     // Could spawn fireballs periodically during this phase
     // Actual fireball spawning would be called from App level
 }

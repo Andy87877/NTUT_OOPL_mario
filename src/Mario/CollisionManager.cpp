@@ -8,6 +8,8 @@
 
 #include <cmath>
 
+#include "Mario/AudioManager.hpp"
+
 namespace Mario {
 
 void CollisionManager::CheckPlayerBlockCollision(
@@ -155,6 +157,18 @@ void CollisionManager::CheckCeilingCollision(
                             sp.worldY = static_cast<float>(
                                 block->GetGridY() * GameConfig::TILE_SIZE);
                             sp.spawned = true;
+
+                            if (spawnEntity == "Coin" ||
+                                spawnEntity == "CoinText") {
+                                // Block already plays Bump/Coin based on code?
+                                // Actually let's just make it here!
+                                Mario::AudioManager::GetInstance().PlaySFX(
+                                    Mario::SFXName::Coin);
+                            } else {
+                                Mario::AudioManager::GetInstance().PlaySFX(
+                                    Mario::SFXName::Item);
+                            }
+
                             outSpawns->push_back(sp);
                         }
                     }

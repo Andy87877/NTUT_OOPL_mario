@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "Mario/AudioManager.hpp"
 #include "Mario/PhysicsEngine.hpp"
 
 namespace Mario {
@@ -119,6 +120,11 @@ void PlayerState::SetJumping(bool v) {
     if (v && m_Grounded && !m_Dead) {
         m_Grounded = false;
         m_FallHeight = PhysicsEngine::GetJumpHeight(0);
+        if (m_PowerState == PowerState::SMALL) {
+            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Jump);
+        } else {
+            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::BigJump);
+        }
     }
 }
 
@@ -218,6 +224,7 @@ void PlayerState::SetFireShooting(bool v) {
     if (v && m_PowerState == PowerState::FIRE && !m_SpecialActive) {
         m_SpecialActive = true;
         m_SpecialCounter = 0;
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::FireBall);
     }
 }
 

@@ -7,7 +7,7 @@
 #ifndef MARIO_I_AUDIO_SERVICE_HPP
 #define MARIO_I_AUDIO_SERVICE_HPP
 
-#include <string>
+#include "Mario/AudioType.hpp"
 
 namespace Mario {
 
@@ -23,7 +23,7 @@ class IAudioService {
      * Play background music (loops).
      * @param name Audio track name/ID
      */
-    virtual void PlayBGM(const std::string& name) = 0;
+    virtual void PlayBGM(BGMName name) = 0;
 
     /**
      * Stop background music.
@@ -34,7 +34,7 @@ class IAudioService {
      * Play sound effect (one-shot).
      * @param name Sound effect name/ID
      */
-    virtual void PlaySFX(const std::string& name) = 0;
+    virtual void PlaySFX(SFXName name) = 0;
 
     /**
      * Set volume (0.0 = mute, 1.0 = full).

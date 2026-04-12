@@ -502,6 +502,7 @@ docs/html/
 # Andy gitignore
 
 .error.log
+.debug.log
 *.py
 
 

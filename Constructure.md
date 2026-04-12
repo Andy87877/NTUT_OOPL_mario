@@ -220,6 +220,87 @@ classDiagram
 
 ---
 
+## 一-貳之補：Audio Service 架構 (Audio System)
+
+Phase 4 實作了完整的**音頻系統**，使用 SDL2_mixer 與**絕對路徑解析器**確保跨平臺音頻加載穩定性。
+
+```mermaid
+classDiagram
+    direction TB
+
+    class IAudioService["IAudioService (介面)"] {
+        +PlayBGM(name)*
+        +StopBGM()*
+        +PlaySFX(name)*
+        +SetVolume(volume)*
+        +SetMuted(bool)*
+    }
+
+    class AudioManager["AudioManager (單例)"] {
+        -m_Volume: float
+        -m_Muted: bool
+        -m_CurrentBGM: optional~BGMName~
+        -m_BGMStarted: bool
+        -m_BGMs: map~BGMName, shared_ptr~Util::BGM~~
+        -m_SFXs: map~SFXName, shared_ptr~Util::SFX~~
+        +PlayBGM(name) override
+        +StopBGM() override
+        +PlaySFX(name) override
+        +SetVolume(volume) override
+        +SetMuted(muted) override
+        +GetInstance() AudioManager&
+    }
+
+    class AudioPathResolver["AudioPathResolver (工具)"] {
+        -BGM_SUBDIR: string
+        -SFX_SUBDIR: string
+        +GetBGMPath(filename) string
+        +GetSFXPath(filename) string
+    }
+
+    class BGMType["BGM (SDL2_Mixer)"] {
+        -Mix_Music* m_Music
+        +Play() / Stop()
+        +GetPath() string
+    }
+
+    class SFXType["SFX (SDL2_Mixer)"] {
+        -Mix_Chunk* m_Chunk
+        +Play() / Stop()
+        +GetPath() string
+    }
+
+    class ResourceDir["RESOURCE_DIR (CMake)"] {
+        C:/...NTUT_OOPL_mario_V3/Resources
+    }
+
+    %% 繼承與組合
+    IAudioService <|.. AudioManager : 實作 (依賴注入)
+    AudioManager *-- AudioPathResolver : 使用路徑解析
+    AudioManager *-- BGMType : 管理 BGM 實例
+    AudioManager *-- SFXType : 管理 SFX 實例
+    AudioPathResolver --> ResourceDir : 使用絕對路徑
+```
+
+### 音頻系統設計特點
+
+- **Singleton 模式**：全遊戲唯一的音頻管理器實例
+- **懶加載 (Lazy Loading)**：使用 `std::map` 緩存音頻，僅在首次播放時加載
+- **絕對路徑解析**：`AudioPathResolver` 使用 CMake 設定的 `RESOURCE_DIR` ，確保音頻檔案無論工作目錄為何都能被找到
+- **重複播放防護**：`m_BGMStarted` 旗標防止 BGM 連續重啟
+- **暫停-恢復**：當玩家按 ESC 進入暫停選單時自動停止 BGM，恢復遊戲時繼續播放
+
+### 音頻檔案清單
+
+| 類型 | 檔案名稱 | 路徑 | 格式 | 說明 |
+|------|--------|------|------|------|
+| BGM | 01-08 主題曲 | `Resources/Audio/BGM/` | WAV (44100 Hz) | 地面/地下/城堡主題 |
+| BGM | Hurry Up | `Resources/Audio/BGM/` | WAV | 100秒倒計時警告 |
+| SFX | Jump / Kick / Coin | `Resources/Audio/SFX/` | WAV | 遊戲動作音效 |
+| SFX | Pause / Ready | `Resources/Audio/SFX/` | WAV | UI 交互音效 |
+
+---
+
 ## 一-叁：Entity 與 Behavior 的關係 (Entity-Behavior Composition)
 
 ```mermaid
@@ -291,6 +372,9 @@ graph LR
 | **FireballBehavior** | **IEntityBehavior** | **Strategy** | **Projectile trajectory & collision** |
 | **BowserBehavior** | **IEntityBehavior** | **Strategy** | **Boss AI (8-4 duel phases)** |
 | `UIManager` | None | Manager | HUD/Menu rendering, floating text control, scene UI state |
+| **AudioManager** | **IAudioService** | **Service** | **Singleton audio playback for BGM & SFX using SDL2_mixer** |
+| **AudioPathResolver** | **None (Utility)** | **Utility** | **Resolves audio file paths using RESOURCE_DIR macro for absolute paths** |
+| **IAudioService** | **None (Interface)** | **Interface** | **Abstract audio service interface for dependency injection** |
 | **Goomba** | **Entity** | **Enemy** | **Simple walker, dies on jump (ID 882)** |
 | **Koopa** | **Entity** | **Enemy** | **Walker + shell transformation (ID 886)** |
 | **AxeKoopa** | **Entity** | **Enemy** | **Walks + throws axes every 2.5s (ID 878)** |
@@ -427,11 +511,12 @@ include/Mario/
 │   ├── PhysicsConstants.hpp
 │   ├── PhysicsEngine.hpp
 │   ├── Camera.hpp
-│   └── SpritePathResolver.hpp
+│   ├── SpritePathResolver.hpp
+│   └── AudioPathResolver.hpp        ← Audio file path resolution (RESOURCE_DIR)
 │
 ├── Managers/
-│   ├── AudioManager.hpp
-│   ├── IAudioService.hpp
+│   ├── AudioManager.hpp            ← Audio service (singleton, lazy loading)
+│   ├── IAudioService.hpp           ← Audio interface (dependency injection)
 │   ├── GameStateManager.hpp
 │   ├── LevelManager.hpp
 │   ├── CollisionManager.hpp
@@ -486,10 +571,11 @@ src/Mario/
 │   ├── GameConfig.cpp
 │   ├── PhysicsEngine.cpp
 │   ├── Camera.cpp
-│   └── SpritePathResolver.cpp
+│   ├── SpritePathResolver.cpp
+│   └── AudioPathResolver.cpp       ← Audio path resolution implementation
 │
 ├── Managers/
-│   ├── AudioManager.cpp
+│   ├── AudioManager.cpp            ← Audio service implementation (BGM/SFX)
 │   ├── GameStateManager.cpp
 │   ├── LevelManager.cpp
 │   ├── CollisionManager.cpp

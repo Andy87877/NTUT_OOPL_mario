@@ -49,6 +49,7 @@ set(SRC_FILES
     Mario/SceneManager.cpp
     Mario/UIManager.cpp
     Mario/AudioManager.cpp
+    Mario/AudioPathResolver.cpp
     Mario/GameTheater.cpp
 
     # UI (Phase 5)
@@ -114,6 +115,8 @@ set(INCLUDE_FILES
     Mario/SceneManager.hpp
     Mario/UIManager.hpp
     Mario/AudioManager.hpp
+    Mario/AudioPathResolver.hpp
+    Mario/AudioType.hpp
     Mario/GameTheater.hpp
 
     # Audio Service (Phase 5)

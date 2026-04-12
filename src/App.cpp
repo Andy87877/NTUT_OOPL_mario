@@ -116,6 +116,8 @@ void App::UpdatePlaying() {
     if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
         m_ESCMenuSelection = 0;
         m_CurrentState = State::ESC_MENU;
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Pause);
+        Mario::AudioManager::GetInstance().StopBGM();
         LOG_INFO("Game paused - entering ESC_MENU state");
         return;
     }
@@ -189,7 +191,12 @@ void App::UpdatePlaying() {
 
     // -- Timer (via GameStateManager) --
     if (m_Player->GetState().IsControllable()) {
+        int oldTime = m_GameState.GetTimeRemaining();
         m_GameState.Tick();
+        int newTime = m_GameState.GetTimeRemaining();
+        if (oldTime > 100 && newTime <= 100) {
+            PlayCurrentBGM();  // switch to hurry up theme
+        }
         if (m_GameState.IsTimeUp()) {
             m_GameState.LoseLife();
             m_Player->GetState().SetDead(true);
@@ -207,6 +214,8 @@ void App::UpdatePlaying() {
     if (m_Player->GetState().IsDead()) {
         m_DeathTimer = m_Timer + 80;  // ~1.6s death animation
         m_CurrentState = State::DEATH;
+        Mario::AudioManager::GetInstance().PlayBGM(
+            Mario::BGMName::LostALifeTheme);
         LOG_INFO("Player died - entering DEATH state (Lives: {})",
                  m_GameState.GetLives());
     }
@@ -303,6 +312,8 @@ void App::UpdateDeath() {
             m_Loading = false;
         } else {
             m_CurrentState = State::GAME_OVER;
+            Mario::AudioManager::GetInstance().PlayBGM(
+                Mario::BGMName::GameOverTheme);
             LOG_INFO("No lives remaining - GAME_OVER");
         }
     }
@@ -329,6 +340,7 @@ void App::UpdateESCMenu() {
         switch (m_ESCMenuSelection) {
             case 0:
                 m_CurrentState = State::PLAYING;
+                PlayCurrentBGM();
                 LOG_INFO("Resuming game");
                 break;
             case 1:
@@ -355,6 +367,7 @@ void App::UpdateESCMenu() {
     // ESC to resume
     if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
         m_CurrentState = State::PLAYING;
+        PlayCurrentBGM();
         LOG_INFO("ESC pressed again - resuming game");
     }
 }
@@ -367,6 +380,7 @@ void App::LoadLevel(const std::string& levelName) {
     m_Camera.Reset();
     m_LevelCompleteCtrl.Reset();
     m_FlagEntity = nullptr;
+    m_CurrentLevelName = levelName;
 
     // Create and load the level
     m_Level = std::make_shared<Mario::Level>();
@@ -547,6 +561,26 @@ void App::LoadLevel(const std::string& levelName) {
              spawnX, spawnY);
 }
 
+void App::PlayCurrentBGM() {
+    int time = m_GameState.GetTimeRemaining();
+    bool hurry = time <= 100 && time > 0;
+    std::string lvl = m_CurrentLevelName;
+
+    Mario::BGMName bgm = Mario::BGMName::GroundTheme;
+    if (lvl == "8-4" || lvl == "8-4_sub") {
+        bgm = hurry ? Mario::BGMName::CastleThemeHurryUp
+                    : Mario::BGMName::CastleTheme;
+    } else if (lvl == "1-1u" || lvl == "1-2" || lvl == "1-2uu" ||
+               lvl == "1-2_sub") {
+        bgm = hurry ? Mario::BGMName::UndergroundThemeHurryUp
+                    : Mario::BGMName::UndergroundTheme;
+    } else {
+        bgm = hurry ? Mario::BGMName::GroundThemeHurryUp
+                    : Mario::BGMName::GroundTheme;
+    }
+    Mario::AudioManager::GetInstance().PlayBGM(bgm);
+}
+
 void App::StartLevel() {
     m_GameState.ResetTime();
     m_GameState.StartTime();
@@ -554,6 +588,7 @@ void App::StartLevel() {
     if (m_Player) {
         m_Player->GetState().SetControllable(true);
     }
+    PlayCurrentBGM();
 }
 
 void App::RenderAll() {
@@ -677,6 +712,11 @@ void App::CheckFlagpoleCollision() {
         LOG_INFO("Flagpole reached at block ({}, {})", block->GetGridX(),
                  block->GetGridY());
 
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Flagpole);
+        Mario::AudioManager::GetInstance().PlayBGM(
+            m_CurrentLevelName == "8-4" ? Mario::BGMName::CastleCompleteTheme
+                                        : Mario::BGMName::LevelCompleteTheme);
+
         m_LevelCompleteCtrl.StartFlagpole(*m_Player, m_FlagEntity, block.get());
         m_GameState.StopTime();
         m_CurrentState = State::FLAGPOLE;
@@ -740,6 +780,11 @@ void App::CheckPipeCollision() {
             LOG_INFO("Entering pipe DOWN at ({}, {})", pipeDX, pipeDY);
             m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Down", pipeDX,
                                               pipeDY);
+            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
+            int time = m_GameState.GetTimeRemaining();
+            Mario::AudioManager::GetInstance().PlayBGM(
+                (time <= 100 && time > 0) ? Mario::BGMName::IntoThePipeHurryUp
+                                          : Mario::BGMName::IntoThePipeTheme);
             m_GameState.StopTime();
             m_CurrentState = State::PIPE_WARP;
             return;
@@ -756,6 +801,11 @@ void App::CheckPipeCollision() {
             LOG_INFO("Entering pipe RIGHT at ({}, {})", pipeRX, pipeRY);
             m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Right", pipeRX,
                                               pipeRY);
+            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
+            int time = m_GameState.GetTimeRemaining();
+            Mario::AudioManager::GetInstance().PlayBGM(
+                (time <= 100 && time > 0) ? Mario::BGMName::IntoThePipeHurryUp
+                                          : Mario::BGMName::IntoThePipeTheme);
             m_GameState.StopTime();
             m_CurrentState = State::PIPE_WARP;
 
@@ -789,9 +839,13 @@ void App::CheckPipeCollision() {
                     m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Right",
                                                       block->GetWorldX(),
                                                       block->GetWorldY());
-                    // TODO: Play warp SFX "Resources/Audio/SFX/20. Warp.mp3"
-                    // This would be: AudioManager::GetInstance().PlaySFX("20.
-                    // Warp");
+                    Mario::AudioManager::GetInstance().PlaySFX(
+                        Mario::SFXName::Warp);
+                    int time = m_GameState.GetTimeRemaining();
+                    Mario::AudioManager::GetInstance().PlayBGM(
+                        (time <= 100 && time > 0)
+                            ? Mario::BGMName::IntoThePipeHurryUp
+                            : Mario::BGMName::IntoThePipeTheme);
                     LOG_DEBUG("Warp SFX should play now: 20. Warp.mp3");
                     m_GameState.StopTime();
                     m_CurrentState = State::PIPE_WARP;
@@ -895,6 +949,13 @@ void App::CheckPlayerEntityCollision() {
                 // Stomp! Kill enemy
                 if (es.IsSquishable() || es.IsKoopaSquash()) {
                     es.Squish();
+                    if (es.GetName() == "Bowser") {
+                        Mario::AudioManager::GetInstance().PlaySFX(
+                            Mario::SFXName::BowserDie);
+                    } else {
+                        Mario::AudioManager::GetInstance().PlaySFX(
+                            Mario::SFXName::Squish);
+                    }
                     m_GameState.AddScore(es.GetScoreWorth());
                     // Bounce player up after stomp
                     ps.SetFallHeight(Mario::PhysicsEngine::GetJumpHeight(0) *
@@ -920,6 +981,8 @@ void App::CheckPlayerEntityCollision() {
                 }
                 // Always apply the power-up
                 ps.PowerUp(Mario::PowerState::BIG);
+                Mario::AudioManager::GetInstance().PlaySFX(
+                    Mario::SFXName::Powerup);
             } else if (puState == 2) {
                 // Fire Flower
                 if (ps.GetState() == 0) {
@@ -930,12 +993,18 @@ void App::CheckPlayerEntityCollision() {
                 // Small Mario eats fire flower -> grows to Big and fires shots
                 // But we just set state to FIRE regardless
                 ps.PowerUp(Mario::PowerState::FIRE);
+                Mario::AudioManager::GetInstance().PlaySFX(
+                    Mario::SFXName::Powerup);
             } else if (puState == 3) {
                 // Star
                 ps.StartStar();
+                Mario::AudioManager::GetInstance().PlaySFX(
+                    Mario::SFXName::Powerup);
             } else if (puState == 5) {
                 // 1-Up
                 m_GameState.AddLife();
+                Mario::AudioManager::GetInstance().PlaySFX(
+                    Mario::SFXName::_1up);
             }
             m_GameState.AddScore(es.GetScoreWorth());
             es.Delete();
@@ -944,6 +1013,7 @@ void App::CheckPlayerEntityCollision() {
         } else if (es.IsCoin()) {
             m_GameState.AddCoin();
             m_GameState.AddScore(es.GetScoreWorth());
+            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Coin);
             es.Delete();
         }
     }

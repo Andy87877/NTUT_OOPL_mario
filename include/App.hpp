@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "Mario/AudioManager.hpp"
 #include "Mario/Camera.hpp"
 #include "Mario/CollisionManager.hpp"
 #include "Mario/Entity.hpp"
@@ -64,6 +65,7 @@ class App {
 
     // -- Level Management --
     void LoadLevel(const std::string& levelName);
+    void PlayCurrentBGM();
     void StartLevel();
     void RenderAll();
 
@@ -116,6 +118,7 @@ class App {
 
     // -- Death State --
     int m_DeathTimer = -1;
+    std::string m_CurrentLevelName;
     int m_Timer = 0;
 
     // -- ESC Menu State --

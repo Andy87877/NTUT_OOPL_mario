@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <fstream>
 
+#include "Mario/AudioManager.hpp"
 #include "Mario/SpritePathResolver.hpp"
 #include "Util/Logger.hpp"
 
@@ -219,6 +220,9 @@ void Block::OnHit(int playerState) {
         if (m_Def.name == "InvisQuestionBlock") {
             SetVisible(true);
         }
+
+        // Play bump sound when HP reduces to 0
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Bump);
     }
 
     Bounce();
@@ -231,6 +235,7 @@ void Block::Bounce() {
 void Block::Break() {
     m_Solid = false;
     SetVisible(false);
+    Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Break);
 }
 
 float Block::GetWorldX() const {
