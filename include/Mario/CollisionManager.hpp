@@ -19,6 +19,7 @@ namespace Mario {
 class GameStateManager;
 class UIManager;
 class Camera;
+class Entity;
 
 /**
  * Handles all collision detection and resolution between the player
@@ -53,6 +54,29 @@ class CollisionManager {
      * @return true if player is below the level
      */
     bool CheckPitFall(const Player& player) const;
+
+    /**
+     * ✨ Check Player-Entity collision (e.g., Goomba, KoopaTroopa).
+     * Handles enemy stomping, damage, power-up collection, and scoring.
+     * @param player The player
+     * @param entities All entities in level
+     * @param camera Camera for screen coordinate conversion
+     * @param gameState For score/life management
+     * @param uiManager For floating text effects
+     */
+    void CheckPlayerEntityCollision(
+        Player& player, std::vector<std::shared_ptr<Entity>>& entities,
+        Camera& camera, GameStateManager& gameState, UIManager& uiManager);
+
+    /**
+     * ✨ Check Entity-Entity collision (e.g., Fire vs Enemy, Shell vs Enemy).
+     * Handles special collisions between projectiles and enemies.
+     * @param entities All entities in level
+     * @param gameState For score management
+     */
+    void CheckEntityEntityCollision(
+        std::vector<std::shared_ptr<Entity>>& entities,
+        GameStateManager& gameState);
 
    private:
     /**

@@ -1,11 +1,12 @@
 /**
  * @file FloatingText.cpp
- * @brief Logic for floating text effect.
+ * @brief Logic for floating text effect with fade-out and scale animation.
  * @inheritance None (Wrapper with composition)
  */
 #include "Mario/FloatingText.hpp"
 
 #include "Util/Color.hpp"
+#include "Util/Logger.hpp"
 
 namespace Mario {
 
@@ -27,6 +28,16 @@ void FloatingText::Update() {
         // Float upward in PTSD coordinate space (positive Y is up)
         m_CurrentPosition.y -= 1.0f;  // Decrease Y to move up in PTSD coords
         m_UIText->SetPosition(m_CurrentPosition.x, m_CurrentPosition.y);
+
+        // Fade out: decrease alpha as time expires
+        float progress =
+            static_cast<float>(m_LifetimeCounter) / m_OriginalDuration;
+        int alpha = static_cast<int>(255.0f * progress);
+        alpha = (alpha < 0) ? 0 : alpha;
+        m_UIText->SetTextColor(
+            Util::Color(255, 255, 255, static_cast<Uint8>(alpha)));
+        // If UIText supports scale, apply it here
+        // m_UIText->SetScale(scale);
     }
 }
 

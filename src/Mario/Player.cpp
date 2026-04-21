@@ -29,6 +29,7 @@ Player::Player(float worldX, float worldY, int startState) {
     // Load initial sprite
     std::string initialPath =
         SpritePathResolver::GetPlayerSpritePath("Idle", startState, 0);
+
     if (!initialPath.empty()) {
         auto sprite = GetOrLoadSprite(initialPath);
         if (sprite) {
@@ -66,7 +67,8 @@ void Player::UpdateView(float cameraOffset) {
         prefix, spriteState, frame, starState);
 
     // Only reload sprite if it changed
-    if (!spritePath.empty() && spritePath != m_CurrentSpritePath) {
+    if (!spritePath.empty() && spritePath != m_CurrentSpritePath &&
+        spritePath.find("MarioIdle0.png") == std::string::npos) {
         m_CurrentSpritePath = spritePath;
         auto sprite = GetOrLoadSprite(spritePath);
         if (sprite) {

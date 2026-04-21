@@ -24,6 +24,7 @@ int main(int, char**) {
             case App::State::PIPE_WARP:
             case App::State::DEATH:
             case App::State::GAME_OVER:
+            case App::State::GAME_WON:
             case App::State::ESC_MENU:
                 app.Update();
                 break;

@@ -9,8 +9,13 @@
 #include <cmath>
 
 #include "Mario/AudioManager.hpp"
+#include "Mario/Behaviors/IEntityBehavior.hpp"
 #include "Mario/Camera.hpp"
+#include "Mario/Entity.hpp"
+#include "Mario/EntityDef.hpp"
+#include "Mario/GameConfig.hpp"
 #include "Mario/GameStateManager.hpp"
+#include "Mario/PhysicsEngine.hpp"
 #include "Mario/UIManager.hpp"
 
 namespace Mario {
@@ -20,17 +25,11 @@ void CollisionManager::CheckPlayerBlockCollision(
     UIManager& uiManager, std::vector<Level::SpawnPoint>* outSpawns) {
     PlayerState& state = player.GetState();
 
-    // Apply gravity first
-    float yDelta = state.ApplyGravity();
-
-    // Apply velocities to position
-    float newX = state.GetX() + state.GetVelX();
-    float newY = state.GetY() + yDelta;
-
-    state.SetX(newX);
-    state.SetY(newY);
+    // IMPORTANT: Position has already been updated by UpdatePlaying()
+    // This method only resolves collisions, not applies position changes
 
     // Resolve collisions in order: ground, ceiling, walls
+    // This order matches the C# reference code behavior
     CheckGroundCollision(state, level);
     CheckCeilingCollision(state, level, camera, gameState, uiManager,
                           outSpawns);
@@ -149,6 +148,18 @@ void CollisionManager::CheckCeilingCollision(
                             spawnEntity = block->GetDef().spawnEntity;
                         }
 
+                        // Calculate block hit effect position (center of block)
+                        // Convert world to screen to PTSD coordinates
+                        float blockCenterX =
+                            block->GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
+                        float blockCenterY = block->GetWorldY();
+                        float screenPixelX =
+                            camera.WorldToScreenX(blockCenterX);
+                        float screenPixelY =
+                            camera.WorldToScreenY(blockCenterY);
+                        float ptsdX = screenPixelX - 640.0f;
+                        float ptsdY = 360.0f - screenPixelY;
+
                         // Special handling for CoinGet blocks: directly add
                         // coins instead of spawning entities
                         if (spawnEntity == "CoinGet") {
@@ -157,21 +168,7 @@ void CollisionManager::CheckCeilingCollision(
                             Mario::AudioManager::GetInstance().PlaySFX(
                                 Mario::SFXName::Coin);
 
-                            // Display floating text "+200" effect at block
-                            // position Convert world coordinates to screen
-                            // coordinates using camera
-                            float blockCenterX = block->GetWorldX() +
-                                                 GameConfig::TILE_SIZE * 0.5f;
-                            float blockCenterY = block->GetWorldY();
-                            float screenPixelX =
-                                camera.WorldToScreenX(blockCenterX);
-                            float screenPixelY =
-                                camera.WorldToScreenY(blockCenterY);
-
-                            // Convert pixel coordinates (0-1280, 0-720) to PTSD
-                            // coordinates (-640~640, -360~360)
-                            float ptsdX = screenPixelX - 640.0f;
-                            float ptsdY = 360.0f - screenPixelY;
+                            // Display floating text "+200" particle effect
                             uiManager.AddFloatingText(ptsdX, ptsdY, "+200", 60);
                         }
                         // Spawn the entity if we determined one (and it's not
@@ -198,12 +195,55 @@ void CollisionManager::CheckCeilingCollision(
                             } else {
                                 Mario::AudioManager::GetInstance().PlaySFX(
                                     Mario::SFXName::Item);
+                                // Display particle effect for other items
+                                // (mushroom, fire flower, star, 1-up)
+                                uiManager.AddFloatingText(ptsdX, ptsdY, "+100",
+                                                          60);
                             }
 
                             outSpawns->push_back(sp);
                         }
                     }
                     block->OnHit(state.GetState());
+
+                    if (block->JustBroken() && outSpawns) {
+                        float bx = block->GetWorldX();
+                        float by = block->GetWorldY();
+
+                        Level::SpawnPoint sp1{-1,
+                                              "BrickBlockBreak_tl",
+                                              block->GetGridX(),
+                                              block->GetGridY(),
+                                              bx,
+                                              by,
+                                              true};
+                        Level::SpawnPoint sp2{-1,
+                                              "BrickBlockBreak_tr",
+                                              block->GetGridX(),
+                                              block->GetGridY(),
+                                              bx,
+                                              by,
+                                              true};
+                        Level::SpawnPoint sp3{-1,
+                                              "BrickBlockBreak_bl",
+                                              block->GetGridX(),
+                                              block->GetGridY(),
+                                              bx,
+                                              by,
+                                              true};
+                        Level::SpawnPoint sp4{-1,
+                                              "BrickBlockBreak_br",
+                                              block->GetGridX(),
+                                              block->GetGridY(),
+                                              bx,
+                                              by,
+                                              true};
+
+                        outSpawns->push_back(sp1);
+                        outSpawns->push_back(sp2);
+                        outSpawns->push_back(sp3);
+                        outSpawns->push_back(sp4);
+                    }
                 }
             }
         }
@@ -254,6 +294,244 @@ void CollisionManager::CheckWallCollision(PlayerState& state, Level& level,
                     state.SetX(blockBox.right - offsetX);
                     state.SetVelX(0.0f);
                     break;
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// ✨ NEW: Player-Entity Collision Detection
+// ============================================================================
+void CollisionManager::CheckPlayerEntityCollision(
+    Player& player, std::vector<std::shared_ptr<Entity>>& entities,
+    Camera& camera, GameStateManager& gameState, UIManager& uiManager) {
+    if (player.GetState().IsDead()) return;
+
+    PlayerState& ps = player.GetState();
+    AABB playerBox = ps.GetHitbox();
+
+    for (auto& entity : entities) {
+        EntityState& es = entity->GetState();
+        if (!es.IsActive()) continue;
+
+        AABB entityBox = es.GetHitbox();
+        if (!playerBox.Intersects(entityBox)) continue;
+
+        if (es.IsEnemy()) {
+            if (ps.GetStarTimer() > 0) {
+                // ✨ Star power: kill enemy
+                es.Delete();
+                AudioManager::GetInstance().PlaySFX(SFXName::Kick);
+                int scoreWorth = es.GetScoreWorth();
+                gameState.AddScore(scoreWorth);
+
+                // Floating text
+                float enemyWorldX =
+                    es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
+                float enemyWorldY = es.GetWorldY();
+                float screenPixelX = camera.WorldToScreenX(enemyWorldX);
+                float screenPixelY = camera.WorldToScreenY(enemyWorldY);
+                float ptsdX = screenPixelX - 640.0f;
+                float ptsdY = 360.0f - screenPixelY;
+                uiManager.AddFloatingText(ptsdX, ptsdY,
+                                          "+" + std::to_string(scoreWorth), 60);
+                continue;
+            }
+
+            // Check if player is stomping (falling from above)
+            float playerBottom = playerBox.bottom;
+            float entityTop = entityBox.top;
+            float overlapY = playerBottom - entityTop;
+
+            if (overlapY > 0 && overlapY < GameConfig::TILE_SIZE * 0.5f &&
+                ps.GetVelY() >= 0 && !ps.IsGrounded()) {
+                // Player stomped on enemy
+                if (es.IsSquishable()) {
+                    es.Squish();
+                } else if (entity->GetDef().type == EntityType::BOWSER) {
+                    AudioManager::GetInstance().PlaySFX(SFXName::BowserDie);
+                } else {
+                    AudioManager::GetInstance().PlaySFX(SFXName::Squish);
+                }
+                int scoreWorth = es.GetScoreWorth();
+                gameState.AddScore(scoreWorth);
+
+                float enemyWorldX =
+                    es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
+                float enemyWorldY = es.GetWorldY();
+                float screenPixelX = camera.WorldToScreenX(enemyWorldX);
+                float screenPixelY = camera.WorldToScreenY(enemyWorldY);
+                float ptsdX = screenPixelX - 640.0f;
+                float ptsdY = 360.0f - screenPixelY;
+                uiManager.AddFloatingText(ptsdX, ptsdY,
+                                          "+" + std::to_string(scoreWorth), 60);
+
+                ps.SetFallHeight(PhysicsEngine::GetJumpHeight(0) * 0.5);
+                ps.SetGrounded(false);
+            } else if (es.IsKoopaSquash()) {
+                // Koopa Troopa: spawn shell
+                es.Delete();
+                AudioManager::GetInstance().PlaySFX(SFXName::Squish);
+                int scoreWorth = es.GetScoreWorth();
+                gameState.AddScore(scoreWorth);
+
+                float enemyWorldX =
+                    es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
+                float enemyWorldY = es.GetWorldY();
+                float screenPixelX = camera.WorldToScreenX(enemyWorldX);
+                float screenPixelY = camera.WorldToScreenY(enemyWorldY);
+                float ptsdX = screenPixelX - 640.0f;
+                float ptsdY = 360.0f - screenPixelY;
+                uiManager.AddFloatingText(ptsdX, ptsdY,
+                                          "+" + std::to_string(scoreWorth), 60);
+
+                ps.SetFallHeight(PhysicsEngine::GetJumpHeight(0) * 0.5);
+                ps.SetGrounded(false);
+            } else if (entity->GetDef().type == EntityType::KOOPA_SHELL) {
+                // Koopa shell: kick it
+                AABB eBox = entityBox;
+                float playerCenterX =
+                    playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
+                float shellCenterX =
+                    eBox.left + (eBox.right - eBox.left) * 0.5f;
+
+                float speed =
+                    GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
+                float shellSpeed = speed * 1.5f;
+
+                if (playerCenterX > shellCenterX) {
+                    es.SetVelX(-shellSpeed);
+                } else {
+                    es.SetVelX(shellSpeed);
+                }
+
+                if (es.GetVelX() < 0) {
+                    es.SetDirection(0);
+                } else {
+                    es.SetDirection(1);
+                }
+
+                AudioManager::GetInstance().PlaySFX(SFXName::Squish);
+
+                ps.SetFallHeight(PhysicsEngine::GetJumpHeight(0) * 0.5);
+                ps.SetGrounded(false);
+            } else if (!es.IsSquished()) {
+                // Player hit from side - take damage
+                ps.TakeDamage();
+            }
+        }
+
+        if (es.IsPowerUp()) {
+            // Collect power-up
+            int puState = es.GetPowerUpState();
+            if (puState == 1 || puState == 2) {
+                if (ps.GetState() == 0) {
+                    ps.SetY(ps.GetY() - GameConfig::TILE_SIZE);
+                }
+                ps.PowerUp(puState == 1 ? PowerState::BIG : PowerState::FIRE);
+                AudioManager::GetInstance().PlaySFX(SFXName::Powerup);
+            } else if (puState == 3) {
+                ps.StartStar();
+                AudioManager::GetInstance().PlaySFX(SFXName::Powerup);
+            } else if (puState == 5) {
+                gameState.AddLife();
+                AudioManager::GetInstance().PlaySFX(SFXName::_1up);
+
+                float oneupWorldX =
+                    es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
+                float oneupWorldY = es.GetWorldY();
+                float oneupScreenPixelX = camera.WorldToScreenX(oneupWorldX);
+                float oneupScreenPixelY = camera.WorldToScreenY(oneupWorldY);
+                float oneupPtsdX = oneupScreenPixelX - 640.0f;
+                float oneupPtsdY = 360.0f - oneupScreenPixelY;
+                uiManager.AddFloatingText(oneupPtsdX, oneupPtsdY, "+1UP", 60);
+            }
+
+            int scoreWorth = es.GetScoreWorth();
+            gameState.AddScore(scoreWorth);
+
+            float puWorldX = es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
+            float puWorldY = es.GetWorldY();
+            float puScreenPixelX = camera.WorldToScreenX(puWorldX);
+            float puScreenPixelY = camera.WorldToScreenY(puWorldY);
+            float puPtsdX = puScreenPixelX - 640.0f;
+            float puPtsdY = 360.0f - puScreenPixelY;
+            uiManager.AddFloatingText(puPtsdX, puPtsdY,
+                                      "+" + std::to_string(scoreWorth), 60);
+            es.Delete();
+        } else if (es.IsCoin()) {
+            gameState.AddCoin();
+            int coinScore = es.GetScoreWorth();
+            gameState.AddScore(coinScore);
+            AudioManager::GetInstance().PlaySFX(SFXName::Coin);
+
+            float coinWorldX = es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
+            float coinWorldY = es.GetWorldY();
+            float coinScreenPixelX = camera.WorldToScreenX(coinWorldX);
+            float coinScreenPixelY = camera.WorldToScreenY(coinWorldY);
+            float coinPtsdX = coinScreenPixelX - 640.0f;
+            float coinPtsdY = 360.0f - coinScreenPixelY;
+            uiManager.AddFloatingText(coinPtsdX, coinPtsdY,
+                                      "+" + std::to_string(coinScore), 60);
+            es.Delete();
+        }
+    }
+}
+
+// ============================================================================
+// ✨ NEW: Entity-Entity Collision Detection (Fire vs Enemy, Shell vs Enemy)
+// ============================================================================
+void CollisionManager::CheckEntityEntityCollision(
+    std::vector<std::shared_ptr<Entity>>& entities,
+    GameStateManager& gameState) {
+    for (size_t i = 0; i < entities.size(); ++i) {
+        EntityState& e1 = entities[i]->GetState();
+        if (!e1.IsActive()) continue;
+
+        for (size_t j = i + 1; j < entities.size(); ++j) {
+            EntityState& e2 = entities[j]->GetState();
+            if (!e2.IsActive()) continue;
+
+            if (!e1.GetHitbox().Intersects(e2.GetHitbox())) continue;
+
+            // ✨ Fire vs Enemy (updated to use entities[i]->GetDef())
+            if (entities[i]->GetDef().type == EntityType::FIRE &&
+                e2.IsEnemy()) {
+                e1.Delete();
+                if (!e2.IsDead()) {
+                    e2.Delete();
+                    Mario::AudioManager::GetInstance().PlaySFX(
+                        Mario::SFXName::Kick);
+                    gameState.AddScore(e2.GetScoreWorth());
+                }
+            } else if (entities[j]->GetDef().type == EntityType::FIRE &&
+                       e1.IsEnemy()) {
+                e2.Delete();
+                if (!e1.IsDead()) {
+                    e1.Delete();
+                    Mario::AudioManager::GetInstance().PlaySFX(
+                        Mario::SFXName::Kick);
+                    gameState.AddScore(e1.GetScoreWorth());
+                }
+            }
+
+            // ✨ Koopa Shell vs Enemy
+            if (entities[i]->GetDef().type == EntityType::KOOPA_SHELL &&
+                std::abs(e1.GetVelX()) > 0 && e2.IsEnemy()) {
+                if (entities[j]->GetDef().type != EntityType::KOOPA_SHELL) {
+                    e2.Delete();
+                    Mario::AudioManager::GetInstance().PlaySFX(
+                        Mario::SFXName::Kick);
+                    gameState.AddScore(e2.GetScoreWorth());
+                }
+            } else if (entities[j]->GetDef().type == EntityType::KOOPA_SHELL &&
+                       std::abs(e2.GetVelX()) > 0 && e1.IsEnemy()) {
+                if (entities[i]->GetDef().type != EntityType::KOOPA_SHELL) {
+                    e1.Delete();
+                    Mario::AudioManager::GetInstance().PlaySFX(
+                        Mario::SFXName::Kick);
+                    gameState.AddScore(e1.GetScoreWorth());
                 }
             }
         }

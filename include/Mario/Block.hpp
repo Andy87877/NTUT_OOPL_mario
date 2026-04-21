@@ -79,6 +79,14 @@ class Block : public Util::GameObject {
     bool IsHit() const { return m_IsHit; }
     bool IsSpawner() const { return m_Def.spawner; }
 
+    bool JustBroken() {
+        if (m_JustBroken) {
+            m_JustBroken = false;
+            return true;
+        }
+        return false;
+    }
+
     virtual float GetWorldX() const;
     virtual float GetWorldY() const;
     virtual AABB GetAABB() const;
@@ -100,6 +108,7 @@ class Block : public Util::GameObject {
 
     bool m_Solid;
     bool m_IsHit = false;
+    bool m_JustBroken = false;
     int m_HP = 1;
 
     // Bounce animation

@@ -26,17 +26,9 @@ void FireballBehavior::Update(EntityState& state, const Level& level,
         return;
     }
 
-    // Apply gravity for parabolic trajectory
-    double fallHeight = state.GetFallHeight();
-    double velY = state.GetVelY();
-    float yDelta =
-        PhysicsEngine::ApplyGravity(fallHeight, velY, state.IsGrounded());
-    state.SetFallHeight(fallHeight);
-    state.SetVelY(velY);
-    state.SetWorldY(state.GetWorldY() + yDelta);
-
-    // Horizontal movement (VelX already has direction baked in)
-    state.SetWorldX(state.GetWorldX() + state.GetVelX());
+    // NOTE: Basic physics (gravity + velocity) are handled by
+    // EntityState::Tick() DO NOT apply them here or they'll be applied twice!
+    // FireballBehavior only handles special fireball logic (bounce, etc.)
 
     // Ground bounding is managed by App::CheckEntityBlockCollision.
     // If App.cpp set us as grounded, we bounce!

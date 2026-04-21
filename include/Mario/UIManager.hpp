@@ -26,7 +26,7 @@ namespace Mario {
  */
 class UIManager {
    public:
-    enum class State { TITLE, LOADING, PLAYING, GAME_OVER, ESC_MENU };
+    enum class State { TITLE, LOADING, PLAYING, GAME_OVER, GAME_WON, ESC_MENU };
 
     UIManager(GameStateManager* gameState);
     virtual ~UIManager() = default;
@@ -65,6 +65,7 @@ class UIManager {
     void UpdateTitleScreen();
     void UpdateLoadingScreen();
     void UpdateGameOverScreen();
+    void UpdateGameWonScreen();
     void UpdateESCMenu(int selection);
 
     GameStateManager* m_GameState;
@@ -98,7 +99,11 @@ class UIManager {
     // Floating text effects
     std::vector<std::shared_ptr<FloatingText>> m_FloatingTexts;
 
-    // Mario sprite preview for loading screen
+    // Time warning flash animation counter
+    int m_FlashCounter = 0;
+
+    // Game over screen elements
+    std::shared_ptr<UIText> m_FinalScoreText;
     std::shared_ptr<UIImage> m_MarioPreview;
     std::string m_CurrentPreviewSpritePath;
 };

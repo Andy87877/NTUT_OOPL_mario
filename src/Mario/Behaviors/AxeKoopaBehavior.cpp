@@ -21,23 +21,18 @@ void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
 
     m_ThrowTimer++;
 
-    // Apply gravity
-    double fallHeight = state.GetFallHeight();
-    double velY = state.GetVelY();
-    float yDelta =
-        PhysicsEngine::ApplyGravity(fallHeight, velY, state.IsGrounded());
-    state.SetFallHeight(fallHeight);
-    state.SetVelY(velY);
-    state.SetWorldY(state.GetWorldY() + yDelta);
-
-    // Horizontal movement (VelX already has direction baked in from
-    // EntityState::Init)
-    state.SetWorldX(state.GetWorldX() + state.GetVelX());
+    // NOTE: Physics (gravity + position update) is already applied by
+    // App::UpdatePlaying() This method only handles AI behavior logic
 
     // Periodic axe throw
     if (m_ThrowTimer >= AXE_THROW_INTERVAL) {
-        // TODO: Spawn axe projectile below this entity
-        // Axe falls with gravity and damages Mario on contact
+        // ✨ Spawn axe projectile below this entity (if callback is set)
+        if (m_AxeSpawnCallback) {
+            // Axe spawns at center bottom of AxeKoopa
+            float axeX = state.GetX() + state.GetWidth() / 2.0f;
+            float axeY = state.GetY() + state.GetHeight();
+            m_AxeSpawnCallback(axeX, axeY);
+        }
         m_ThrowTimer = 0;
     }
 

@@ -15,6 +15,24 @@
 
 namespace Mario {
 
+// Helper function: Convert string to EntityType
+static EntityType StringToEntityType(const std::string& typeStr) {
+    if (typeStr == "GOOMBA") return EntityType::GOOMBA;
+    if (typeStr == "KOOPA_TROOPA") return EntityType::KOOPA_TROOPA;
+    if (typeStr == "KOOPA_SHELL") return EntityType::KOOPA_SHELL;
+    if (typeStr == "AXE_KOOPA") return EntityType::AXE_KOOPA;
+    if (typeStr == "BOWSER") return EntityType::BOWSER;
+    if (typeStr == "FIRE") return EntityType::FIRE;
+    if (typeStr == "PRINCESS") return EntityType::PRINCESS;
+    if (typeStr == "MUSHROOM") return EntityType::MUSHROOM;
+    if (typeStr == "FIRE_FLOWER") return EntityType::FIRE_FLOWER;
+    if (typeStr == "STAR") return EntityType::STAR;
+    if (typeStr == "ONE_UP") return EntityType::ONE_UP;
+    if (typeStr == "COIN") return EntityType::COIN;
+    if (typeStr == "FLAG") return EntityType::FLAG;  // ✨ 新增
+    return EntityType::UNKNOWN;
+}
+
 // Static empty definitions
 const BlockDef Level::EMPTY_BLOCK_DEF = {};
 const EntityDef Level::EMPTY_ENTITY_DEF = {};
@@ -182,26 +200,32 @@ void Level::LoadLookupTables() {
             EntityDef def;
             def.id = std::stoi(tokens[0]);
             def.name = tokens[1];
-            if (tokens.size() > 2) def.isPowerUp = (tokens[2] == "1");
-            if (tokens.size() > 3) def.isEnemy = (tokens[3] == "1");
-            if (tokens.size() > 4) def.isCoin = (tokens[4] == "1");
-            if (tokens.size() > 5)
-                def.powerUpState = tokens[5].empty() ? 0 : std::stoi(tokens[5]);
-            if (tokens.size() > 6) def.isStatic = (tokens[6] == "1");
-            if (tokens.size() > 7) def.isBounce = (tokens[7] == "1");
-            if (tokens.size() > 8) def.fromBlock = (tokens[8] == "1");
-            if (tokens.size() > 9)
-                def.scoreWorth = tokens[9].empty() ? 0 : std::stoi(tokens[9]);
-            if (tokens.size() > 10) def.isAnimated = (tokens[10] == "1");
-            if (tokens.size() > 11)
-                def.animFrames = tokens[11].empty() ? 0 : std::stoi(tokens[11]);
-            if (tokens.size() > 12) def.doesJump = (tokens[12] == "1");
-            if (tokens.size() > 13) def.doesCollide = (tokens[13] == "1");
-            if (tokens.size() > 14) def.oneLoop = (tokens[14] == "1");
-            if (tokens.size() > 15)
-                def.animBuffer = tokens[15].empty() ? 1 : std::stoi(tokens[15]);
-            if (tokens.size() > 16) def.squishable = (tokens[16] == "1");
-            if (tokens.size() > 17) def.koopaSquash = (tokens[17] == "1");
+            // Read type from CSV (tokens[2])
+            if (tokens.size() > 2 && !tokens[2].empty()) {
+                def.type = StringToEntityType(tokens[2]);
+            }
+            // All subsequent token indices shifted by 1 because of new type
+            // column
+            if (tokens.size() > 3) def.isPowerUp = (tokens[3] == "1");
+            if (tokens.size() > 4) def.isEnemy = (tokens[4] == "1");
+            if (tokens.size() > 5) def.isCoin = (tokens[5] == "1");
+            if (tokens.size() > 6)
+                def.powerUpState = tokens[6].empty() ? 0 : std::stoi(tokens[6]);
+            if (tokens.size() > 7) def.isStatic = (tokens[7] == "1");
+            if (tokens.size() > 8) def.isBounce = (tokens[8] == "1");
+            if (tokens.size() > 9) def.fromBlock = (tokens[9] == "1");
+            if (tokens.size() > 10)
+                def.scoreWorth = tokens[10].empty() ? 0 : std::stoi(tokens[10]);
+            if (tokens.size() > 11) def.isAnimated = (tokens[11] == "1");
+            if (tokens.size() > 12)
+                def.animFrames = tokens[12].empty() ? 0 : std::stoi(tokens[12]);
+            if (tokens.size() > 13) def.doesJump = (tokens[13] == "1");
+            if (tokens.size() > 14) def.doesCollide = (tokens[14] == "1");
+            if (tokens.size() > 15) def.oneLoop = (tokens[15] == "1");
+            if (tokens.size() > 16)
+                def.animBuffer = tokens[16].empty() ? 1 : std::stoi(tokens[16]);
+            if (tokens.size() > 17) def.squishable = (tokens[17] == "1");
+            if (tokens.size() > 18) def.koopaSquash = (tokens[18] == "1");
 
             m_EntityDefs[def.id] = def;
             m_EntityNameToID[def.name] = def.id;

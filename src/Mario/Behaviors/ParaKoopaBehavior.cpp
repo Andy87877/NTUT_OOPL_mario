@@ -1,91 +1,81 @@
-// /**
-//  * @file ParaKoopaBehavior.cpp
-//  * @brief Implementation of Paratroopa floating behavior with landing
-//  mechanic.
-//  * @inheritance IEntityBehavior <- ParaKoopaBehavior
-//  */
-// #include "Mario/Behaviors/ParaKoopaBehavior.hpp"
+/**
+ * @file ParaKoopaBehavior.cpp
+ * @brief Implementation of Paratroopa floating behavior with landing mechanic.
+ * @inheritance IEntityBehavior <- ParaKoopaBehavior
+ */
+#include "Mario/Behaviors/ParaKoopaBehavior.hpp"
 
-// #include <cmath>
+#include <cmath>
 
-// #include "Mario/EntityState.hpp"
-// #include "Mario/Level.hpp"
-// #include "Mario/PhysicsEngine.hpp"
-// #include "Mario/Player.hpp"
-// #include "Util/Logger.hpp"
+#include "Mario/EntityState.hpp"
+#include "Mario/Level.hpp"
+#include "Mario/PhysicsEngine.hpp"
+#include "Mario/Player.hpp"
 
-// namespace Mario {
+namespace Mario {
 
-// void ParaKoopaBehavior::Update(EntityState& state, const Level& level,
-//                                const Player& player, int gameTimer) {
-//     if (state.IsSquished() || state.IsDead()) {
-//         return;
-//     }
+void ParaKoopaBehavior::Update(EntityState& state, const Level& level,
+                               const Player& /* player */, int gameTimer) {
+    // Initialize original Y on first frame
+    if (m_OriginalY == 0.0f && m_FloatPhase == 0.0f) {
+        m_OriginalY = state.GetWorldY();
+    }
 
-//     // Para-Koopa only floats up/down, does not move left/right
-//     // Only horizontal movement is from player knocking it
+    if (m_IsFlying) {
+        // App.cpp's Phase 6 applied gravity to this entity.
+        // We override this by resetting VelY to 0 and enforcing our sine-wave
+        // Y.
+        state.SetVelY(0.0f);
+        state.SetFallHeight(0.0f);
+        state.SetGrounded(false);
 
-//     if (m_IsFlying) {
-//         // -- Floating behavior (no gravity, oscillate vertically) --
-//         m_FloatPhase +=
-//             FLOAT_FREQUENCY * 0.016f;  // deltaTime ≈ 0.016s per frame
-//         if (m_FloatPhase > 2.0f * 3.14159f) {
-//             m_FloatPhase -= 2.0f * 3.14159f;
-//         }
+        // -- Floating behavior (oscillate vertically with sine wave) --
+        m_FloatPhase += FLOAT_FREQUENCY * 0.016f;  // ~60fps delta
+        if (m_FloatPhase > 2.0f * 3.14159f) {
+            m_FloatPhase -= 2.0f * 3.14159f;
+        }
 
-//         // Oscillate vertically
-//         float offset = FLOAT_AMPLITUDE * std::sin(m_FloatPhase);
-//         float newY = m_OriginalY + offset;
-//         state.SetWorldY(newY);
-//         state.SetVelY(0);  // No vertical velocity when floating
+        // Calculate offset from original Y position
+        float offset = FLOAT_AMPLITUDE * std::sin(m_FloatPhase);
+        float newY = m_OriginalY + offset;
+        state.SetWorldY(newY);
 
-//     } else {
-//         // -- Grounded behavior (normal gravity, like regular Koopa) --
-//         double fallHeight = state.GetFallHeight();
-//         double velY = state.GetVelY();
-//         float yDelta =
-//             PhysicsEngine::ApplyGravity(fallHeight, velY,
-//             state.IsGrounded());
-//         state.SetFallHeight(fallHeight);
-//         state.SetVelY(velY);
-//         state.SetWorldY(state.GetWorldY() + yDelta);
-//     }
+        // Horizontal movement is handled by App.cpp (VelX is added
+        // automatically)
+    } else {
+        // -- Grounded behavior (normal gravity like regular Koopa) --
+        // Gravity and Position updates are handled completely by App.cpp.
+        // Wall collisions and ground bounds are also managed by
+        // App::CheckEntityBlockCollision. We just need to let the entity act
+        // normally!
+    }
 
-//     // Para-Koopa does not move horizontally - only floats vertically
-//     // No wall collision or direction changes needed
-//     // It stays in its original X position while floating up/down
+    // Animation update every 10 ticks
+    if (gameTimer % 10 == 0) {
+        state.AdvanceAnimationFrame();
+    }
+}
 
-//     // Animation
-//     if (state.IsAnimated() && gameTimer % 10 == 0) {
-//         state.AdvanceAnimationFrame();
-//     }
-// }
+bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state,
+                                          Player& /* player */,
+                                          bool isFromAbove) {
+    if (isFromAbove && m_IsFlying) {
+        // Player jumped on flying Koopa - lose wings and fall to ground
+        m_IsFlying = false;
+        m_FloatPhase = 0.0f;
+        state.SetVelY(0.0f);
+        state.SetFallHeight(0.0);
+        return true;  // Collision handled
+    } else if (isFromAbove && !m_IsFlying) {
+        // Grounded Para-Koopa can be squished like normal enemy
+        return true;  // Collision handled
+    }
 
-// bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state, Player& player,
-//                                           bool isFromAbove) {
-//     if (state.IsSquished() || state.IsDead()) {
-//         return false;
-//     }
+    return false;
+}
 
-//     if (isFromAbove && m_IsFlying) {
-//         // Mario jumped on flying Koopa - lose wings and fall
-//         m_IsFlying = false;
-//         m_FloatPhase = 0.0f;
-//         // Now subject to normal gravity
-//         return true;
-//     } else if (isFromAbove && !m_IsFlying) {
-//         // Grounded Para-Koopa can be squished like normal Koopa
-//         if (state.IsSquishable()) {
-//             state.Squish();
-//             return true;
-//         }
-//     }
+std::unique_ptr<IEntityBehavior> ParaKoopaBehavior::Clone() const {
+    return std::make_unique<ParaKoopaBehavior>(*this);
+}
 
-//     return false;
-// }
-
-// std::unique_ptr<IEntityBehavior> ParaKoopaBehavior::Clone() const {
-//     return std::make_unique<ParaKoopaBehavior>(*this);
-// }
-
-// }  // namespace Mario
+}  // namespace Mario

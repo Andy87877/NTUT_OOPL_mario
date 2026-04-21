@@ -29,28 +29,19 @@ void KoopaBehavior::Update(EntityState& state, const Level& level,
         return;
     }
 
-    // Apply gravity (for both TROOPA and SHELL)
-    double fallHeight = state.GetFallHeight();
-    double velY = state.GetVelY();
-    float yDelta =
-        PhysicsEngine::ApplyGravity(fallHeight, velY, state.IsGrounded());
-    state.SetFallHeight(fallHeight);
-    state.SetVelY(velY);
-    state.SetWorldY(state.GetWorldY() + yDelta);
+    // NOTE: Physics (gravity + position update) is already applied by
+    // App::UpdatePlaying() This method only handles AI behavior logic
 
-    // Horizontal movement: velocity is set by constructor or App layer
-    if (!state.IsStatic()) {
-        state.SetWorldX(state.GetWorldX() + state.GetVelX());
-    }
-
-    if (m_Type == KoopaType::SHELL) {
-        return;
-    }
-
-    // Update animation
+    // Update animation frame
     m_DirectionChangeCounter++;
     if (state.IsAnimated() && m_DirectionChangeCounter % 10 == 0) {
         state.AdvanceAnimationFrame();
+    }
+
+    // Shell stays still after being kicked, troopa continues patrolling
+    if (m_Type == KoopaType::SHELL) {
+        // Shell doesn't animate or move until kicked
+        return;
     }
 }
 

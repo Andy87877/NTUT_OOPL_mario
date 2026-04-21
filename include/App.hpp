@@ -41,7 +41,8 @@ class App {
         FLAGPOLE,   // Flagpole ending sequence
         PIPE_WARP,  // Pipe warp transition
         DEATH,      // Mario death animation
-        GAME_OVER,  // Game over screen
+        GAME_OVER,  // Game over screen (lives = 0)
+        GAME_WON,   // Game won - 8-4 Boss defeated
         ESC_MENU,   // Pause menu with level skip
         END,        // Exiting application
     };
@@ -61,6 +62,7 @@ class App {
     void UpdatePipeWarp();
     void UpdateDeath();
     void UpdateGameOver();
+    void UpdateGameWon();
     void UpdateESCMenu();
 
     // -- Level Management --

@@ -73,10 +73,6 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
     }
 
     LOG_DEBUG("EntityFactory: Spawned {} entities from level", entities.size());
-    if (!entities.empty()) {
-        LOG_WARN("EntityFactory: Successfully spawned {} entities",
-                 entities.size());
-    }
     return entities;
 }
 
@@ -90,48 +86,50 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
 
     if (!entity) return nullptr;
 
-    // Configure behavior strategy based on entity type
+    // Configure behavior strategy based on entity type (loaded from CSV)
     std::unique_ptr<IEntityBehavior> behavior;
 
-    if (def.name == "Goomba") {
-        behavior =
-            std::make_unique<EnemyBehavior>(EnemyBehavior::EnemyType::GOOMBA);
-    } else if (def.name == "Koopa" || def.name == "KoopaTroopa") {
-        // KoopaTroopa uses dedicated KoopaBehavior (C# Entity.cs reference)
-        behavior =
-            std::make_unique<KoopaBehavior>(KoopaBehavior::KoopaType::TROOPA);
-    } else if (def.name == "KoopaTroopaShell") {
-        // Shell behavior (spawned by App when KoopaTroopa is stomped)
-        behavior =
-            std::make_unique<KoopaBehavior>(KoopaBehavior::KoopaType::SHELL);
-        // } else if (def.name == "ParaKoopa") {
-        //     behavior = std::make_unique<ParaKoopaBehavior>();
-    } else if (def.name == "AxeKoopa") {
-        behavior = std::make_unique<AxeKoopaBehavior>();
-    } else if (def.name == "Bowser") {
-        behavior = std::make_unique<BowserBehavior>();
-    } else if (def.name == "Fire") {
-        // Player's fireball uses default FIREBALL type
-        behavior = std::make_unique<FireballBehavior>(
-            FireballBehavior::FireballType::PLAYER);
-    } else if (def.name == "Princess") {
-        behavior = std::make_unique<PrincessBehavior>();
-    } else if (def.isEnemy) {
-        // Generic enemy behavior fallback
-        behavior =
-            std::make_unique<EnemyBehavior>(EnemyBehavior::EnemyType::GOOMBA);
-    } else if (def.isPowerUp || def.isCoin) {
-        // Items and collectibles
-        behavior = std::make_unique<ItemBehavior>();
-    } else {
-        // Default passive behavior
-        behavior = std::make_unique<DefaultEntityBehavior>();
+    switch (def.type) {
+        case EntityType::GOOMBA:
+            behavior = std::make_unique<EnemyBehavior>(
+                EnemyBehavior::EnemyType::GOOMBA);
+            break;
+        case EntityType::KOOPA_TROOPA:
+            behavior = std::make_unique<KoopaBehavior>(
+                KoopaBehavior::KoopaType::TROOPA);
+            break;
+        case EntityType::KOOPA_SHELL:
+            behavior = std::make_unique<KoopaBehavior>(
+                KoopaBehavior::KoopaType::SHELL);
+            break;
+        case EntityType::AXE_KOOPA:
+            behavior = std::make_unique<AxeKoopaBehavior>();
+            break;
+        case EntityType::BOWSER:
+            behavior = std::make_unique<BowserBehavior>();
+            break;
+        case EntityType::FIRE:
+            behavior = std::make_unique<FireballBehavior>(
+                FireballBehavior::FireballType::PLAYER);
+            break;
+        case EntityType::PRINCESS:
+            behavior = std::make_unique<PrincessBehavior>();
+            break;
+        case EntityType::MUSHROOM:
+        case EntityType::FIRE_FLOWER:
+        case EntityType::STAR:
+        case EntityType::ONE_UP:
+        case EntityType::COIN:
+            behavior = std::make_unique<ItemBehavior>();
+            break;
+        default:
+            behavior = std::make_unique<DefaultEntityBehavior>();
+            break;
     }
 
     // Attach behavior to entity
     if (behavior) {
         entity->SetBehavior(std::move(behavior));
-        LOG_DEBUG("Attached behavior to '{}'", def.name);
     }
 
     return entity;

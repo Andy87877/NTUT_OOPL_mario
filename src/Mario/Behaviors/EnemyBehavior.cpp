@@ -28,27 +28,18 @@ void EnemyBehavior::Update(EntityState& state, const Level& level,
         return;
     }
 
-    // Apply gravity
-    double fallHeight = state.GetFallHeight();
-    double velY = state.GetVelY();
-    float yDelta =
-        PhysicsEngine::ApplyGravity(fallHeight, velY, state.IsGrounded());
-    state.SetFallHeight(fallHeight);
-    state.SetVelY(velY);
-    state.SetWorldY(state.GetWorldY() + yDelta);
+    // NOTE: Physics (gravity + position update) is already applied by
+    // App::UpdatePlaying() This method only handles AI behavior logic
 
-    // Horizontal movement: VelX already includes direction (set in
-    // EntityState::Init)
-    if (!state.IsStatic()) {
-        state.SetWorldX(state.GetWorldX() + state.GetVelX());
-    }
-
-    // Update animation frame
+    // Update animation frame every 10 ticks
     m_DirectionChangeCounter++;
     if (state.IsAnimated() && m_DirectionChangeCounter % 10 == 0) {
-        // Advance animation frame every 10 ticks
+        // Advance animation frame
         state.AdvanceAnimationFrame();
     }
+
+    // Check for wall collisions and reverse direction if needed
+    // (This will be handled by collision manager in a future enhancement)
 }
 
 bool EnemyBehavior::OnPlayerCollision(EntityState& state, Player& player,

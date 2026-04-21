@@ -7,6 +7,8 @@
 #ifndef MARIO_AXE_KOOPA_BEHAVIOR_HPP
 #define MARIO_AXE_KOOPA_BEHAVIOR_HPP
 
+#include <functional>
+
 #include "Mario/Behaviors/IEntityBehavior.hpp"
 
 namespace Mario {
@@ -18,12 +20,23 @@ namespace Mario {
  *
  * Strategy Pattern Implementation:
  *  - Extends base patrol behavior
- *  - On timer, triggers axe spawn
+ *  - On timer, triggers axe spawn via callback
  */
 class AxeKoopaBehavior : public IEntityBehavior {
    public:
+    // Callback type: Called to spawn axe at given position
+    using AxeSpawnCallback = std::function<void(float x, float y)>;
+
     AxeKoopaBehavior() = default;
     virtual ~AxeKoopaBehavior() = default;
+
+    /**
+     * Set callback for axe spawning.
+     * Called by App when attaching behavior to entity.
+     */
+    void SetAxeSpawnCallback(AxeSpawnCallback callback) {
+        m_AxeSpawnCallback = callback;
+    }
 
     /**
      * Update Axe Koopa with walking and axe throw timer.
@@ -49,6 +62,7 @@ class AxeKoopaBehavior : public IEntityBehavior {
     static constexpr int AXE_THROW_INTERVAL = 150;  // ~2.5 sec at 60 FPS
 
     int m_ThrowTimer = 0;
+    AxeSpawnCallback m_AxeSpawnCallback;  // ✨ Callback for spawning axe
 };
 
 }  // namespace Mario

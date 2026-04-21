@@ -26,6 +26,15 @@ AudioManager::AudioManager()
 
 void AudioManager::PlayBGM(BGMName name) {
     LOG_DEBUG("PlayBGM() called with name={}", static_cast<int>(name));
+
+    // Boundary check for BGM enum value
+    int bgmIndex = static_cast<int>(name);
+    if (bgmIndex < 0 || bgmIndex >= static_cast<int>(BGMPaths.size())) {
+        LOG_ERROR("PlayBGM: Invalid BGM index {}! Must be 0-{}", bgmIndex,
+                  BGMPaths.size() - 1);
+        return;
+    }
+
     LOG_DEBUG("Current state: m_BGMStarted={}, m_Muted={}, m_Volume={}",
               m_BGMStarted, m_Muted, m_Volume);
 

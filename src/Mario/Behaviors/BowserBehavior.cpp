@@ -71,18 +71,12 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
 
 void BowserBehavior::UpdatePatrol(EntityState& state, const Level& level,
                                   const Player& player) {
-    // Apply gravity
-    double fallHeight = state.GetFallHeight();
-    double velY = state.GetVelY();
-    float yDelta =
-        PhysicsEngine::ApplyGravity(fallHeight, velY, state.IsGrounded());
-    state.SetFallHeight(fallHeight);
-    state.SetVelY(velY);
-    state.SetWorldY(state.GetWorldY() + yDelta);
+    // NOTE: Physics (gravity + position update) is already applied by
+    // App::UpdatePlaying() This method only handles AI patrol logic
 
+    // Bowser moves slower than regular enemies, handled via VelX
     float moveSpeed = 3.0f;  // Slower than regular enemies
-    float xDelta = moveSpeed * m_PatrolDirection;
-    state.SetWorldX(state.GetWorldX() + xDelta);
+    state.SetVelX(moveSpeed * m_PatrolDirection);
 
     // Check for walls to reverse patrol direction (using grid-based collision
     // like Mario)
@@ -155,21 +149,15 @@ void BowserBehavior::UpdateFireAttackPhase() {
 
 void BowserBehavior::UpdateJumpAttack(EntityState& state, const Level& level,
                                       const Player& player) {
-    // Similar to patrol but with occasional jumps
-    double fallHeight = state.GetFallHeight();
-    double velY = state.GetVelY();
-    float yDelta =
-        PhysicsEngine::ApplyGravity(fallHeight, velY, state.IsGrounded());
-    state.SetFallHeight(fallHeight);
-    state.SetVelY(velY);
-    state.SetWorldY(state.GetWorldY() + yDelta);
+    // NOTE: Physics (gravity + position update) is already applied by
+    // App::UpdatePlaying()
 
     float moveSpeed = 5.0f;  // Faster during jump phase
-    float xDelta = moveSpeed * m_PatrolDirection;
-    state.SetWorldX(state.GetWorldX() + xDelta);
+    state.SetVelX(moveSpeed * m_PatrolDirection);
 
     // Jump randomly toward player
     if (m_PhaseTimer % 80 == 0 && state.IsGrounded()) {
+        state.SetGrounded(false);
         state.SetFallHeight(50.0f);  // High jump
     }
 
@@ -245,14 +233,9 @@ void BowserBehavior::UpdateDamaged(EntityState& state) {
 }
 
 void BowserBehavior::UpdateDefeated(EntityState& state) {
-    // Apply gravity for falling into lava
-    double fallHeight = state.GetFallHeight();
-    double velY = state.GetVelY();
-    float yDelta =
-        PhysicsEngine::ApplyGravity(fallHeight, velY, false);  // Never grounded
-    state.SetFallHeight(fallHeight);
-    state.SetVelY(velY);
-    state.SetWorldY(state.GetWorldY() + yDelta);
+    // NOTE: Physics is now handled globally. Defeated Bowser just falls
+    // (Grounded = false).
+    state.SetGrounded(false);
 
     // Once Bowser falls off screen, mark complete
     if (state.GetWorldY() > GameConfig::WINDOW_HEIGHT + 100) {

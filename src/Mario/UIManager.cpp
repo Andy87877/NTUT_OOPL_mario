@@ -116,6 +116,9 @@ void UIManager::Update(State currentState, int escMenuSelection) {
         case State::GAME_OVER:
             UpdateGameOverScreen();
             break;
+        case State::GAME_WON:
+            UpdateGameWonScreen();
+            break;
         case State::ESC_MENU:
             UpdateESCMenu(escMenuSelection);
             break;
@@ -190,6 +193,25 @@ void UIManager::UpdateHUD() {
     char timeStr[10];
     snprintf(timeStr, sizeof(timeStr), "%03d", m_GameState->GetTimeRemaining());
     m_TimeText->SetTextContent(timeStr);
+
+    // --- TIME WARNING ANIMATION (Flashing when time < 100) ---
+    int timeRemaining = m_GameState->GetTimeRemaining();
+    if (timeRemaining < 100 && timeRemaining > 0) {
+        // Flash effect: alternate between white and red every 8 frames
+        int flashFrame = (m_FlashCounter / 8) % 2;
+        if (flashFrame == 0) {
+            m_TimeText->SetTextColor(Util::Color::FromRGB(255, 0, 0));
+            m_HeaderTime->SetTextColor(Util::Color::FromRGB(255, 0, 0));
+        } else {
+            m_TimeText->SetTextColor(Util::Color::FromRGB(255, 255, 255));
+            m_HeaderTime->SetTextColor(Util::Color::FromRGB(255, 255, 255));
+        }
+        m_FlashCounter++;
+    } else {
+        m_FlashCounter = 0;
+        m_TimeText->SetTextColor(Util::Color::FromRGB(255, 255, 255));
+        m_HeaderTime->SetTextColor(Util::Color::FromRGB(255, 255, 255));
+    }
 }
 
 void UIManager::UpdateTitleScreen() {
@@ -220,7 +242,7 @@ void UIManager::UpdateLoadingScreen() {
     m_SubLabel->SetPosition(10.0f, -10.0f);
 
     std::string marioSpritePath =
-        std::string(RESOURCE_DIR) + "/Sprites/MarioIdle0.png";
+        std::string(RESOURCE_DIR) + "/Sprites/MarioIdle.png";
 
     if (!m_MarioPreview) {
         m_MarioPreview = std::make_shared<UIImage>(marioSpritePath);
@@ -239,7 +261,30 @@ void UIManager::UpdateLoadingScreen() {
 void UIManager::UpdateGameOverScreen() {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("GAME OVER");
-    m_CenterLabel->SetPosition(0.0f, 0.0f);  // Centered on screen
+    m_CenterLabel->SetPosition(0.0f, 100.0f);  // Centered, upper portion
+
+    m_SubLabel->SetVisible(true);
+    char scoreStr[50];
+    snprintf(scoreStr, sizeof(scoreStr), "FINAL SCORE: %06d",
+             m_GameState->GetScore());
+    m_SubLabel->SetTextContent(scoreStr);
+    m_SubLabel->SetPosition(0.0f, -50.0f);  // Centered, below GAME OVER
+
+    // Optional: Add "Press ENTER to return to title" hint
+    // This would need a third label or dynamic text update
+}
+
+void UIManager::UpdateGameWonScreen() {
+    m_CenterLabel->SetVisible(true);
+    m_CenterLabel->SetTextContent("WORLD CLEARED");
+    m_CenterLabel->SetPosition(0.0f, 100.0f);  // Centered, upper portion
+
+    m_SubLabel->SetVisible(true);
+    char scoreStr[50];
+    snprintf(scoreStr, sizeof(scoreStr), "FINAL SCORE: %06d",
+             m_GameState->GetScore());
+    m_SubLabel->SetTextContent(scoreStr);
+    m_SubLabel->SetPosition(0.0f, -50.0f);  // Centered, below WORLD CLEARED
 }
 
 void UIManager::UpdateESCMenu(int selection) {

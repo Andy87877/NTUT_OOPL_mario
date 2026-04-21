@@ -36,33 +36,16 @@ void ItemBehavior::Update(EntityState& state, const Level& level,
         return;
     }
 
-    // Spawned items (mushroom, fire flower) bounce horizontally
-    // Apply gravity
-    double fallHeight = state.GetFallHeight();
-    double velY = state.GetVelY();
-    float yDelta =
-        PhysicsEngine::ApplyGravity(fallHeight, velY, state.IsGrounded());
-    state.SetFallHeight(fallHeight);
-    state.SetVelY(velY);
-    state.SetWorldY(state.GetWorldY() + yDelta);
+    // NOTE: Physics (gravity + position update) is already applied by
+    // App::UpdatePlaying() This method only handles AI behavior logic
 
-    // Horizontal movement (VelX already has direction baked in)
-    state.SetWorldX(state.GetWorldX() + state.GetVelX());
-
-    // Ground bounding is managed by App::CheckEntityBlockCollision.
-    // If App.cpp set us as grounded, we bounce!
-    // But only specific items bounce continuously?
-    // Wait, do mushrooms bounce? In SMB1, mushrooms just fall and slide.
-    // In C# `doesJump` for mushroom (ID=0) is 0! Star (ID=2) is 1!
-    // Let's implement conditionally.
+    // Star bounces when grounded, mushroom just falls
     if (state.IsGrounded()) {
         if (m_Type == ItemType::STAR) {
-            state.SetGrounded(false);   // jump up
+            state.SetGrounded(false);   // Jump up
             state.SetFallHeight(20.0);  // Star jump height
         }
     }
-
-    // Wall check and reverse is mapped inside App.cpp
 
     // Animation
     if (state.IsAnimated()) {

@@ -36,7 +36,7 @@ void GameStateManager::NewGame() {
 }
 
 void GameStateManager::Tick() {
-    if (!m_TimerRunning) return;
+    if (!m_TimerRunning || m_TimeCounter <= 0) return;
 
     // C# Form1.cs lines 673-685: 40 ticks = 1 game second
     m_TimeSubCounter++;

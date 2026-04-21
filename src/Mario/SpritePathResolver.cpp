@@ -21,9 +21,97 @@
 
 #include <cctype>
 #include <fstream>
-#include <map>
+#include <unordered_map>
 
 #include "Util/Logger.hpp"
+
+namespace {
+
+// Static sprite mapping tables extracted from C# reference code (.resx files)
+// These mappings represent the exact correspondence between C# sprite names
+// and the actual PNG filenames. Do not modify without verification against
+// the reference C# code.
+
+/**
+ * Block sprite mapping: C# resource name -> PNG filename
+ * Example: C# "BrickBlock20" -> actual file "BrickBlock1.png"
+ */
+static const std::unordered_map<std::string, std::string> BLOCK_SPRITE_MAP = {
+    // Brick blocks
+    {"BrickBlock20", "BrickBlock1.png"},
+    {"BrickBlock2Break", "BrickBlockBreak1.png"},
+    {"BrickBlock0", "BrickBlock.png"},
+
+    // Question blocks
+    {"QuestionBlock10", "QuestionBlock3.png"},
+    {"QuestionBlock11", "QuestionBlock11.png"},
+    {"QuestionBlock12", "QuestionBlock21.png"},
+    {"QuestionBlock0", "QuestionBlock.png"},
+    {"QuestionBlock1", "QuestionBlock1.png"},
+    {"QuestionBlock2", "QuestionBlock2.png"},
+    {"QuestionBlockHit", "QuestionBlockHit.png"},
+    {"QuestionBlockHit1", "QuestionBlockHit1.png"},
+
+    // Solid blocks
+    {"SolidBlock10", "SolidBlock1.png"},
+    {"SolidBlock0", "SolidBlock.png"},
+
+    // Ground blocks
+    {"Ground20", "Ground2.png"},
+    {"Ground0", "Ground.png"},
+};
+
+/**
+ * Player sprite mapping: C# animation name -> PNG filename
+ * Format: "Mario" + prefix + state + frame
+ * Example: "MarioRight00" -> "MarioRight1.png"
+ */
+static const std::unordered_map<std::string, std::string> PLAYER_SPRITE_MAP = {
+    // Idle animations
+    {"MarioIdle00", "MarioIdle.png"},
+    {"MarioIdle0", "MarioIdle.png"},
+    {"MarioIdle10", "MarioIdle1.png"},
+    {"MarioIdle1", "MarioIdle1.png"},
+    {"MarioIdle20", "MarioIdle2.png"},
+    {"MarioIdle2", "MarioIdle2.png"},
+
+    // Right movement - Small
+    {"MarioRight00", "MarioRight1.png"},
+    {"MarioRight01", "MarioRight2.png"},
+    {"MarioRight02", "MarioRight3.png"},
+
+    // Right movement - Big
+    {"MarioRight10", "MarioRight11.png"},
+    {"MarioRight11", "MarioRight21.png"},
+    {"MarioRight12", "MarioRight31.png"},
+
+    // Right movement - Fire
+    {"MarioRight20", "MarioRight12.png"},
+    {"MarioRight21", "MarioRight22.png"},
+    {"MarioRight22", "MarioRight32.png"},
+
+    // Jump animations
+    {"MarioJump00", "MarioJump.png"},
+    {"MarioJump10", "MarioJump1.png"},
+    {"MarioJump20", "MarioJump2.png"},
+
+    // Crouch animations
+    {"MarioCrouch10", "MarioCrouch1.png"},
+    {"MarioCrouch20", "MarioCrouch2.png"},
+
+    // Pole climbing animations
+    {"MarioPole00", "MarioPole10.png"},
+    {"MarioPole01", "MarioPole20.png"},
+    {"MarioPole10", "MarioPole11.png"},
+    {"MarioPole11", "MarioPole21.png"},
+    {"MarioPole20", "MarioPole12.png"},
+    {"MarioPole21", "MarioPole22.png"},
+
+    // Fire throw animation
+    {"MarioFire20", "MarioFire2.png"},
+};
+
+}  // namespace
 
 namespace Mario {
 
@@ -45,42 +133,19 @@ std::string SpritePathResolver::GetBlockSpritePath(const std::string& blockName,
             csName += std::to_string(frame);
         }
 
-        // C# exact mappings from .resx
-        std::string targetFile = blockName + ".png";  // standard fallback
-        if (csName == "BrickBlock20")
-            targetFile = "BrickBlock1.png";
-        else if (csName == "BrickBlock2Break")
-            targetFile = "BrickBlockBreak1.png";
-        else if (csName == "QuestionBlock10")
-            targetFile = "QuestionBlock3.png";
-        else if (csName == "QuestionBlock11")
-            targetFile = "QuestionBlock11.png";
-        else if (csName == "QuestionBlock12")
-            targetFile = "QuestionBlock21.png";
-        else if (csName == "SolidBlock10")
-            targetFile = "SolidBlock1.png";
-        else if (csName == "Ground20")
-            targetFile = "Ground2.png";
-        else if (csName == "Ground0")
-            targetFile = "Ground.png";
-        else if (csName == "BrickBlock0")
-            targetFile = "BrickBlock.png";
-        else if (csName == "SolidBlock0")
-            targetFile = "SolidBlock.png";
-        else if (csName == "QuestionBlock0")
-            targetFile = "QuestionBlock.png";
-        else if (csName == "QuestionBlock1")
-            targetFile = "QuestionBlock1.png";
-        else if (csName == "QuestionBlock2")
-            targetFile = "QuestionBlock2.png";
-        else if (csName == "QuestionBlockHit")
-            targetFile = "QuestionBlockHit.png";
-        else if (csName == "QuestionBlockHit1")
-            targetFile = "QuestionBlockHit1.png";
-        else if (frame > 0)
+        // Attempt lookup in static sprite mapping table
+        auto it = BLOCK_SPRITE_MAP.find(csName);
+        if (it != BLOCK_SPRITE_MAP.end()) {
+            std::string path = SPRITE_BASE_PATH + it->second;
+            std::ifstream test(path);
+            if (test.good()) return path;
+        }
+
+        // Fallback: Try constructed filenames
+        std::string targetFile = blockName + ".png";
+        if (frame > 0) {
             targetFile = blockName + std::to_string(frame) + ".png";
-        else
-            targetFile = blockName + ".png";
+        }
 
         std::string path = SPRITE_BASE_PATH + targetFile;
         std::ifstream test(path);
@@ -123,80 +188,25 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
         return directPath;
     }
 
-    std::string fileName = "MarioIdle.png";  // Default fallback
-
-    // --- Idle ---
-    if (csName == "MarioIdle00")
-        fileName = "MarioIdle.png";
-    else if (csName == "MarioIdle10")
-        fileName = "MarioIdle1.png";
-    else if (csName == "MarioIdle20")
-        fileName = "MarioIdle2.png";
-    // --- Right ---
-    else if (csName == "MarioRight00")
-        fileName = "MarioRight1.png";
-    else if (csName == "MarioRight01")
-        fileName = "MarioRight2.png";
-    else if (csName == "MarioRight02")
-        fileName = "MarioRight3.png";
-    // Big Right
-    else if (csName == "MarioRight10")
-        fileName = "MarioRight11.png";
-    else if (csName == "MarioRight11")
-        fileName = "MarioRight21.png";
-    else if (csName == "MarioRight12")
-        fileName = "MarioRight31.png";
-    // Fire Right
-    else if (csName == "MarioRight20")
-        fileName = "MarioRight12.png";
-    else if (csName == "MarioRight21")
-        fileName = "MarioRight22.png";
-    else if (csName == "MarioRight22")
-        fileName = "MarioRight32.png";
-    // --- Jump ---
-    else if (csName == "MarioJump00")
-        fileName = "MarioJump.png";
-    else if (csName == "MarioJump10")
-        fileName = "MarioJump1.png";
-    else if (csName == "MarioJump20")
-        fileName = "MarioJump2.png";
-    // --- Crouch ---
-    else if (csName == "MarioCrouch10")
-        fileName = "MarioCrouch1.png";
-    else if (csName == "MarioCrouch20")
-        fileName = "MarioCrouch2.png";
-    // --- Pole ---
-    else if (csName == "MarioPole00")
-        fileName = "MarioPole10.png";
-    else if (csName == "MarioPole01")
-        fileName = "MarioPole20.png";
-    else if (csName == "MarioPole10")
-        fileName = "MarioPole11.png";
-    else if (csName == "MarioPole11")
-        fileName = "MarioPole21.png";
-    else if (csName == "MarioPole20")
-        fileName = "MarioPole12.png";
-    else if (csName == "MarioPole21")
-        fileName = "MarioPole22.png";
-
-    // --- Fire (Throw fireball) ---
-    else if (csName == "MarioFire20")
-        fileName = "MarioFire2.png";
-
-    // Star power-ups are states 3 and 4
-    else if (state == 3 || state == 4) {
-        fileName = csName + ".png";
+    // Attempt lookup in static sprite mapping table
+    auto it = PLAYER_SPRITE_MAP.find(csName);
+    if (it != PLAYER_SPRITE_MAP.end()) {
+        std::string path = SPRITE_BASE_PATH + it->second;
+        std::ifstream test(path);
+        if (test.good()) return path;
     }
 
-    // Return the computed file path
-    std::string path = SPRITE_BASE_PATH + fileName;
-    if (path.empty()) {
-        LOG_WARN(
-            "GetPlayerSpritePath: Could not resolve sprite for state={}, "
-            "prefix={}, frame={}",
-            state, prefix, frame);
-        path = SPRITE_BASE_PATH + "MarioIdle.png";
+    // Fallback: For Star power-ups (states 3 and 4)
+    if (state == 3 || state == 4) {
+        return SPRITE_BASE_PATH + csName + ".png";
     }
+
+    // Default fallback
+    std::string path = SPRITE_BASE_PATH + "MarioIdle.png";
+    LOG_WARN(
+        "GetPlayerSpritePath: Could not resolve sprite for state={}, "
+        "prefix={}, frame={}, falling back to MarioIdle.png",
+        state, prefix, frame);
 
     return path;
 }

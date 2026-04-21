@@ -234,6 +234,7 @@ void Block::Bounce() {
 
 void Block::Break() {
     m_Solid = false;
+    m_JustBroken = true;
     SetVisible(false);
     Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Break);
 }

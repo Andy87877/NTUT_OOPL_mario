@@ -127,6 +127,14 @@ void App::UpdatePlaying() {
     // -- Controller: Handle input (MVC Controller layer) --
     m_InputHandler.HandleInput(m_Player->GetState(), m_Speed);
 
+    // -- Pre-collision position update --
+    // Apply movement physics. This is required because CollisionManager checks
+    // if the theoretical new position collides, and resolves it backward.
+    auto& playerState = m_Player->GetState();
+    float yDelta = playerState.ApplyGravity();
+    playerState.SetX(playerState.GetX() + playerState.GetVelX());
+    playerState.SetY(playerState.GetY() + yDelta);
+
     // -- Physics & Collision --
     std::vector<Mario::Level::SpawnPoint> newSpawns;
     m_CollisionManager.CheckPlayerBlockCollision(
@@ -148,14 +156,36 @@ void App::UpdatePlaying() {
     // -- Update player state (Model tick) --
     m_Player->GetState().Tick();
 
-    if (m_Player->GetState().IsFireShooting() && m_Player->GetState().GetSpecialCounter() == 1) {
+    if (m_Player->GetState().IsFireShooting() &&
+        m_Player->GetState().GetSpecialCounter() == 1) {
         int dir = m_Player->GetState().IsFacingRight() ? 1 : -1;
-        float fbX = m_Player->GetWorldX() + (dir == 1 ? m_Player->GetState().GetWidth() / 2.0f : 0);
-        float fbY = m_Player->GetWorldY() + (m_Player->GetState().GetHeight() / 2.0f);
-        auto fbEntity = Mario::EntityFactory::SpawnEntity(m_Level->GetEntityDefByName("Fire"), fbX, fbY, dir, false, m_GameState.GetLevelName());
+        float fbX = m_Player->GetWorldX() +
+                    (dir == 1 ? m_Player->GetState().GetWidth() / 2.0f : 0);
+        float fbY =
+            m_Player->GetWorldY() + (m_Player->GetState().GetHeight() / 4.0f);
+
+        Mario::EntityDef def = m_Level->GetEntityDefByName("Fire");
+        // Fallback if "Fire" is not defined in the level's config (e.g.
+        // IDList.csv)
+        if (def.name.empty()) {
+            def.id = -1;
+            def.name = "Fire";
+            def.type = Mario::EntityType::FIRE;
+            def.isAnimated = true;
+            def.animFrames = 4;
+            def.doesCollide = true;
+            def.isEnemy = false;
+            def.isStatic = false;
+        }
+        auto fbEntity = Mario::EntityFactory::SpawnEntity(
+            def, fbX, fbY, dir == 1 ? 1 : 0, false, m_CurrentLevelName);
         if (fbEntity) {
+            // Apply initial velocity explicitly right after spawning!
+            fbEntity->GetState().SetVelX(dir * 5.0f);
             m_Entities.push_back(fbEntity);
             m_Renderer.AddChild(fbEntity);
+            Mario::AudioManager::GetInstance().PlaySFX(
+                Mario::SFXName::FireBall);
         }
     }
 
@@ -167,6 +197,18 @@ void App::UpdatePlaying() {
         auto behavior = entity->GetBehavior();
         if (behavior) {
             behavior->Update(entity->GetState(), *m_Level, *m_Player, m_Timer);
+        }
+
+        auto entityType = entity->GetDef().type;
+        if (entityType == Mario::EntityType::FIRE) {
+            // Keep fireball moving fast
+            float currentSpd = std::abs(entity->GetState().GetVelX());
+            if (currentSpd < 4.0f) {
+                currentSpd = 5.0f;
+            }
+            entity->GetState().SetVelX(entity->GetState().GetDirection() == 1
+                                           ? currentSpd
+                                           : -currentSpd);
         }
 
         // Entity Model tick (movement, animation, gravity)
@@ -276,7 +318,7 @@ void App::UpdatePipeWarp() {
         warpSFXPlayed = true;
         // TODO: Integrate with AudioManager or PTSD audio system
         // AudioManager::GetInstance().PlaySFX("20. Warp");
-        LOG_DEBUG("?¶ï? Playing Warp SFX: Resources/Audio/SFX/20. Warp.mp3");
+        LOG_DEBUG("Playing Warp SFX: Resources/Audio/SFX/20. Warp.mp3");
     }
 
     bool stillRunning =
@@ -438,22 +480,23 @@ void App::LoadLevel(const std::string& levelName) {
                 static Mario::EntityDef fallbackBowser{
                     -1,        // id
                     "Bowser",  // name
-                    false,     // isPowerUp
-                    true,      // isEnemy
-                    false,     // isCoin
-                    0,         // powerUpState
-                    false,     // isStatic
-                    false,     // isBounce
-                    false,     // fromBlock
-                    100,       // scoreWorth
-                    true,      // isAnimated (4 sprite frames: Bowser1-4)
-                    4,         // animFrames
-                    false,     // doesJump
-                    true,      // doesCollide
-                    false,     // oneLoop
-                    1,         // animBuffer
-                    true,      // squishable
-                    true       // koopaSquash
+                    Mario::EntityType::BOWSER,
+                    false,  // type, isPowerUp
+                    true,   // isEnemy
+                    false,  // isCoin
+                    0,      // powerUpState
+                    false,  // isStatic
+                    false,  // isBounce
+                    false,  // fromBlock
+                    100,    // scoreWorth
+                    true,   // isAnimated (4 sprite frames: Bowser1-4)
+                    4,      // animFrames
+                    false,  // doesJump
+                    true,   // doesCollide
+                    false,  // oneLoop
+                    1,      // animBuffer
+                    true,   // squishable
+                    true    // koopaSquash
                 };
                 bowserDef = &fallbackBowser;
             }
@@ -492,24 +535,25 @@ void App::LoadLevel(const std::string& levelName) {
             } else {
                 // Create a fallback Princess definition if not found
                 static Mario::EntityDef fallbackPrincess{
-                    -1,          // id
-                    "Princess",  // name
-                    false,       // isPowerUp
-                    false,       // isEnemy
-                    false,       // isCoin
-                    0,           // powerUpState
-                    true,        // isStatic
-                    false,       // isBounce
-                    false,       // fromBlock
-                    0,           // scoreWorth
-                    true,        // isAnimated (4 sprite frames: Princess1-4)
-                    4,           // animFrames
-                    false,       // doesJump
-                    true,        // doesCollide
-                    false,       // oneLoop
-                    1,           // animBuffer
-                    false,       // squishable
-                    false        // koopaSquash
+                    -1,                           // id
+                    "Princess",                   // name
+                    Mario::EntityType::PRINCESS,  // type
+                    false,                        // isPowerUp
+                    false,                        // isEnemy
+                    false,                        // isCoin
+                    0,                            // powerUpState
+                    true,                         // isStatic
+                    false,                        // isBounce
+                    false,                        // fromBlock
+                    0,                            // scoreWorth
+                    true,   // isAnimated (4 sprite frames: Princess1-4)
+                    4,      // animFrames
+                    false,  // doesJump
+                    true,   // doesCollide
+                    false,  // oneLoop
+                    1,      // animBuffer
+                    false,  // squishable
+                    false   // koopaSquash
                 };
                 princessDef = &fallbackPrincess;
             }
@@ -991,7 +1035,17 @@ void App::CheckPlayerEntityCollision() {
                 }
             } else if (!es.IsSquished()) {
                 // Player takes damage from enemy
-                if (ps.IsStar()) { es.Squish(); m_GameState.AddScore(es.GetScoreWorth()); } else { if (ps.IsStar()) { es.Squish(); m_GameState.AddScore(es.GetScoreWorth()); } else { ps.TakeDamage(); } }
+                if (ps.IsStar()) {
+                    es.Squish();
+                    m_GameState.AddScore(es.GetScoreWorth());
+                } else {
+                    if (ps.IsStar()) {
+                        es.Squish();
+                        m_GameState.AddScore(es.GetScoreWorth());
+                    } else {
+                        ps.TakeDamage();
+                    }
+                }
                 LOG_DEBUG("Player hit by {}", es.GetName());
             }
         } else if (es.IsPowerUp()) {
@@ -1093,13 +1147,18 @@ void App::CleanupDeadEntities() {
 void App::CheckEntityEntityCollision() {
     for (auto& proj : m_Entities) {
         if (!proj->GetState().IsActive()) continue;
-        if (proj->GetState().GetName() == "Fire" || (proj->GetState().GetName() == "KoopaTroopaShell" && proj->GetState().GetVelX() != 0)) {
+        if (proj->GetState().GetName() == "Fire" ||
+            (proj->GetState().GetName() == "KoopaTroopaShell" &&
+             proj->GetState().GetVelX() != 0)) {
             Mario::AABB pBox = proj->GetState().GetHitbox();
             for (auto& enemy : m_Entities) {
-                if (proj == enemy || !enemy->GetState().IsActive() || !enemy->GetState().IsEnemy() || enemy->GetState().IsDead()) continue;
+                if (proj == enemy || !enemy->GetState().IsActive() ||
+                    !enemy->GetState().IsEnemy() || enemy->GetState().IsDead())
+                    continue;
                 if (pBox.Intersects(enemy->GetState().GetHitbox())) {
                     enemy->GetState().Squish();
-                    Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Kick);
+                    Mario::AudioManager::GetInstance().PlaySFX(
+                        Mario::SFXName::Kick);
                     int worth = enemy->GetState().GetScoreWorth();
                     if (worth > 0) m_GameState.AddScore(worth);
                     if (proj->GetState().GetName() == "Fire") {
