@@ -11,8 +11,8 @@
 
 namespace Mario {
 
-void PrincessBehavior::Update(EntityState& state, const Level& level,
-                              const Player& player, int gameTimer) {
+void PrincessBehavior::Update(EntityState& state, const Level& /*level*/,
+                              const Player& /*player*/, int gameTimer) {
     // Princess is static - no movement
     state.SetVelX(0);
     state.SetVelY(0);
@@ -23,10 +23,12 @@ void PrincessBehavior::Update(EntityState& state, const Level& level,
     }
 }
 
-bool PrincessBehavior::OnPlayerCollision(EntityState& state, Player& player,
-                                         bool isFromAbove) {
-    // Princess takes no collision damage
-    // May trigger level_complete event, but handled elsewhere
+bool PrincessBehavior::OnPlayerCollision(EntityState& state, Player& /*player*/,
+                                         bool /*isFromAbove*/) {
+    // Princess collision marks level as complete
+    // The LevelCompleteController will detect princess collision and trigger
+    // game clear Princess is consumable (disappears after player touches) Note:
+    // Game completion logic handled by App/LevelCompleteController
     return false;
 }
 

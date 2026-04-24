@@ -170,15 +170,17 @@ void Level::LoadLookupTables() {
         }
         LOG_INFO("Loaded {} block definitions", m_BlockDefs.size());
 
+        /*
         // DEBUG: Log enemy spawner blocks
-        if (m_BlockDefs.count(882) && m_BlockDefs[882].spawner) {
+        if (m_BlockDefs.count(882) && m_BlockDefs.at(882).spawner) {
             LOG_WARN("ID 882: spawner=true, entity={}",
-                     m_BlockDefs[882].spawnEntity);
+        m_BlockDefs.at(882).spawnEntity);
         }
-        if (m_BlockDefs.count(886) && m_BlockDefs[886].spawner) {
+        if (m_BlockDefs.count(886) && m_BlockDefs.at(886).spawner) {
             LOG_WARN("ID 886: spawner=true, entity={}",
-                     m_BlockDefs[886].spawnEntity);
+        m_BlockDefs.at(886).spawnEntity);
         }
+        */
     }
 
     // Load EntityList.csv (entity definitions)

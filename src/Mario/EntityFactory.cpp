@@ -7,6 +7,7 @@
  */
 #include "Mario/EntityFactory.hpp"
 
+#include "Mario/Behaviors/AxeBehavior.hpp"
 #include "Mario/Behaviors/AxeKoopaBehavior.hpp"
 #include "Mario/Behaviors/BowserBehavior.hpp"
 #include "Mario/Behaviors/DefaultEntityBehavior.hpp"
@@ -16,6 +17,7 @@
 #include "Mario/Behaviors/ItemBehavior.hpp"
 #include "Mario/Behaviors/KoopaBehavior.hpp"
 #include "Mario/Behaviors/ParaKoopaBehavior.hpp"
+#include "Mario/Behaviors/ParticleDebris.hpp"
 #include "Mario/Behaviors/PrincessBehavior.hpp"
 #include "Util/Logger.hpp"
 
@@ -121,6 +123,12 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
         case EntityType::ONE_UP:
         case EntityType::COIN:
             behavior = std::make_unique<ItemBehavior>();
+            break;
+        case EntityType::PARTICLE_DEBRIS:
+            behavior = std::make_unique<ParticleDebris>();
+            break;
+        case EntityType::AXE_PROJECTILE:
+            behavior = std::make_unique<AxeBehavior>();
             break;
         default:
             behavior = std::make_unique<DefaultEntityBehavior>();

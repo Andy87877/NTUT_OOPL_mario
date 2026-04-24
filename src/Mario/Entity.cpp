@@ -144,6 +144,10 @@ std::string Entity::BuildSpritePath() const {
 
     // Squished sprite
     if (m_State.IsSquished()) {
+        if (m_State.IsKoopaSquash()) {
+            return SpritePathResolver::GetEntitySpritePath("KoopaShell", -1,
+                                                           m_LevelName);
+        }
         return SpritePathResolver::GetEntitySpritePath(name + "Squish", -1,
                                                        m_LevelName);
     }

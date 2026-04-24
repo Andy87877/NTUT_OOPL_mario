@@ -29,6 +29,8 @@ enum class EntityType {
     ONE_UP,
     COIN,
     FLAG,
+    PARTICLE_DEBRIS,
+    AXE_PROJECTILE,
     UNKNOWN
 };
 

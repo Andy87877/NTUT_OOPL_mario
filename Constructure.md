@@ -45,10 +45,16 @@ classDiagram
         +Update()
     }
 
+    class ParticleDebris {
+        -float m_VelX, m_VelY
+        +Update()
+    }
+
     GameObject <|-- Player : 繼承
     GameObject <|-- Entity : 繼承
     GameObject <|-- CoinUI : 繼承
     GameObject <|-- FloatingText : 繼承
+    GameObject <|-- ParticleDebris : 繼承
 
     %% --------------------
     %% Behavior Strategy (Interface & Implementations)
@@ -80,12 +86,22 @@ classDiagram
         +Update()
         +OnPlayerCollision()
     }
+    class AxeBehavior {
+        +Update()
+        +OnPlayerCollision()
+    }
+    class PrincessBehavior {
+        +Update()
+        +OnPlayerCollision()
+    }
 
     IEntityBehavior <|.. EnemyBehavior : 實作介面 (多型)
     IEntityBehavior <|.. ItemBehavior : 實作介面 (多型)
     IEntityBehavior <|.. KoopaBehavior : 實作介面 (多型)
     IEntityBehavior <|.. BowserBehavior : 實作介面 (多型)
     IEntityBehavior <|.. FireballBehavior : 實作介面 (多型)
+    IEntityBehavior <|.. AxeBehavior : 實作介面 (多型)
+    IEntityBehavior <|.. PrincessBehavior : 實作介面 (多型)
 
     Entity *-- IEntityBehavior : 組合 (Strategy Pattern)
 
@@ -150,6 +166,7 @@ classDiagram
     %% Dependencies
     App --> Player : 管理
     App --> Entity : 管理集合
+    App --> ParticleDebris : 管理粒子效果
     App --> CollisionManager : 呼叫
     App --> UIManager : 更新 UI
     App --> Level : 載入地圖

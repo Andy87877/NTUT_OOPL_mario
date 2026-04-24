@@ -26,11 +26,13 @@ set(SRC_FILES
     Mario/Behaviors/EnemyBehavior.cpp
     Mario/Behaviors/KoopaBehavior.cpp
     Mario/Behaviors/AxeKoopaBehavior.cpp
+    Mario/Behaviors/AxeBehavior.cpp
     Mario/Behaviors/ParaKoopaBehavior.cpp
     Mario/Behaviors/PrincessBehavior.cpp
     Mario/Behaviors/ItemBehavior.cpp
     Mario/Behaviors/FireballBehavior.cpp
     Mario/Behaviors/BowserBehavior.cpp
+    Mario/Behaviors/ParticleDebris.cpp
 
     # Collision
     Mario/CollisionManager.cpp
