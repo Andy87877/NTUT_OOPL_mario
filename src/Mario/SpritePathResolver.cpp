@@ -203,10 +203,10 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
 
     // Default fallback
     std::string path = SPRITE_BASE_PATH + "MarioIdle.png";
-    LOG_WARN(
-        "GetPlayerSpritePath: Could not resolve sprite for state={}, "
-        "prefix={}, frame={}, falling back to MarioIdle.png",
-        state, prefix, frame);
+    // LOG_WARN(
+    //     "GetPlayerSpritePath: Could not resolve sprite for state={}, "
+    //     "prefix={}, frame={}, falling back to MarioIdle.png",
+    //     state, prefix, frame);
 
     return path;
 }
@@ -258,10 +258,10 @@ std::string SpritePathResolver::GetEntitySpritePath(
 
     std::string path = resolve();
     if (path.empty()) {
-        LOG_WARN(
-            "GetEntitySpritePath: No sprite found for '{}' (frame: {}) in "
-            "level '{}'",
-            entityName, frame, levelName);
+        // LOG_WARN(
+        //     "GetEntitySpritePath: No sprite found for '{}' (frame: {}) in "
+        //     "level '{}'",
+        //     entityName, frame, levelName);
         return "";  // Return empty path, caller should handle this
     }
 

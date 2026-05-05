@@ -80,6 +80,10 @@ void UIManager::Update(State currentState, int escMenuSelection) {
     // Hide everything first
     m_CenterLabel->SetVisible(false);
     m_SubLabel->SetVisible(false);
+    if (m_AxeEndingInitialized) {
+        m_EndingLine1->SetVisible(false);
+        m_EndingLine2->SetVisible(false);
+    }
 
     bool showHUD =
         (currentState == State::PLAYING || currentState == State::ESC_MENU);
@@ -121,6 +125,9 @@ void UIManager::Update(State currentState, int escMenuSelection) {
             break;
         case State::ESC_MENU:
             UpdateESCMenu(escMenuSelection);
+            break;
+        case State::AXE_SEQUENCE:
+            UpdateAxeEndingScreen();
             break;
         default:
             break;
@@ -306,6 +313,39 @@ void UIManager::UpdateESCMenu(int selection) {
             m_MenuTexts[i]->SetTextColor(
                 Util::Color::FromRGB(255, 255, 255));  // White
         }
+    }
+}
+
+void UIManager::InitAxeEndingScreen() {
+    auto colorWhite = Util::Color::FromRGB(255, 255, 255);
+    auto colorYellow = Util::Color::FromRGB(255, 215, 0);
+
+    m_EndingLine1 = std::make_shared<UIText>(m_FontPath, m_FontSize * 2,
+                                             "THANK YOU MARIO!", colorYellow);
+    m_EndingLine2 = std::make_shared<UIText>(m_FontPath, m_FontSize,
+                                             "YOUR QUEST IS OVER.", colorWhite);
+
+    m_EndingLine1->SetVisible(false);
+    m_EndingLine2->SetVisible(false);
+
+    m_UIRenderer.AddChild(m_EndingLine1);
+    m_UIRenderer.AddChild(m_EndingLine2);
+    m_AxeEndingInitialized = true;
+}
+
+void UIManager::UpdateAxeEndingScreen() {
+    if (!m_AxeEndingInitialized) {
+        InitAxeEndingScreen();
+    }
+
+    bool showCredits = (m_EndingTextPhase == EndingTextPhase::CREDITS);
+    m_EndingLine1->SetVisible(showCredits);
+    m_EndingLine2->SetVisible(showCredits);
+
+    if (showCredits) {
+        // Center the "THANK YOU MARIO!" title and subtitle
+        m_EndingLine1->SetPosition(0.0f, 60.0f);
+        m_EndingLine2->SetPosition(0.0f, -20.0f);
     }
 }
 

@@ -20,16 +20,18 @@ namespace Mario {
  */
 class GameStateManager {
    public:
+    // Level sequence entry (world, level number)
+    struct LevelEntry {
+        int world;
+        int level;
+    };
+
     GameStateManager();
 
-    /**
-     * Reset all state for a new game.
-     */
+    // Reset all state for a new game.
     void NewGame();
 
-    /**
-     * Called once per game tick to update the timer.
-     */
+    // Called once per game tick to update the timer.
     void Tick();
 
     // -- Score --
@@ -62,8 +64,7 @@ class GameStateManager {
     void StopTime() { m_TimerRunning = false; }
     void StartTime() { m_TimerRunning = true; }
 
-    // -- Level Progression --
-    // Level order: 1-1 -> 1-2 -> 8-4
+    // -- Level Progression (order: 1-1 -> 1-2 -> 8-4) --
     int GetWorldNum() const { return m_WorldNum; }
     int GetLevelNum() const { return m_LevelNum; }
     std::string GetLevelName() const;
@@ -71,61 +72,49 @@ class GameStateManager {
     bool IsUnderground() const { return m_IsUnderground; }
     void SetUnderground(bool v) { m_IsUnderground = v; }
 
-    /**
-     * Advance to the next level in the sequence.
-     * @return The new level name (e.g. "1-2", "8-4")
-     */
+    // Advance to next level in the sequence. Returns new level name.
     std::string AdvanceLevel();
 
-    /**
-     * Jump to a specific level (for ESC menu).
-     */
+    // Jump to a specific level (used by ESC menu).
     void SetLevel(int world, int level);
 
-    /**
-     * Override the next level to jump to (used by warp pipes).
-     * @param levelName The level name (e.g., "8-4")
-     */
+    // Override the next level (used by warp pipes).
     void SetNextLevelOverride(const std::string& levelName) {
         m_NextLevelOverride = levelName;
     }
     bool HasNextLevelOverride() const { return !m_NextLevelOverride.empty(); }
 
-    /**
-     * Get the current player state to preserve across levels.
-     */
+    // Preserve player power state across level loads.
     int GetSavedPowerState() const { return m_SavedPowerState; }
     void SavePowerState(int state) { m_SavedPowerState = state; }
 
-    /**
-     * Whether the game has been won (ended 8-4).
-     */
+    // Whether the game has been won (8-4 completed).
     bool IsGameWon() const { return m_GameWon; }
-    void SetGameWon(bool v) { m_GameWon = v; }
+    void SetGameWon(bool v = true) { m_GameWon = v; }
 
    private:
+    // Score / coins / lives
     int m_Score = 0;
     int m_Coins = 0;
     int m_Lives = GameConfig::INITIAL_LIVES;
 
+    // Timer
     int m_TimeCounter = GameConfig::INITIAL_TIME;
     int m_TimeSubCounter = 0;
     bool m_TimerRunning = false;
 
+    // Level tracking
     int m_WorldNum = 1;
     int m_LevelNum = 1;
-    bool m_IsUnderground = false;
-    int m_SavedPowerState = 0;
-    bool m_GameWon = false;
-    std::string m_NextLevelOverride = "";
-
-    // Level sequence
-    struct LevelEntry {
-        int world;
-        int level;
-    };
-    static const std::vector<LevelEntry> LEVEL_SEQUENCE;
     int m_LevelIndex = 0;
+    bool m_IsUnderground = false;
+    std::string m_NextLevelOverride;
+
+    // Persistence across levels
+    int m_SavedPowerState = 0;  // 0=small, 1=big, 2=fire
+    bool m_GameWon = false;
+
+    static const std::vector<LevelEntry> LEVEL_SEQUENCE;
 };
 
 }  // namespace Mario

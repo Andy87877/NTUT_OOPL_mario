@@ -17,8 +17,8 @@ namespace Mario {
 
 ItemBehavior::ItemBehavior(ItemType type) : m_Type(type) {}
 
-void ItemBehavior::Update(EntityState& state, const Level& level,
-                          const Player& player, int gameTimer) {
+void ItemBehavior::Update(EntityState& state, [[maybe_unused]] const Level& level,
+                          [[maybe_unused]] const Player& player, [[maybe_unused]] int gameTimer) {
     // Coins don't move - just animate in place
     if (m_Type == ItemType::COIN) {
         if (state.IsAnimated()) {
@@ -56,8 +56,8 @@ void ItemBehavior::Update(EntityState& state, const Level& level,
     }
 }
 
-bool ItemBehavior::OnPlayerCollision(EntityState& state, Player& player,
-                                     bool isFromAbove) {
+bool ItemBehavior::OnPlayerCollision(EntityState& state, [[maybe_unused]] Player& player,
+                                     [[maybe_unused]] bool isFromAbove) {
     if (m_Type == ItemType::COIN) {
         // Coins are always collected
         state.Delete();

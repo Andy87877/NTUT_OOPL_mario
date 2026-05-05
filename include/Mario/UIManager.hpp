@@ -26,7 +26,27 @@ namespace Mario {
  */
 class UIManager {
    public:
-    enum class State { TITLE, LOADING, PLAYING, GAME_OVER, GAME_WON, ESC_MENU };
+    enum class State {
+        TITLE,
+        LOADING,
+        PLAYING,
+        GAME_OVER,
+        GAME_WON,
+        ESC_MENU,
+        AXE_SEQUENCE  // 8-4 Bowser defeat ending cutscene
+    };
+
+    /**
+     * Phase of the axe/ending sequence — drives what text is shown.
+     * Mirrors EndingPhase in LevelCompleteController without coupling.
+     */
+    enum class EndingTextPhase { NONE, CREDITS };  // extend as needed
+
+    /**
+     * Inform UIManager which phase the ending sequence is in.
+     * Call each frame from App::RenderAll during AXE_SEQUENCE state.
+     */
+    void SetEndingPhase(EndingTextPhase phase) { m_EndingTextPhase = phase; }
 
     UIManager(GameStateManager* gameState);
     virtual ~UIManager() = default;
@@ -60,6 +80,7 @@ class UIManager {
     void InitLoadingScreen();
     void InitGameOverScreen();
     void InitESCMenu();
+    void InitAxeEndingScreen();
 
     void UpdateHUD();
     void UpdateTitleScreen();
@@ -67,6 +88,7 @@ class UIManager {
     void UpdateGameOverScreen();
     void UpdateGameWonScreen();
     void UpdateESCMenu(int selection);
+    void UpdateAxeEndingScreen();
 
     GameStateManager* m_GameState;
     Util::Renderer m_UIRenderer;
@@ -101,6 +123,12 @@ class UIManager {
 
     // Time warning flash animation counter
     int m_FlashCounter = 0;
+
+    // Axe ending sequence text elements
+    EndingTextPhase m_EndingTextPhase = EndingTextPhase::NONE;
+    std::shared_ptr<UIText> m_EndingLine1;  // "THANK YOU MARIO!"
+    std::shared_ptr<UIText> m_EndingLine2;  // "YOUR QUEST IS OVER."
+    bool m_AxeEndingInitialized = false;
 
     // Game over screen elements
     std::shared_ptr<UIText> m_FinalScoreText;

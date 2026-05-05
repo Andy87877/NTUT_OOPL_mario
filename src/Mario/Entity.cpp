@@ -45,42 +45,42 @@ void Entity::UpdateView(float cameraOffset) {
             SetDrawable(sprite);
             SetVisible(true);
 
-            // Adjust entity size based on sprite dimensions (like C# Entity.cs)
-            // If sprite is taller than wide, it's a 2-tile height entity
-            glm::vec2 spriteSize = sprite->GetSize();
+            // Size and Y-offset initialization: run ONLY ONCE per entity
+            // lifetime (first sprite load). Running this on every animation
+            // frame change causes entities with tall sprites (Princess, etc.)
+            // to drift upward by TILE_SIZE every frame — a critical bug.
+            if (!m_SizeInitialized) {
+                m_SizeInitialized = true;
 
-            // For 8-4: calculate collision box size based on sprite and scaling
-            if (m_LevelName == "8-4") {
-                float spriteWidth = spriteSize.x;
-                if (spriteWidth > 0) {
-                    // Determine target width for collision
-                    float targetWidth = 32.0f;  // Default for regular enemies
-                    if (m_State.GetName() == "Bowser") {
-                        targetWidth = 64.0f;  // 2x for Bowser
+                glm::vec2 spriteSize = sprite->GetSize();
+
+                // For 8-4: set collision box from sprite dimensions
+                if (m_LevelName == "8-4") {
+                    float spriteWidth = spriteSize.x;
+                    if (spriteWidth > 0) {
+                        float targetWidth = 32.0f;
+                        if (m_State.GetName() == "Bowser") {
+                            targetWidth = 64.0f;
+                        }
+                        m_State.SetSizeX(static_cast<int>(targetWidth));
+
+                        if (spriteSize.y > spriteSize.x) {
+                            float heightScale = spriteSize.y / spriteSize.x;
+                            m_State.SetSizeY(
+                                static_cast<int>(targetWidth * heightScale));
+                            // Shift entity up by one tile so its BOTTOM aligns
+                            // with its spawn row (same as C# Entity.cs init)
+                            m_State.SetY(m_State.GetY() -
+                                         GameConfig::TILE_SIZE);
+                        } else {
+                            m_State.SetSizeY(static_cast<int>(targetWidth));
+                        }
                     }
-
-                    // Set collision box width
-                    m_State.SetSizeX(static_cast<int>(targetWidth));
-
-                    // Adjust height if sprite is taller than wide
-                    if (spriteSize.y > spriteSize.x) {
-                        // 2-tile height entity
-                        float heightScale = spriteSize.y / spriteSize.x;
-                        m_State.SetSizeY(
-                            static_cast<int>(targetWidth * heightScale));
-                        m_State.SetY(m_State.GetY() - GameConfig::TILE_SIZE);
-                        LOG_DEBUG("Adjusted {} collision: {}x{}, moved Y up",
-                                  m_State.GetName(), m_State.GetWidth(),
-                                  m_State.GetHeight());
-                    } else {
-                        // Regular square/wide enemy
-                        m_State.SetSizeY(static_cast<int>(targetWidth));
-                    }
+                } else if (spriteSize.y > spriteSize.x) {
+                    // Other levels: tall sprite → 2-tile height
+                    m_State.SetSizeY(GameConfig::TILE_SIZE * 2);
+                    m_State.SetY(m_State.GetY() - GameConfig::TILE_SIZE);
                 }
-            } else if (spriteSize.y > spriteSize.x) {
-                // 1-1: If sprite is taller than wide, adjust height
-                m_State.SetSizeY(GameConfig::TILE_SIZE * 2);
-                m_State.SetY(m_State.GetY() - GameConfig::TILE_SIZE);
             }
         } else {
             SetVisible(false);
@@ -145,6 +145,7 @@ std::string Entity::BuildSpritePath() const {
     // Squished sprite
     if (m_State.IsSquished()) {
         if (m_State.IsKoopaSquash()) {
+            // Koopa/ParaKoopa shells use KoopaShell sprite
             return SpritePathResolver::GetEntitySpritePath("KoopaShell", -1,
                                                            m_LevelName);
         }

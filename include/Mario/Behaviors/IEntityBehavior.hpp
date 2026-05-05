@@ -60,6 +60,40 @@ class IEntityBehavior {
      * @return Name of this behavior type (e.g., "GoombaBehavior")
      */
     virtual const char* GetName() const = 0;
+
+    /**
+     * Handle a fireball hit on this entity.
+     * Default behavior: return false → entity will be deleted by caller.
+     * Override (e.g., BowserBehavior) to use HP system: return true to
+     * indicate the behavior handled the hit internally.
+     * @param state Entity state to modify
+     * @return true if the behavior handled it (do NOT delete entity),
+     *         false if the caller should delete the entity normally.
+     */
+    virtual bool OnFireballHit(EntityState& state) {
+        (void)state;
+        return false;
+    }
+
+    /**
+     * Query and consume a pending entity spawn request.
+     * BowserBehavior uses this to signal when it wants to shoot a fireball.
+     * Default: no spawn pending (returns false).
+     * @param outType  EntityType of the entity to spawn
+     * @param outX     World X position for the new entity
+     * @param outY     World Y position for the new entity
+     * @param outDir   Direction for the new entity (0=Left, 1=Right)
+     * @return true if there is a spawn request (outType/outX/outY/outDir set),
+     *         false if nothing to spawn.
+     */
+    virtual bool ConsumeSpawnRequest(int& outType, float& outX, float& outY,
+                                     int& outDir) {
+        (void)outType;
+        (void)outX;
+        (void)outY;
+        (void)outDir;
+        return false;
+    }
 };
 
 }  // namespace Mario

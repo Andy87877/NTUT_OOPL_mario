@@ -17,10 +17,6 @@
 // OpenGL include for background clearing
 #include <GL/glew.h>
 
-#include <unordered_set>
-
-static std::unordered_set<Mario::Block*> g_HandledBrokenBlocks;
-
 // ============================================================================
 // Start: Initialize game, transition to TITLE
 // ============================================================================
@@ -56,11 +52,17 @@ void App::Update() {
         case State::PIPE_WARP:
             UpdatePipeWarp();
             break;
+        case State::AXE_SEQUENCE:
+            UpdateAxeSequence();
+            break;
         case State::DEATH:
             UpdateDeath();
             break;
         case State::GAME_OVER:
             UpdateGameOver();
+            break;
+        case State::GAME_WON:
+            UpdateGameWon();
             break;
         case State::ESC_MENU:
             UpdateESCMenu();
@@ -162,43 +164,34 @@ void App::UpdatePlaying() {
 
     if (m_Player->GetState().IsFireShooting() &&
         m_Player->GetState().GetSpecialCounter() == 1) {
-        // Limit active fireballs to 2 to prevent spam lag
-        int activeFireballs = 0;
-        for (const auto& e : m_Entities) {
-            if (e->GetState().GetName() == "Fire" && e->GetState().IsActive()) {
-                activeFireballs++;
-            }
+        int dir = m_Player->GetState().IsFacingRight() ? 1 : -1;
+        float fbX = m_Player->GetWorldX() +
+                    (dir == 1 ? m_Player->GetState().GetWidth() / 2.0f : 0);
+        float fbY =
+            m_Player->GetWorldY() + (m_Player->GetState().GetHeight() / 4.0f);
+
+        Mario::EntityDef def = m_Level->GetEntityDefByName("Fire");
+        // Fallback if "Fire" is not defined in the level's config (e.g.
+        // IDList.csv)
+        if (def.name.empty()) {
+            def.id = -1;
+            def.name = "Fire";
+            def.type = Mario::EntityType::FIRE;
+            def.isAnimated = true;
+            def.animFrames = 4;
+            def.doesCollide = true;
+            def.isEnemy = false;
+            def.isStatic = false;
         }
-
-        if (activeFireballs < 2) {
-            int dir = m_Player->GetState().IsFacingRight() ? 1 : -1;
-            float fbX = m_Player->GetWorldX() +
-                        (dir == 1 ? m_Player->GetState().GetWidth() / 2.0f : 0);
-            float fbY = m_Player->GetWorldY() +
-                        (m_Player->GetState().GetHeight() / 4.0f);
-
-            Mario::EntityDef def = m_Level->GetEntityDefByName("Fire");
-            // Fallback if "Fire" is not defined in the level's config
-            if (def.name.empty()) {
-                def.id = -1;
-                def.name = "Fire";
-                def.type = Mario::EntityType::FIRE;
-                def.isAnimated = true;
-                def.animFrames = 4;
-                def.doesCollide = true;
-                def.isEnemy = false;
-                def.isStatic = false;
-            }
-            auto fbEntity = Mario::EntityFactory::SpawnEntity(
-                def, fbX, fbY, dir == 1 ? 1 : 0, false, m_CurrentLevelName);
-            if (fbEntity) {
-                // Apply initial velocity explicitly right after spawning!
-                fbEntity->GetState().SetVelX(dir * 5.0f);
-                m_Entities.push_back(fbEntity);
-                m_Renderer.AddChild(fbEntity);
-                Mario::AudioManager::GetInstance().PlaySFX(
-                    Mario::SFXName::FireBall);
-            }
+        auto fbEntity = Mario::EntityFactory::SpawnEntity(
+            def, fbX, fbY, dir == 1 ? 1 : 0, false, m_CurrentLevelName);
+        if (fbEntity) {
+            // Apply initial velocity explicitly right after spawning!
+            fbEntity->GetState().SetVelX(dir * 5.0f);
+            m_Entities.push_back(fbEntity);
+            m_Renderer.AddChild(fbEntity);
+            Mario::AudioManager::GetInstance().PlaySFX(
+                Mario::SFXName::FireBall);
         }
     }
 
@@ -210,6 +203,44 @@ void App::UpdatePlaying() {
         auto behavior = entity->GetBehavior();
         if (behavior) {
             behavior->Update(entity->GetState(), *m_Level, *m_Player, m_Timer);
+
+            // -- Process any pending spawn requests (e.g. Bowser fireball) --
+            int spawnType = 0;
+            float spawnX = 0, spawnY = 0;
+            int spawnDir = 1;
+            if (behavior->ConsumeSpawnRequest(spawnType, spawnX, spawnY,
+                                              spawnDir)) {
+                auto spawnEntityType =
+                    static_cast<Mario::EntityType>(spawnType);
+                std::string spawnName;
+                if (spawnEntityType == Mario::EntityType::FIRE)
+                    spawnName = "Fire";
+                if (!spawnName.empty()) {
+                    Mario::EntityDef def =
+                        m_Level->GetEntityDefByName(spawnName);
+                    if (def.name.empty()) {
+                        // Fallback definition for Bowser's fire
+                        def.id = -1;
+                        def.name = spawnName;
+                        def.type = spawnEntityType;
+                        def.isAnimated = true;
+                        def.animFrames = 4;
+                        def.doesCollide = true;
+                        def.isEnemy = false;
+                        def.isStatic = false;
+                    }
+                    auto spawned = Mario::EntityFactory::SpawnEntity(
+                        def, spawnX, spawnY, spawnDir, false,
+                        m_CurrentLevelName);
+                    if (spawned) {
+                        float speed = 4.0f;
+                        spawned->GetState().SetVelX(spawnDir == 1 ? speed
+                                                                  : -speed);
+                        m_Entities.push_back(spawned);
+                        m_Renderer.AddChild(spawned);
+                    }
+                }
+            }
         }
 
         auto entityType = entity->GetDef().type;
@@ -241,6 +272,11 @@ void App::UpdatePlaying() {
     CheckPlayerEntityCollision();
     CheckEntityEntityCollision();
 
+    // -- Check for Axe collision (8-4) --
+    if (m_CurrentLevelName == "8-4") {
+        CheckAxeCollision();
+    }
+
     // -- Check flagpole collision (goal block) --
     CheckFlagpoleCollision();
 
@@ -256,65 +292,33 @@ void App::UpdatePlaying() {
     // -- Check for broken blocks to spawn particle debris --
     auto blocks = m_Level->GetBlocksInRange(
         m_Camera.GetOffset() - 100.0f,
-        m_Camera.GetOffset() + Mario::GameConfig::RESOLUTION_WIDTH + 100.0f);
+        m_Camera.GetOffset() + Mario::GameConfig::WINDOW_WIDTH + 100.0f);
     for (auto* block : blocks) {
-        if (block->JustBroken() &&
-            g_HandledBrokenBlocks.find(block) == g_HandledBrokenBlocks.end()) {
-            g_HandledBrokenBlocks.insert(block);
+        if (block && block->JustBroken()) {
             float bx = block->GetWorldX();
             float by = block->GetWorldY();
             float bs = Mario::GameConfig::TILE_SIZE;
             std::string levelName = m_GameState.GetLevelName();
 
-            Mario::EntityDef debrisDef =
-                m_Level->GetEntityDefByName("ParticleDebris");
-            if (debrisDef.name.empty()) {
-                debrisDef.id = -1;
-                debrisDef.name = "ParticleDebris";
-                debrisDef.type = Mario::EntityType::PARTICLE_DEBRIS;
-                debrisDef.isAnimated = true;
-                debrisDef.animFrames = 4;
-                debrisDef.doesCollide = false;
-                debrisDef.isStatic = false;
-            }
+            auto debris_tl = Mario::EntityFactory::SpawnEntity(
+                m_Level->GetEntityDefByName("BrickBlockBreak_tl"),
+                bx - bs * 0.25f, by - bs * 0.25f, 0, true);
+            if (debris_tl) m_Entities.push_back(debris_tl);
 
-            auto p1 = Mario::EntityFactory::SpawnEntity(
-                debrisDef, bx - bs * 0.25f, by - bs * 0.25f, 0, false,
-                levelName);
-            auto p2 = Mario::EntityFactory::SpawnEntity(
-                debrisDef, bx + bs * 0.25f, by - bs * 0.25f, 0, false,
-                levelName);
-            auto p3 = Mario::EntityFactory::SpawnEntity(
-                debrisDef, bx - bs * 0.25f, by + bs * 0.25f, 0, false,
-                levelName);
-            auto p4 = Mario::EntityFactory::SpawnEntity(
-                debrisDef, bx + bs * 0.25f, by + bs * 0.25f, 0, false,
-                levelName);
+            auto debris_tr = Mario::EntityFactory::SpawnEntity(
+                m_Level->GetEntityDefByName("BrickBlockBreak_tr"),
+                bx + bs * 0.25f, by - bs * 0.25f, 0, true);
+            if (debris_tr) m_Entities.push_back(debris_tr);
 
-            if (p1) {
-                p1->GetState().SetVelX(-2.0f);
-                p1->GetState().SetVelY(4.0f);
-                m_Entities.push_back(p1);
-                m_Renderer.AddChild(p1);
-            }
-            if (p2) {
-                p2->GetState().SetVelX(2.0f);
-                p2->GetState().SetVelY(4.0f);
-                m_Entities.push_back(p2);
-                m_Renderer.AddChild(p2);
-            }
-            if (p3) {
-                p3->GetState().SetVelX(-2.0f);
-                p3->GetState().SetVelY(2.0f);
-                m_Entities.push_back(p3);
-                m_Renderer.AddChild(p3);
-            }
-            if (p4) {
-                p4->GetState().SetVelX(2.0f);
-                p4->GetState().SetVelY(2.0f);
-                m_Entities.push_back(p4);
-                m_Renderer.AddChild(p4);
-            }
+            auto debris_bl = Mario::EntityFactory::SpawnEntity(
+                m_Level->GetEntityDefByName("BrickBlockBreak_bl"),
+                bx - bs * 0.25f, by + bs * 0.25f, 0, true);
+            if (debris_bl) m_Entities.push_back(debris_bl);
+
+            auto debris_br = Mario::EntityFactory::SpawnEntity(
+                m_Level->GetEntityDefByName("BrickBlockBreak_br"),
+                bx + bs * 0.25f, by + bs * 0.25f, 0, true);
+            if (debris_br) m_Entities.push_back(debris_br);
         }
     }
 
@@ -354,6 +358,51 @@ void App::UpdatePlaying() {
 
     // -- Remove dead entities from renderer --
     CleanupDeadEntities();
+}
+
+// ============================================================================
+// 8-4 Axe Sequence
+// ============================================================================
+void App::UpdateAxeSequence() {
+    if (!m_Player || !m_Level) return;
+
+    // Find Bowser and Princess if not already cached
+    std::shared_ptr<Mario::Entity> bowser = nullptr;
+    std::shared_ptr<Mario::Entity> princess = nullptr;
+    for (const auto& entity : m_Entities) {
+        if (entity->GetState().GetName() == "Bowser") {
+            bowser = entity;
+        }
+        if (entity->GetState().GetName() == "Princess") {
+            princess = entity;
+        }
+    }
+
+    // Start sequence if not already started
+    if (!m_LevelCompleteCtrl.IsActive()) {
+        m_LevelCompleteCtrl.StartAxeSequence(*m_Player, bowser, princess);
+    }
+
+    // Update the sequence controller
+    bool stillRunning =
+        m_LevelCompleteCtrl.Update(*m_Player, *m_Level, m_Camera.GetOffset());
+
+    // Update camera and blocks during cutscene
+    m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
+    m_Level->UpdateBlocks(m_Camera.GetOffset());
+
+    // Update all entities during the sequence (e.g., Bowser falling)
+    for (auto& entity : m_Entities) {
+        if (entity->GetState().IsActive()) {
+            entity->GetState().Tick();  // For gravity on Bowser/Bridge
+            entity->UpdateView(m_Camera.GetOffset());
+        }
+    }
+
+    if (!stillRunning && m_LevelCompleteCtrl.IsCompleted()) {
+        m_GameState.SetGameWon(true);
+        AdvanceToNextLevel();  // Will transition to TITLE
+    }
 }
 
 // ============================================================================
@@ -513,7 +562,6 @@ void App::LoadLevel(const std::string& levelName) {
     m_LevelCompleteCtrl.Reset();
     m_FlagEntity = nullptr;
     m_CurrentLevelName = levelName;
-    g_HandledBrokenBlocks.clear();
 
     // Create and load the level
     m_Level = std::make_shared<Mario::Level>();
@@ -534,176 +582,13 @@ void App::LoadLevel(const std::string& levelName) {
     // Spawn entities (Goomba, KoopaTroopa, etc.) from level data
     m_Entities = Mario::EntityFactory::SpawnFromLevel(*m_Level);
 
-    // For 8-4 level, manually spawn Bowser and Princess if not in CSV
-    if (levelName == "8-4") {
-        // Check if Bowser, Princess, Axe are already in entities
-        bool hasBowser = false, hasPrincess = false, hasAxe = false;
-        for (const auto& entity : m_Entities) {
-            if (entity->GetState().GetName() == "Bowser") hasBowser = true;
-            if (entity->GetState().GetName() == "Princess") hasPrincess = true;
-            if (entity->GetState().GetName() == "Axe") hasAxe = true;
-        }
-
-        // Manually spawn Bowser at castle position (around column 320, row 8)
-        if (!hasBowser) {
-            float bowserX = 320.0f * Mario::GameConfig::TILE_SIZE;
-            float bowserY = 9.0f * Mario::GameConfig::TILE_SIZE;
-
-            // Try to get Bowser definition from level
-            const Mario::EntityDef* bowserDef = nullptr;
-            const Mario::EntityDef& defFromLevel =
-                m_Level->GetEntityDefByName("Bowser");
-            if (!defFromLevel.name.empty()) {
-                bowserDef = &defFromLevel;
-            } else {
-                // Create a fallback Bowser definition if not found
-                static Mario::EntityDef fallbackBowser{
-                    -1,        // id
-                    "Bowser",  // name
-                    Mario::EntityType::BOWSER,
-                    false,  // type, isPowerUp
-                    true,   // isEnemy
-                    false,  // isCoin
-                    0,      // powerUpState
-                    false,  // isStatic
-                    false,  // isBounce
-                    false,  // fromBlock
-                    100,    // scoreWorth
-                    true,   // isAnimated (4 sprite frames: Bowser1-4)
-                    4,      // animFrames
-                    false,  // doesJump
-                    true,   // doesCollide
-                    false,  // oneLoop
-                    1,      // animBuffer
-                    false,  // squishable
-                    false   // koopaSquash
-                };
-                bowserDef = &fallbackBowser;
-            }
-
-            if (bowserDef && !bowserDef->name.empty()) {
-                LOG_DEBUG(
-                    "Attempting to spawn Bowser with entityDef: name={}, "
-                    "isEnemy={}, isStatic={}",
-                    bowserDef->name, bowserDef->isEnemy, bowserDef->isStatic);
-                auto bowser = Mario::EntityFactory::SpawnEntity(
-                    *bowserDef, bowserX, bowserY, 1, false, levelName);
-                if (bowser) {
-                    m_Entities.push_back(bowser);
-                    LOG_WARN("??Successfully spawned Bowser at ({}, {})",
-                             bowserX, bowserY);
-                } else {
-                    LOG_ERROR("??SpawnEntity returned nullptr for Bowser!");
-                }
-            } else {
-                LOG_ERROR("??bowserDef is null or name is empty!");
-            }
-        }
-
-        // Manually spawn Princess at castle position (around column 320, row
-        // 11)
-        if (!hasPrincess) {
-            float princessX = 325.0f * Mario::GameConfig::TILE_SIZE;
-            float princessY = 10.0f * Mario::GameConfig::TILE_SIZE;
-
-            // Try to get Princess definition from level
-            const Mario::EntityDef* princessDef = nullptr;
-            const Mario::EntityDef& defFromLevel2 =
-                m_Level->GetEntityDefByName("Princess");
-            if (!defFromLevel2.name.empty()) {
-                princessDef = &defFromLevel2;
-            } else {
-                // Create a fallback Princess definition if not found
-                static Mario::EntityDef fallbackPrincess{
-                    -1,                           // id
-                    "Princess",                   // name
-                    Mario::EntityType::PRINCESS,  // type
-                    false,                        // isPowerUp
-                    false,                        // isEnemy
-                    false,                        // isCoin
-                    0,                            // powerUpState
-                    true,                         // isStatic
-                    false,                        // isBounce
-                    false,                        // fromBlock
-                    0,                            // scoreWorth
-                    true,   // isAnimated (4 sprite frames: Princess1-4)
-                    4,      // animFrames
-                    false,  // doesJump
-                    true,   // doesCollide
-                    false,  // oneLoop
-                    1,      // animBuffer
-                    false,  // squishable
-                    false   // koopaSquash
-                };
-                princessDef = &fallbackPrincess;
-            }
-
-            if (princessDef && !princessDef->name.empty()) {
-                LOG_DEBUG(
-                    "Attempting to spawn Princess with entityDef: name={}, "
-                    "isEnemy={}, isStatic={}",
-                    princessDef->name, princessDef->isEnemy,
-                    princessDef->isStatic);
-                auto princess = Mario::EntityFactory::SpawnEntity(
-                    *princessDef, princessX, princessY, 1, false, levelName);
-                if (princess) {
-                    m_Entities.push_back(princess);
-                    LOG_WARN("??Successfully spawned Princess at ({}, {})",
-                             princessX, princessY);
-                } else {
-                    LOG_ERROR("??SpawnEntity returned nullptr for Princess!");
-                }
-            } else {
-                LOG_ERROR("??princessDef is null or name is empty!");
-            }
-        }
-
-        // Manually spawn Axe at castle position
-        if (!hasAxe) {
-            float axeX = 323.0f * Mario::GameConfig::TILE_SIZE;
-            float axeY = 9.0f * Mario::GameConfig::TILE_SIZE;
-
-            const Mario::EntityDef* axeDef = nullptr;
-            const Mario::EntityDef& defFromLevel3 =
-                m_Level->GetEntityDefByName("Axe");
-            if (!defFromLevel3.name.empty()) {
-                axeDef = &defFromLevel3;
-            } else {
-                static Mario::EntityDef fallbackAxe{
-                    -1,                                  // id
-                    "Axe",                               // name
-                    static_cast<Mario::EntityType>(-1),  // type
-                    false,                               // isPowerUp
-                    false,                               // isEnemy
-                    false,                               // isCoin
-                    0,                                   // powerUpState
-                    true,                                // isStatic
-                    false,                               // isBounce
-                    false,                               // fromBlock
-                    0,                                   // scoreWorth
-                    true,                                // isAnimated
-                    4,                                   // animFrames
-                    false,                               // doesJump
-                    true,                                // doesCollide
-                    false,                               // oneLoop
-                    1,                                   // animBuffer
-                    false,                               // squishable
-                    false                                // koopaSquash
-                };
-                axeDef = &fallbackAxe;
-            }
-
-            if (axeDef && !axeDef->name.empty()) {
-                auto axe = Mario::EntityFactory::SpawnEntity(
-                    *axeDef, axeX, axeY, 1, false, levelName);
-                if (axe) {
-                    m_Entities.push_back(axe);
-                    LOG_WARN("??Successfully spawned Axe at ({}, {})", axeX,
-                             axeY);
-                }
-            }
-        }
-    }
+    // All 8-4 entities (Bowser, Axe, Princess, enemies) are spawned from
+    // spawner blocks in 8-4.csv via EntityFactory::SpawnFromLevel() above.
+    // No manual overrides needed — the CSV is the single source of truth.
+    // Bowser  = ID 847 (BowserSpawn)  at row=9, col=58
+    // Axe     = ID 849 (AxeTrigger)   at row=9, col=65
+    // Princess= ID 879 (PrincessSpawn) at row=9, col=72
+    // Player  = ID 999 (MarioStart)   at row=9, col=3
 
     // Look for the Flag entity in spawn list
     for (auto& entity : m_Entities) {
@@ -830,6 +715,22 @@ void App::RenderAll() {
             break;
         }
 
+        case State::AXE_SEQUENCE: {
+            // 8-4 boss defeat cutscene — black castle background
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            m_Renderer.Update();
+            // Show "THANK YOU MARIO!" text once Mario reaches the Princess
+            auto endPhase = (m_LevelCompleteCtrl.GetPhase() ==
+                                 Mario::EndingPhase::PRINCESS_DIALOG ||
+                             m_LevelCompleteCtrl.GetPhase() ==
+                                 Mario::EndingPhase::COMPLETED)
+                                ? Mario::UIManager::EndingTextPhase::CREDITS
+                                : Mario::UIManager::EndingTextPhase::NONE;
+            m_UIManager->SetEndingPhase(endPhase);
+            m_UIManager->Update(Mario::UIManager::State::AXE_SEQUENCE);
+            break;
+        }
+
         case State::DEATH:
             m_Renderer.Update();
             m_UIManager->Update(Mario::UIManager::State::PLAYING);
@@ -839,6 +740,11 @@ void App::RenderAll() {
             glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             m_Renderer.Update();
             m_UIManager->Update(Mario::UIManager::State::GAME_OVER);
+            break;
+
+        case State::GAME_WON:
+            m_Renderer.Update();
+            m_UIManager->Update(Mario::UIManager::State::GAME_WON);
             break;
 
         case State::ESC_MENU:
@@ -1107,211 +1013,70 @@ void App::CheckEntityBlockCollision(Mario::Entity& entity) {
 }
 
 void App::CheckPlayerEntityCollision() {
-    if (!m_Player || m_Player->GetState().IsDead()) return;
+    if (!m_Player || m_Player->GetState().IsDead() ||
+        m_Player->GetState().IsInvincible())
+        return;
 
-    Mario::PlayerState& ps = m_Player->GetState();
-    Mario::AABB playerBox = ps.GetHitbox();
-
-    for (auto& entity : m_Entities) {
-        Mario::EntityState& es = entity->GetState();
-        if (!es.IsActive()) continue;
-
-        Mario::AABB entityBox = es.GetHitbox();
-        if (!playerBox.Intersects(entityBox)) continue;
-
-        if (es.IsEnemy()) {
-            // Check if player is stomping (falling from above)
-            float playerBottom = playerBox.bottom;
-            float entityTop = entityBox.top;
-            float overlapY = playerBottom - entityTop;
-
-            if (overlapY > 0 &&
-                overlapY < Mario::GameConfig::TILE_SIZE * 0.5f &&
-                ps.GetVelY() >= 0 && !ps.IsGrounded()) {
-                // Stomp! Kill enemy
-                if (es.IsSquishable() || es.IsKoopaSquash()) {
-                    es.Squish();
-                    if (es.GetName() == "Bowser") {
-                        Mario::AudioManager::GetInstance().PlaySFX(
-                            Mario::SFXName::BowserDie);
-                    } else {
-                        Mario::AudioManager::GetInstance().PlaySFX(
-                            Mario::SFXName::Squish);
-                    }
-                    int scoreWorth = es.GetScoreWorth();
-                    m_GameState.AddScore(scoreWorth);
-
-                    // Display floating score text at enemy position
-                    float enemyWorldX =
-                        es.GetWorldX() + Mario::GameConfig::TILE_SIZE * 0.5f;
-                    float enemyWorldY = es.GetWorldY();
-                    float screenPixelX = m_Camera.WorldToScreenX(enemyWorldX);
-                    float screenPixelY = m_Camera.WorldToScreenY(enemyWorldY);
-                    float ptsdX = screenPixelX - 640.0f;
-                    float ptsdY = 360.0f - screenPixelY;
-                    m_UIManager->AddFloatingText(
-                        ptsdX, ptsdY, "+" + std::to_string(scoreWorth), 60);
-
-                    // Bounce player up after stomp
-                    ps.SetFallHeight(Mario::PhysicsEngine::GetJumpHeight(0) *
-                                     0.5);
-                    ps.SetGrounded(false);
-                    LOG_DEBUG("Stomped {} (+{} score)", es.GetName(),
-                              scoreWorth);
-                }
-            } else if (!es.IsSquished()) {
-                // Player takes damage from enemy
-                if (ps.IsStar()) {
-                    es.Squish();
-                    m_GameState.AddScore(es.GetScoreWorth());
-                } else {
-                    if (ps.IsStar()) {
-                        es.Squish();
-                        m_GameState.AddScore(es.GetScoreWorth());
-                    } else {
-                        ps.TakeDamage();
-                    }
-                }
-                LOG_DEBUG("Player hit by {}", es.GetName());
-            }
-        } else if (es.IsPowerUp()) {
-            // Collect power-up
-            int puState = es.GetPowerUpState();
-            if (puState == 1) {
-                // Mushroom -> Big
-                if (ps.GetState() == 0) {
-                    // When growing from small to big, adjust Y position upward
-                    // (small=32px height, big=64px height, so move up by 32px)
-                    ps.SetY(ps.GetY() - Mario::GameConfig::TILE_SIZE);
-                }
-                // Always apply the power-up
-                ps.PowerUp(Mario::PowerState::BIG);
-                Mario::AudioManager::GetInstance().PlaySFX(
-                    Mario::SFXName::Powerup);
-            } else if (puState == 2) {
-                // Fire Flower
-                if (ps.GetState() == 0) {
-                    // Same adjustment for small->fire
-                    ps.SetY(ps.GetY() - Mario::GameConfig::TILE_SIZE);
-                }
-                // Big Mario eats fire flower -> fires shots
-                // Small Mario eats fire flower -> grows to Big and fires shots
-                // But we just set state to FIRE regardless
-                ps.PowerUp(Mario::PowerState::FIRE);
-                Mario::AudioManager::GetInstance().PlaySFX(
-                    Mario::SFXName::Powerup);
-            } else if (puState == 3) {
-                // Star
-                ps.StartStar();
-                Mario::AudioManager::GetInstance().PlaySFX(
-                    Mario::SFXName::Powerup);
-            } else if (puState == 5) {
-                // 1-Up
-                m_GameState.AddLife();
-                Mario::AudioManager::GetInstance().PlaySFX(
-                    Mario::SFXName::_1up);
-
-                // Display "+1UP" floating text
-                float oneupWorldX =
-                    es.GetWorldX() + Mario::GameConfig::TILE_SIZE * 0.5f;
-                float oneupWorldY = es.GetWorldY();
-                float oneupScreenPixelX = m_Camera.WorldToScreenX(oneupWorldX);
-                float oneupScreenPixelY = m_Camera.WorldToScreenY(oneupWorldY);
-                float oneupPtsdX = oneupScreenPixelX - 640.0f;
-                float oneupPtsdY = 360.0f - oneupScreenPixelY;
-                m_UIManager->AddFloatingText(oneupPtsdX, oneupPtsdY, "+1UP",
-                                             60);
-            }
-            int scoreWorth = es.GetScoreWorth();
-            m_GameState.AddScore(scoreWorth);
-
-            // Display floating score text at powerup position
-            float puWorldX =
-                es.GetWorldX() + Mario::GameConfig::TILE_SIZE * 0.5f;
-            float puWorldY = es.GetWorldY();
-            float puScreenPixelX = m_Camera.WorldToScreenX(puWorldX);
-            float puScreenPixelY = m_Camera.WorldToScreenY(puWorldY);
-            float puPtsdX = puScreenPixelX - 640.0f;
-            float puPtsdY = 360.0f - puScreenPixelY;
-            m_UIManager->AddFloatingText(puPtsdX, puPtsdY,
-                                         "+" + std::to_string(scoreWorth), 60);
-
-            es.Delete();
-            LOG_DEBUG("Collected {} (+{} score)", es.GetName(), scoreWorth);
-        } else if (es.IsCoin()) {
-            m_GameState.AddCoin();
-            int coinScore = es.GetScoreWorth();
-            m_GameState.AddScore(coinScore);
-            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Coin);
-
-            // Display floating score text at coin position
-            float coinWorldX =
-                es.GetWorldX() + Mario::GameConfig::TILE_SIZE * 0.5f;
-            float coinWorldY = es.GetWorldY();
-            float coinScreenPixelX = m_Camera.WorldToScreenX(coinWorldX);
-            float coinScreenPixelY = m_Camera.WorldToScreenY(coinWorldY);
-            float coinPtsdX = coinScreenPixelX - 640.0f;
-            float coinPtsdY = 360.0f - coinScreenPixelY;
-            m_UIManager->AddFloatingText(coinPtsdX, coinPtsdY,
-                                         "+" + std::to_string(coinScore), 60);
-
-            es.Delete();
-        } else if (es.GetName() == "Axe") {
-            // Collect Axe -> defeat Bowser
-            Mario::AudioManager::GetInstance().PlaySFX(
-                Mario::SFXName::BowserFall);
-
-            for (auto& e : m_Entities) {
-                if (e->GetState().GetName() == "Bowser") {
-                    e->GetState().SetDead(true);
-                    e->GetState().Delete();
-                    m_GameState.AddScore(5000);
-                }
-            }
-            es.Delete();
-        } else if (es.GetName() == "Princess") {
-            // Rescue Princess!
-            m_GameState.StopTime();
-            Mario::AudioManager::GetInstance().PlayBGM(
-                Mario::BGMName::LevelCompleteTheme);
-            AdvanceToNextLevel();
-            es.Delete();
-        }
-    }
-}
-
-void App::CleanupDeadEntities() {
-    for (auto it = m_Entities.begin(); it != m_Entities.end();) {
-        if (!(*it)->GetState().IsActive()) {
-            m_Renderer.RemoveChild(*it);
-            it = m_Entities.erase(it);
-        } else {
-            ++it;
-        }
-    }
+    m_CollisionManager.CheckPlayerEntityCollision(
+        *m_Player, m_Entities, m_Camera, m_GameState, *m_UIManager);
 }
 
 void App::CheckEntityEntityCollision() {
-    for (auto& proj : m_Entities) {
-        if (!proj->GetState().IsActive()) continue;
-        if (proj->GetState().GetName() == "Fire" ||
-            (proj->GetState().GetName() == "KoopaTroopaShell" &&
-             proj->GetState().GetVelX() != 0)) {
-            Mario::AABB pBox = proj->GetState().GetHitbox();
-            for (auto& enemy : m_Entities) {
-                if (proj == enemy || !enemy->GetState().IsActive() ||
-                    !enemy->GetState().IsEnemy() || enemy->GetState().IsDead())
-                    continue;
-                if (pBox.Intersects(enemy->GetState().GetHitbox())) {
-                    enemy->GetState().Squish();
-                    Mario::AudioManager::GetInstance().PlaySFX(
-                        Mario::SFXName::Kick);
-                    int worth = enemy->GetState().GetScoreWorth();
-                    if (worth > 0) m_GameState.AddScore(worth);
-                    if (proj->GetState().GetName() == "Fire") {
-                        proj->GetState().Delete();
-                    }
-                }
+    m_CollisionManager.CheckEntityEntityCollision(m_Entities, m_GameState);
+}
+
+void App::CleanupDeadEntities() {
+    // Remove entities that are marked as dead
+    m_Entities.erase(
+        std::remove_if(m_Entities.begin(), m_Entities.end(),
+                       [&](const std::shared_ptr<Mario::Entity>& entity) {
+                           if (!entity->GetState().IsActive()) {
+                               m_Renderer.RemoveChild(entity);
+                               return true;
+                           }
+                           return false;
+                       }),
+        m_Entities.end());
+}
+
+void App::UpdateGameWon() {
+    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
+        m_CurrentState = State::TITLE;
+        LOG_INFO("Game Won! Returning to TITLE screen.");
+    }
+}
+
+void App::CheckAxeCollision() {
+    if (!m_Player || m_Player->GetState().IsDead() ||
+        m_LevelCompleteCtrl.IsActive())
+        return;
+
+    Mario::AABB playerBox = m_Player->GetState().GetHitbox();
+
+    for (const auto& entity : m_Entities) {
+        if (entity->GetState().GetName() == "Axe") {
+            // Use an extended hitbox for the Axe: it spans from its spawn row
+            // (row 8, Y=360) down through the bridge level (row 10, Y=450+90)
+            // so Mario can trigger it whether walking at the corridor or bridge
+            // level. C# reference: Form1.cs EndingCheck() — axe hitbox covers
+            // vertical approach.
+            float axeX = entity->GetState().GetX();
+            float axeY = entity->GetState().GetY();
+            Mario::AABB extendedAxeBox{
+                axeX - 5.0f,   // left: slightly before axe
+                axeY,          // top: at axe spawn row
+                axeX + 55.0f,  // right: covers one tile right
+                axeY + 120.0f  // bottom: extends to bridge+Mario height below
+            };
+            if (playerBox.Intersects(extendedAxeBox)) {
+                LOG_INFO("Axe touched! Starting 8-4 ending sequence.");
+                entity->GetState().SetActive(false);  // Axe disappears
+                m_CurrentState = State::AXE_SEQUENCE;
+                m_GameState.StopTime();
+                Mario::AudioManager::GetInstance().StopBGM();
+                Mario::AudioManager::GetInstance().PlaySFX(
+                    Mario::SFXName::Break);
+                return;
             }
         }
     }

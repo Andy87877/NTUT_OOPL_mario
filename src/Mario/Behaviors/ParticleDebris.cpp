@@ -21,16 +21,16 @@ void ParticleDebris::Update(EntityState& state, const Level& /*level*/,
         // Parse from name: BrickBlockBreak_tl, tr, bl, br
         std::string name = state.GetName();
 
-        if (name == "BrickBlockBreak_tl") {
+        if (name.find("_tl") != std::string::npos) {
             m_InitialVelX = -3.0f;
             m_InitialVelY = -6.0f;
-        } else if (name == "BrickBlockBreak_tr") {
+        } else if (name.find("_tr") != std::string::npos) {
             m_InitialVelX = 3.0f;
             m_InitialVelY = -6.0f;
-        } else if (name == "BrickBlockBreak_bl") {
+        } else if (name.find("_bl") != std::string::npos) {
             m_InitialVelX = -3.0f;
             m_InitialVelY = -4.0f;
-        } else if (name == "BrickBlockBreak_br") {
+        } else if (name.find("_br") != std::string::npos) {
             m_InitialVelX = 3.0f;
             m_InitialVelY = -4.0f;
         }

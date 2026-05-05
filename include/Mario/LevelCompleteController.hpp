@@ -21,14 +21,19 @@ namespace Mario {
  * Phases of the level completion sequence.
  */
 enum class EndingPhase {
-    NONE,             // Normal gameplay
-    POLE_SLIDE,       // Mario sliding down the flagpole
-    POLE_WALK,        // Mario walks from pole to castle
-    ENTER_CASTLE,     // Mario enters castle door (invisible)
-    WAIT_TRANSITION,  // Brief pause before loading next level
-    PIPE_DESCEND,     // Mario descending into pipe
-    PIPE_RIGHT,       // Mario walking right into pipe
-    COMPLETED         // Ready to advance
+    NONE,                // Normal gameplay
+    POLE_SLIDE,          // Mario sliding down the flagpole
+    POLE_WALK,           // Mario walks from pole to castle
+    ENTER_CASTLE,        // Mario enters castle door (invisible)
+    WAIT_TRANSITION,     // Brief pause before loading next level
+    PIPE_DESCEND,        // Mario descending into pipe
+    PIPE_RIGHT,          // Mario walking right into pipe
+    AXE_SEQUENCE_START,  // Start of the 8-4 Bowser defeat sequence
+    BRIDGE_COLLAPSE,     // Bridge collapses
+    BOWSER_FALL,         // Bowser falls
+    WALK_TO_PRINCESS,    // Mario walks to the Princess
+    PRINCESS_DIALOG,     // Princess dialog
+    COMPLETED            // Ready to advance
 };
 
 /**
@@ -48,6 +53,15 @@ class LevelCompleteController {
      */
     void StartFlagpole(Player& player, std::shared_ptr<Entity> flagEntity,
                        const Block* goalBlock);
+
+    /**
+     * Start the 8-4 Bowser defeat sequence.
+     * @param player The player View
+     * @param bowser The Bowser entity
+     * @param princess The Princess entity
+     */
+    void StartAxeSequence(Player& player, std::shared_ptr<Entity> bowser,
+                          std::shared_ptr<Entity> princess);
 
     /**
      * Start the pipe warp sequence.
@@ -82,7 +96,7 @@ class LevelCompleteController {
     /**
      * Whether this was a pipe warp (affects next level loading).
      */
-    bool WasPipeWarp() const { return m_WasPipeWarp; }
+    bool WasPipeWarp() const { return m_was_pipe_warp; }
 
     /**
      * Reset state for a new level.
@@ -91,23 +105,20 @@ class LevelCompleteController {
 
    private:
     EndingPhase m_Phase = EndingPhase::NONE;
-    bool m_WasPipeWarp = false;
-    bool m_WarpSFXPlayed = false;  // Track if warp SFX has been played
-
-    // Flagpole state
-    std::shared_ptr<Entity> m_FlagEntity;
-    float m_GoalBlockX = 0.0f;
-    float m_GoalBlockY = 0.0f;
-    int m_EndTimer = -1;
-    int m_LevelTimer = -1;
-    int m_TickCount = 0;
-
-    // Pipe state
-    std::string m_PipeDirection;
-    float m_PipeX = 0.0f;
-    float m_PipeY = 0.0f;
-    float m_PipeTargetY = 0.0f;
-    float m_PipeTargetX = 0.0f;
+    bool m_was_pipe_warp = false;
+    std::shared_ptr<Entity> m_flag_entity = nullptr;
+    std::shared_ptr<Entity> m_bowser = nullptr;
+    std::shared_ptr<Entity> m_princess = nullptr;
+    int m_end_timer = -1;
+    int m_level_timer = -1;
+    int m_tick_count = 0;
+    float m_goal_block_x = 0.0f;
+    float m_goal_block_y = 0.0f;
+    std::string m_pipe_direction;
+    float m_pipe_x = 0.0f;
+    float m_pipe_y = 0.0f;
+    float m_pipe_target_x = 0.0f;
+    float m_pipe_target_y = 0.0f;
 
     // -- Helpers --
     void UpdatePoleSlide(Player& player);
@@ -115,6 +126,7 @@ class LevelCompleteController {
     void UpdateEnterCastle(Player& player);
     void UpdatePipeDescend(Player& player);
     void UpdatePipeRight(Player& player);
+    void UpdateAxeSequence(Player& player, Level& level);
 };
 
 }  // namespace Mario

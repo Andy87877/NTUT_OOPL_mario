@@ -70,6 +70,7 @@ public:
      * Get block at world position (pixel coordinates).
      */
     Block* GetBlockAtWorld(float worldX, float worldY);
+    const Block* GetBlockAtWorld(float worldX, float worldY) const;
 
     /**
      * Get all blocks in range (for rendering / collision detection).

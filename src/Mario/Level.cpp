@@ -24,12 +24,14 @@ static EntityType StringToEntityType(const std::string& typeStr) {
     if (typeStr == "BOWSER") return EntityType::BOWSER;
     if (typeStr == "FIRE") return EntityType::FIRE;
     if (typeStr == "PRINCESS") return EntityType::PRINCESS;
+    if (typeStr == "AXE") return EntityType::AXE;
     if (typeStr == "MUSHROOM") return EntityType::MUSHROOM;
     if (typeStr == "FIRE_FLOWER") return EntityType::FIRE_FLOWER;
     if (typeStr == "STAR") return EntityType::STAR;
     if (typeStr == "ONE_UP") return EntityType::ONE_UP;
     if (typeStr == "COIN") return EntityType::COIN;
-    if (typeStr == "FLAG") return EntityType::FLAG;  // ✨ 新增
+    if (typeStr == "FLAG") return EntityType::FLAG;
+    if (typeStr == "UNKNOWN") return EntityType::UNKNOWN;
     return EntityType::UNKNOWN;
 }
 
@@ -65,15 +67,8 @@ bool Level::Load(const std::string& levelName) {
     CreateBlocksFromGrid();
     IdentifySpawnPoints();
 
-    // For 8-4 level, always override spawn point to avoid player spawning in
-    // blocks Bowser's Castle requires specific spawn positioning regardless of
-    // CSV markers
-    if (levelName == "8-4") {
-        // Override spawn point: start at left side (gridX=3), well above blocks
-        // (gridY=3) to avoid spawning inside castle blocks
-        m_PlayerSpawnX = 3.0f * GameConfig::TILE_SIZE;
-        m_PlayerSpawnY = 3.0f * GameConfig::TILE_SIZE;
-    }
+    // 8-4 spawn point is read from the CSV (ID 999 = MarioStart at row=9, col=3)
+    // No override needed: the level now has the correct 999 marker.
 
     LOG_INFO("Level {} loaded: {}x{} tiles, {} blocks, {} spawn points",
              levelName, m_Width, m_Height, m_Blocks.size(),
@@ -205,6 +200,9 @@ void Level::LoadLookupTables() {
             // Read type from CSV (tokens[2])
             if (tokens.size() > 2 && !tokens[2].empty()) {
                 def.type = StringToEntityType(tokens[2]);
+                if (def.name == "ParaKoopa") {
+                    def.type = EntityType::PARAKOOPA;
+                }
             }
             // All subsequent token indices shifted by 1 because of new type
             // column
@@ -362,6 +360,12 @@ const Block* Level::GetBlockAt(int gridX, int gridY) const {
 }
 
 Block* Level::GetBlockAtWorld(float worldX, float worldY) {
+    int gridX = static_cast<int>(worldX) / GameConfig::TILE_SIZE;
+    int gridY = static_cast<int>(worldY) / GameConfig::TILE_SIZE;
+    return GetBlockAt(gridX, gridY);
+}
+
+const Block* Level::GetBlockAtWorld(float worldX, float worldY) const {
     int gridX = static_cast<int>(worldX) / GameConfig::TILE_SIZE;
     int gridY = static_cast<int>(worldY) / GameConfig::TILE_SIZE;
     return GetBlockAt(gridX, gridY);

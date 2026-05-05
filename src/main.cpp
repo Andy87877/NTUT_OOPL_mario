@@ -22,6 +22,7 @@ int main(int, char**) {
             case App::State::PLAYING:
             case App::State::FLAGPOLE:
             case App::State::PIPE_WARP:
+            case App::State::AXE_SEQUENCE:
             case App::State::DEATH:
             case App::State::GAME_OVER:
             case App::State::GAME_WON:

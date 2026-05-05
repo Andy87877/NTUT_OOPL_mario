@@ -158,7 +158,15 @@ AABB EntityState::GetHitbox() const {
     return AABB::FromPosSize(m_PosX, m_PosY, w, h);
 }
 
+// -- Gravity --
 float EntityState::ApplyGravity() {
+    if (!m_ApplyGravity) {
+        return 0.0f;
+    }
+    if (m_IsGrounded) {
+        m_VelY = 0;
+        m_FallHeight = 0;
+    }
     return PhysicsEngine::ApplyGravity(m_FallHeight, m_VelY, m_IsGrounded);
 }
 

@@ -17,8 +17,8 @@ namespace Mario {
 FireballBehavior::FireballBehavior(FireballType type)
     : m_Type(type), m_LifetimeFrames(240) {}
 
-void FireballBehavior::Update(EntityState& state, const Level& level,
-                              const Player& player, int gameTimer) {
+void FireballBehavior::Update(EntityState& state, [[maybe_unused]] const Level& level,
+                              [[maybe_unused]] const Player& player, [[maybe_unused]] int gameTimer) {
     // Check lifetime
     m_LifetimeFrames--;
     if (m_LifetimeFrames <= 0) {
@@ -33,16 +33,9 @@ void FireballBehavior::Update(EntityState& state, const Level& level,
     // Ground bounding is managed by App::CheckEntityBlockCollision.
     // If App.cpp set us as grounded, we bounce!
     if (state.IsGrounded()) {
-        // Bounce logic
-        if (m_BounceCount < MAX_BOUNCES) {
-            state.SetGrounded(false);  // jump up
-            state.SetFallHeight(GameConfig::FIREBALL_BOUNCE_HEIGHT);
-            m_BounceCount++;
-        } else {
-            // Max bounces reached - destroy
-            state.Delete();
-            return;
-        }
+        // Bounce logic (bounce forever like C# reference)
+        state.SetGrounded(false);  // jump up
+        state.SetFallHeight(GameConfig::JUMP_LOW_VELOCITY);
     }
 
     // All collision checking (ground, wall, entities) is handled by App.cpp
@@ -54,8 +47,8 @@ void FireballBehavior::Update(EntityState& state, const Level& level,
     }
 }
 
-bool FireballBehavior::OnPlayerCollision(EntityState& state, Player& player,
-                                         bool isFromAbove) {
+bool FireballBehavior::OnPlayerCollision(EntityState& state, [[maybe_unused]] Player& player,
+                                         [[maybe_unused]] bool isFromAbove) {
     // Player fireball: doesn't collide with player, only with enemies
     // This method is not called for player fireball hitting player
     // Bowser fireball: damages player (handled at App level)

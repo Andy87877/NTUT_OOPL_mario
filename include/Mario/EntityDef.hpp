@@ -18,6 +18,7 @@ namespace Mario {
 enum class EntityType {
     GOOMBA,
     KOOPA_TROOPA,
+    PARAKOOPA,
     KOOPA_SHELL,
     AXE_KOOPA,
     BOWSER,
@@ -30,6 +31,7 @@ enum class EntityType {
     COIN,
     FLAG,
     PARTICLE_DEBRIS,
+    AXE,
     AXE_PROJECTILE,
     UNKNOWN
 };

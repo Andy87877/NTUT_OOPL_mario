@@ -34,17 +34,18 @@ class App {
      * Game state machine states.
      */
     enum class State {
-        START,      // Initial boot
-        TITLE,      // Title screen
-        LOADING,    // Loading screen (shows world/lives)
-        PLAYING,    // Active gameplay
-        FLAGPOLE,   // Flagpole ending sequence
-        PIPE_WARP,  // Pipe warp transition
-        DEATH,      // Mario death animation
-        GAME_OVER,  // Game over screen (lives = 0)
-        GAME_WON,   // Game won - 8-4 Boss defeated
-        ESC_MENU,   // Pause menu with level skip
-        END,        // Exiting application
+        START,         // Initial boot
+        TITLE,         // Title screen
+        LOADING,       // Loading screen (shows world/lives)
+        PLAYING,       // Active gameplay
+        FLAGPOLE,      // Flagpole ending sequence
+        PIPE_WARP,     // Pipe warp transition
+        AXE_SEQUENCE,  // State for 8-4 ending
+        DEATH,         // Mario death animation
+        GAME_OVER,     // Game over screen (lives = 0)
+        GAME_WON,      // Game won - 8-4 Boss defeated
+        ESC_MENU,      // Pause menu with level skip
+        END,           // Exiting application
     };
 
     State GetCurrentState() const { return m_CurrentState; }
@@ -60,6 +61,7 @@ class App {
     void UpdatePlaying();
     void UpdateFlagpole();
     void UpdatePipeWarp();
+    void UpdateAxeSequence();
     void UpdateDeath();
     void UpdateGameOver();
     void UpdateGameWon();
@@ -70,14 +72,15 @@ class App {
     void PlayCurrentBGM();
     void StartLevel();
     void RenderAll();
+    void AdvanceToNextLevel();
+    void CheckAxeCollision();
 
     // -- Helpers --
-    void AdvanceToNextLevel();
+    void CheckFlagpoleCollision();
+    void CheckPipeCollision();
     void CheckEntityBlockCollision(Mario::Entity& entity);
     void CheckPlayerEntityCollision();
     void CheckEntityEntityCollision();
-    void CheckFlagpoleCollision();
-    void CheckPipeCollision();
     void CleanupDeadEntities();
 
    private:

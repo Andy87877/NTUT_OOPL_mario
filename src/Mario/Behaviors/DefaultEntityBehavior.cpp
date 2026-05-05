@@ -13,8 +13,8 @@
 
 namespace Mario {
 
-void DefaultEntityBehavior::Update(EntityState& state, const Level& level,
-                                   const Player& player, int gameTimer) {
+void DefaultEntityBehavior::Update([[maybe_unused]] EntityState& state, [[maybe_unused]] const Level& level,
+                                   [[maybe_unused]] const Player& player, [[maybe_unused]] int gameTimer) {
     // Passive entities don't move or update actively
     // Just let animation play if animated
     if (state.IsAnimated()) {
@@ -24,8 +24,8 @@ void DefaultEntityBehavior::Update(EntityState& state, const Level& level,
 }
 
 bool DefaultEntityBehavior::OnPlayerCollision(EntityState& state,
-                                              Player& player,
-                                              bool isFromAbove) {
+                                              [[maybe_unused]] Player& player,
+                                              [[maybe_unused]] bool isFromAbove) {
     // For coins: add score, mark for removal
     if (state.IsCoin()) {
         state.Delete();
@@ -35,7 +35,7 @@ bool DefaultEntityBehavior::OnPlayerCollision(EntityState& state,
 
     // For power-ups: apply power state to player
     if (state.IsPowerUp()) {
-        int powerUpState = state.GetPowerUpState();
+        [[maybe_unused]] int powerUpState = state.GetPowerUpState();
         // Power-up application logic handled in App collision manager
         state.Delete();  // Remove the item
         return true;     // Consumed

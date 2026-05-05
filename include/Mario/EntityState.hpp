@@ -84,9 +84,13 @@ class EntityState {
         }
     }
 
+    void SetCollidable(bool collidable) { m_DoesCollide = collidable; }
+    void SetGravity(bool gravity) { m_ApplyGravity = gravity; }
+
     // -- Actions --
     void FlipDirection();
     void Squish();
+    void SetSquashed(bool val) { m_Squashed = val; }
     void KickShell(float speed);
     void Delete();
     void Jump();
@@ -109,6 +113,7 @@ class EntityState {
     int m_Direction = 1;  // 0=Left, 1=Right, 2=None
 
     bool m_Active = true;
+    bool m_ApplyGravity = true;
     bool m_IsEnemy = false;
     bool m_IsPowerUp = false;
     bool m_IsCoin = false;

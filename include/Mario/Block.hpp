@@ -100,6 +100,23 @@ class Block : public Util::GameObject {
 
     const BlockDef& GetDef() const { return m_Def; }
 
+    void SetCollidable(bool collidable) { m_Solid = collidable; }
+
+    /**
+     * Enable physics gravity on this block (used for bridge collapse in 8-4).
+     * Once enabled, the block falls downward each Update() tick.
+     * @param gravity true to start falling
+     */
+    void SetGravity(bool gravity) {
+        if (gravity && !m_HasGravity) {
+            m_HasGravity = true;
+            m_FallVelocity = 0.0f;
+            // Snapshot world position before entering physics mode
+            m_WorldX = static_cast<float>(m_GridX * GameConfig::TILE_SIZE);
+            m_WorldY = static_cast<float>(m_GridY * GameConfig::TILE_SIZE);
+        }
+    }
+
    protected:
     int m_BlockID;
     int m_GridX;
@@ -113,6 +130,12 @@ class Block : public Util::GameObject {
 
     // Bounce animation
     float m_BounceHeight = 0.0f;
+
+    // Gravity physics (for bridge collapse)
+    bool m_HasGravity = false;
+    float m_FallVelocity = 0.0f;
+    float m_WorldX = 0.0f;  // Physics world X (fixed, set on gravity enable)
+    float m_WorldY = 0.0f;  // Physics world Y (updated each tick while falling)
 
     // Animation
     int m_CurrentFrame = 0;

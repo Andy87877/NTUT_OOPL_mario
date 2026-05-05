@@ -14,11 +14,13 @@ namespace Mario {
 
 void LevelCompleteController::Reset() {
     m_Phase = EndingPhase::NONE;
-    m_WasPipeWarp = false;
-    m_FlagEntity = nullptr;
-    m_EndTimer = -1;
-    m_LevelTimer = -1;
-    m_TickCount = 0;
+    m_was_pipe_warp = false;
+    m_flag_entity = nullptr;
+    m_bowser = nullptr;
+    m_princess = nullptr;
+    m_end_timer = -1;
+    m_level_timer = -1;
+    m_tick_count = 0;
 }
 
 // ============================================================================
@@ -29,13 +31,13 @@ void LevelCompleteController::StartFlagpole(Player& player,
                                             std::shared_ptr<Entity> flagEntity,
                                             const Block* goalBlock) {
     m_Phase = EndingPhase::POLE_SLIDE;
-    m_WasPipeWarp = false;
-    m_FlagEntity = flagEntity;
-    m_TickCount = 0;
+    m_was_pipe_warp = false;
+    m_flag_entity = flagEntity;
+    m_tick_count = 0;
 
     if (goalBlock) {
-        m_GoalBlockX = goalBlock->GetWorldX();
-        m_GoalBlockY = goalBlock->GetWorldY();
+        m_goal_block_x = goalBlock->GetWorldX();
+        m_goal_block_y = goalBlock->GetWorldY();
     }
 
     // Disable player control (C# line 1250: Mario.SetControllable(false))
@@ -46,7 +48,7 @@ void LevelCompleteController::StartFlagpole(Player& player,
 
     // Snap Mario exactly to grip the pole (shift left so visual connects)
     // We adjust position relative to the block so Mario's right hand touches it
-    float poleX = m_GoalBlockX - GameConfig::TILE_SIZE * 0.4f;
+    float poleX = m_goal_block_x - GameConfig::TILE_SIZE * 0.4f;
     player.GetState().SetX(poleX);
 
     // Set Mario's Y to flagpole's Y position (start of descent)
@@ -72,8 +74,26 @@ void LevelCompleteController::StartFlagpole(Player& player,
                                             : PowerState::SMALL);
     }
 
-    LOG_INFO("Flagpole sequence started at ({}, {})", m_GoalBlockX,
-             m_GoalBlockY);
+    LOG_INFO("Flagpole sequence started at ({}, {})", m_goal_block_x,
+             m_goal_block_y);
+}
+
+// ============================================================================
+// 8-4 Axe Sequence Start
+// ============================================================================
+void LevelCompleteController::StartAxeSequence(
+    Player& player, std::shared_ptr<Entity> bowser,
+    std::shared_ptr<Entity> princess) {
+    m_Phase = EndingPhase::AXE_SEQUENCE_START;
+    m_was_pipe_warp = false;
+    m_tick_count = 0;
+    m_bowser = bowser;
+    m_princess = princess;
+
+    player.GetState().SetControllable(false);
+    player.GetState().SetVelX(0.0f);
+
+    LOG_INFO("8-4 Axe sequence started.");
 }
 
 // ============================================================================
@@ -83,11 +103,11 @@ void LevelCompleteController::StartPipeWarp(Player& player,
                                             const std::string& direction,
                                             float pipeWorldX,
                                             float pipeWorldY) {
-    m_WasPipeWarp = true;
-    m_PipeDirection = direction;
-    m_PipeX = pipeWorldX;
-    m_PipeY = pipeWorldY;
-    m_TickCount = 0;
+    m_was_pipe_warp = true;
+    m_pipe_direction = direction;
+    m_pipe_x = pipeWorldX;
+    m_pipe_y = pipeWorldY;
+    m_tick_count = 0;
 
     // Disable control (C# line 945: Mario.SetControllable(false))
     player.GetState().SetControllable(false);
@@ -97,12 +117,12 @@ void LevelCompleteController::StartPipeWarp(Player& player,
     if (direction == "Down") {
         m_Phase = EndingPhase::PIPE_DESCEND;
         // Mario descends 2 tiles below pipe
-        m_PipeTargetY = pipeWorldY + GameConfig::TILE_SIZE * 2;
+        m_pipe_target_y = pipeWorldY + GameConfig::TILE_SIZE * 2;
         LOG_INFO("Pipe warp DOWN started at ({}, {})", pipeWorldX, pipeWorldY);
     } else {
         m_Phase = EndingPhase::PIPE_RIGHT;
         // Mario walks 2 tiles into the pipe
-        m_PipeTargetX = pipeWorldX + GameConfig::TILE_SIZE * 2;
+        m_pipe_target_x = pipeWorldX + GameConfig::TILE_SIZE * 2;
         player.GetState().SetGrounded(true);
         LOG_INFO("Pipe warp RIGHT started at ({}, {})", pipeWorldX, pipeWorldY);
     }
@@ -117,7 +137,7 @@ bool LevelCompleteController::Update(Player& player, Level& level,
         return false;
     }
 
-    m_TickCount++;
+    m_tick_count++;
 
     switch (m_Phase) {
         case EndingPhase::POLE_SLIDE:
@@ -130,7 +150,7 @@ bool LevelCompleteController::Update(Player& player, Level& level,
             UpdateEnterCastle(player);
             break;
         case EndingPhase::WAIT_TRANSITION:
-            if (m_TickCount > m_LevelTimer) {
+            if (m_tick_count > m_level_timer) {
                 m_Phase = EndingPhase::COMPLETED;
             }
             break;
@@ -139,6 +159,13 @@ bool LevelCompleteController::Update(Player& player, Level& level,
             break;
         case EndingPhase::PIPE_RIGHT:
             UpdatePipeRight(player);
+            break;
+        case EndingPhase::AXE_SEQUENCE_START:
+        case EndingPhase::BRIDGE_COLLAPSE:
+        case EndingPhase::BOWSER_FALL:
+        case EndingPhase::WALK_TO_PRINCESS:
+        case EndingPhase::PRINCESS_DIALOG:
+            UpdateAxeSequence(player, level);
             break;
         default:
             break;
@@ -170,8 +197,8 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
 
     // Slide flag entity down with Mario
     // Flag continues sliding as long as its Y is above Mario
-    if (m_FlagEntity && m_FlagEntity->GetState().IsActive()) {
-        EntityState& fs = m_FlagEntity->GetState();
+    if (m_flag_entity && m_flag_entity->GetState().IsActive()) {
+        EntityState& fs = m_flag_entity->GetState();
         // Flag slides parallel to Mario
         float flagY = fs.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
         fs.SetY(flagY);
@@ -193,7 +220,7 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
 
         // Transition to walking phase (C# lines 1256-1258)
         m_Phase = EndingPhase::POLE_WALK;
-        m_TickCount = 0;
+        m_tick_count = 0;
         LOG_INFO("Flagpole slide complete - Mario landed at bottom Y={}",
                  groundSurfaceY);
     }
@@ -216,7 +243,7 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
 
     // C# reference (Form1.cs lines 1244-1247):
     // Wait 20 ticks (0.4 seconds) before starting to walk
-    if (m_TickCount < GameConfig::ENDING_WALK_DELAY) {
+    if (m_tick_count < GameConfig::ENDING_WALK_DELAY) {
         // Just wait, don't move
         ps.SetVelX(0);
         ps.SetMovingRight(false);
@@ -241,7 +268,7 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
             if (ps.GetX() >= castleX) {
                 // Transition to entering castle
                 m_Phase = EndingPhase::ENTER_CASTLE;
-                m_TickCount = 0;
+                m_tick_count = 0;
                 ps.SetMovingRight(false);
                 ps.SetVelX(0);
                 LOG_INFO("Flagpole walk complete - reached castle at X={}",
@@ -252,9 +279,9 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
     }
 
     // Fallback: if no castle block found, walk a fixed distance
-    if (ps.GetX() > m_GoalBlockX + GameConfig::TILE_SIZE * 8) {
+    if (ps.GetX() > m_goal_block_x + GameConfig::TILE_SIZE * 8) {
         m_Phase = EndingPhase::ENTER_CASTLE;
-        m_TickCount = 0;
+        m_tick_count = 0;
         ps.SetMovingRight(false);
         ps.SetVelX(0);
         LOG_WARN("Castle block not found - using fallback distance");
@@ -269,8 +296,8 @@ void LevelCompleteController::UpdateEnterCastle(Player& player) {
     // Make Mario invisible (C# line 1221: setRecBox to 0,0)
     player.SetVisible(false);
 
-    if (m_LevelTimer < 0) {
-        m_LevelTimer = m_TickCount + GameConfig::LEVEL_TRANSITION_DELAY;
+    if (m_level_timer < 0) {
+        m_level_timer = m_tick_count + GameConfig::LEVEL_TRANSITION_DELAY;
     }
 
     m_Phase = EndingPhase::WAIT_TRANSITION;
@@ -290,7 +317,7 @@ void LevelCompleteController::UpdatePipeDescend(Player& player) {
     ps.SetY(newY);
 
     // Check if descended far enough
-    if (ps.GetY() > m_PipeTargetY) {
+    if (ps.GetY() > m_pipe_target_y) {
         m_Phase = EndingPhase::COMPLETED;
         LOG_DEBUG("Pipe descend complete");
     }
@@ -298,20 +325,107 @@ void LevelCompleteController::UpdatePipeDescend(Player& player) {
 
 // ============================================================================
 // Pipe: Walk Right
-// C# reference: Form1.cs lines 957-968
+// C# reference: Form1.cs lines 956-965
 // ============================================================================
 void LevelCompleteController::UpdatePipeRight(Player& player) {
     PlayerState& ps = player.GetState();
 
-    // Move Mario right (C# line 959: moveRight(Mario))
-    float newX = ps.GetX() + GameConfig::SCALED_SPEED;
+    // Move Mario right
+    float newX = ps.GetX() + GameConfig::PIPE_ANIM_SPEED;
     ps.SetX(newX);
-    ps.SetGrounded(true);
+    ps.SetMovingRight(true);
+    ps.SetFacingRight(true);
 
-    // Check if walked far enough
-    if (ps.GetX() > m_PipeTargetX) {
+    // Check if moved far enough
+    if (ps.GetX() > m_pipe_target_x) {
         m_Phase = EndingPhase::COMPLETED;
-        LOG_DEBUG("Pipe walk right complete");
+        player.SetVisible(false);
+        LOG_DEBUG("Pipe right-walk complete");
+    }
+}
+
+// ============================================================================
+// 8-4: Axe Sequence Update
+// ============================================================================
+void LevelCompleteController::UpdateAxeSequence(Player& player, Level& level) {
+    switch (m_Phase) {
+        case EndingPhase::AXE_SEQUENCE_START:
+            // Brief pause after touching axe
+            if (m_tick_count > 30) {  // ~0.5s pause
+                m_Phase = EndingPhase::BRIDGE_COLLAPSE;
+                m_tick_count = 0;
+                LOG_INFO("8-4: Collapsing bridge.");
+
+                // Make bridge blocks fall
+                for (const auto& block : level.GetAllBlocks()) {
+                    if (block && (block->GetName() == "Bridge" ||
+                                  block->GetName() == "BridgeBlock")) {
+                        block->SetGravity(true);
+                        block->SetCollidable(false);
+                    }
+                }
+            }
+            break;
+
+        case EndingPhase::BRIDGE_COLLAPSE:
+            // Wait for bridge to fall a bit, then make Bowser fall
+            if (m_tick_count > 60) {  // ~1s
+                m_Phase = EndingPhase::BOWSER_FALL;
+                m_tick_count = 0;
+                if (m_bowser && m_bowser->GetState().IsActive()) {
+                    LOG_INFO("8-4: Bowser falls.");
+                    auto& bowserState = m_bowser->GetState();
+                    m_bowser->SetBehavior(nullptr);  // Disable AI
+                    bowserState.SetCollidable(false);
+                    bowserState.SetGravity(true);
+                    bowserState.SetVelY(-5.0f);  // Give a little push
+                }
+            }
+            break;
+
+        case EndingPhase::BOWSER_FALL:
+            // After Bowser is off-screen, start walking to princess
+            if (m_tick_count > 180) {  // ~3s
+                m_Phase = EndingPhase::WALK_TO_PRINCESS;
+                m_tick_count = 0;
+                LOG_INFO("8-4: Walking to Princess.");
+            }
+            break;
+
+        case EndingPhase::WALK_TO_PRINCESS: {
+            PlayerState& ps = player.GetState();
+            ps.SetMovingRight(true);
+            ps.SetFacingRight(true);
+            ps.SetX(ps.GetX() +
+                    GameConfig::SCALED_SPEED * 0.5f);  // Walk slower
+
+            if (m_princess && m_princess->GetState().IsActive()) {
+                float princessX = m_princess->GetState().GetX();
+                if (ps.GetX() >= princessX - ps.GetWidth()) {
+                    ps.SetMovingRight(false);
+                    ps.SetVelX(0);
+                    m_Phase = EndingPhase::PRINCESS_DIALOG;
+                    m_tick_count = 0;
+                    LOG_INFO("8-4: Reached Princess.");
+                }
+            } else {                       // Fallback if princess not found
+                if (m_tick_count > 300) {  // Walk for ~5s
+                    m_Phase = EndingPhase::PRINCESS_DIALOG;
+                }
+            }
+            break;
+        }
+
+        case EndingPhase::PRINCESS_DIALOG:
+            // Wait for a few seconds then end the game
+            if (m_tick_count > 300) {  // ~5s
+                m_Phase = EndingPhase::COMPLETED;
+                LOG_INFO("8-4: Game complete!");
+            }
+            break;
+
+        default:
+            break;
     }
 }
 

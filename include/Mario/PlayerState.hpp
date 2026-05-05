@@ -197,7 +197,7 @@ class PlayerState {
     // Fire shooting
     bool m_SpecialActive = false;
     int m_SpecialCounter = 0;
-    int m_SpecialLength = 30;
+    int m_SpecialLength = 15;
 };
 
 }  // namespace Mario

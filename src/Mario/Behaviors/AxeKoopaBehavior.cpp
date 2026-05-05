@@ -14,7 +14,7 @@
 namespace Mario {
 
 void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
-                              const Player& player, int gameTimer) {
+                              [[maybe_unused]] const Player& player, int gameTimer) {
     if (state.IsSquished() || state.IsDead()) {
         return;
     }
@@ -88,8 +88,8 @@ void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
     }
 }
 
-bool AxeKoopaBehavior::OnPlayerCollision(EntityState& state, Player& player,
-                                         bool isFromAbove) {
+bool AxeKoopaBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state, [[maybe_unused]] Player& player,
+                                         [[maybe_unused]] bool isFromAbove) {
     if (state.IsSquished() || state.IsDead()) {
         return false;
     }

@@ -70,6 +70,8 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
         auto entity =
             SpawnEntity(def, sp.worldX, sp.worldY, direction, false, levelName);
         if (entity) {
+            LOG_DEBUG("Spawned {} at worldX={}, worldY={}", sp.entityName,
+                      sp.worldX, sp.worldY);
             entities.push_back(entity);
         }
     }
@@ -126,6 +128,12 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             break;
         case EntityType::PARTICLE_DEBRIS:
             behavior = std::make_unique<ParticleDebris>();
+            break;
+        case EntityType::AXE:
+            // Static axe trigger on Bowser's bridge — AxeBehavior handles
+            // animation and deletion on contact; App::CheckAxeCollision()
+            // triggers the bridge-collapse sequence.
+            behavior = std::make_unique<AxeBehavior>();
             break;
         case EntityType::AXE_PROJECTILE:
             behavior = std::make_unique<AxeBehavior>();

@@ -56,6 +56,19 @@ class BowserBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
 
     /**
+     * Handle fireball hit using Bowser's 3-HP system.
+     * Returns true so CollisionManager only deletes the fireball.
+     */
+    bool OnFireballHit(EntityState& state) override;
+
+    /**
+     * Consume a pending Bowser fireball spawn request.
+     * Set by UpdateFireAttackPhase() when it's time to shoot.
+     */
+    bool ConsumeSpawnRequest(int& outType, float& outX, float& outY,
+                             int& outDir) override;
+
+    /**
      * Clone this behavior.
      */
     std::unique_ptr<IEntityBehavior> Clone() const override;
@@ -80,6 +93,12 @@ class BowserBehavior : public IEntityBehavior {
     int m_DamageFlashCounter = 0;  // Flashing effect after damage
     int m_PatrolDirection = 1;     // 1 = right, -1 = left
 
+    // Pending fireball spawn request (set by UpdateFireAttackPhase)
+    bool m_FireballPending = false;
+    float m_FireballX = 0.0f;
+    float m_FireballY = 0.0f;
+    int m_FireballDir = 0;  // direction toward player
+
     static constexpr int PATROL_PHASE_LENGTH = 180;   // 3 seconds at 60fps
     static constexpr int FIRE_ATTACK_LENGTH = 120;    // 2 seconds
     static constexpr int ATTACK_INTERVAL = 40;        // Frames between attacks
@@ -88,7 +107,7 @@ class BowserBehavior : public IEntityBehavior {
     // Helper methods
     void UpdatePatrol(EntityState& state, const Level& level,
                       const Player& player);
-    void UpdateFireAttackPhase();
+    void UpdateFireAttackPhase(const EntityState& state, const Player& player);
     void UpdateJumpAttack(EntityState& state, const Level& level,
                           const Player& player);
     void UpdateDamaged(EntityState& state);

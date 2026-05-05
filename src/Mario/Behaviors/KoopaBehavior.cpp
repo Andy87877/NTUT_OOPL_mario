@@ -19,8 +19,8 @@ namespace Mario {
 
 KoopaBehavior::KoopaBehavior(KoopaType type) : m_Type(type) {}
 
-void KoopaBehavior::Update(EntityState& state, const Level& level,
-                           const Player& player, int gameTimer) {
+void KoopaBehavior::Update(EntityState& state, [[maybe_unused]] const Level& level,
+                           [[maybe_unused]] const Player& player, [[maybe_unused]] int gameTimer) {
     if (state.IsSquished() || state.IsDead()) {
         // Dead koopas don't move
         if (!state.IsAnimated()) {
@@ -45,8 +45,8 @@ void KoopaBehavior::Update(EntityState& state, const Level& level,
     }
 }
 
-bool KoopaBehavior::OnPlayerCollision(EntityState& state, Player& player,
-                                      bool isFromAbove) {
+bool KoopaBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state, [[maybe_unused]] Player& player,
+                                      [[maybe_unused]] bool isFromAbove) {
     // Shell spawning is handled by App::CheckPlayerEntityCollision (C# Squish)
     // This method just returns false to let App handle all collision logic
     return false;

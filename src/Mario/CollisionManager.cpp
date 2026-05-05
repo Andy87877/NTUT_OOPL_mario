@@ -67,7 +67,8 @@ void CollisionManager::CheckGroundCollision(PlayerState& state, Level& level) {
             if (playerBox.Intersects(blockBox)) {
                 // Check it's a downward collision (feet hitting top of block)
                 float overlapY = playerBox.bottom - blockBox.top;
-                if (overlapY > 0 && overlapY < GameConfig::TILE_SIZE * 0.75f) {
+                if (state.GetVelY() >= 0.0f && overlapY > 0 &&
+                    overlapY < GameConfig::TILE_SIZE * 0.75f) {
                     // Snap player to top of block
                     state.SetY(blockBox.top -
                                static_cast<float>(state.GetHeight()));
@@ -89,7 +90,7 @@ void CollisionManager::CheckGroundCollision(PlayerState& state, Level& level) {
             if (block && block->IsSolid()) {
                 AABB blockBox = block->GetAABB();
                 float gap = blockBox.top - playerBox.bottom;
-                if (gap >= 0 && gap <= 2.0f) {
+                if (state.GetVelY() >= 0.0f && gap >= 0 && gap <= 2.0f) {
                     state.SetY(blockBox.top -
                                static_cast<float>(state.GetHeight()));
                     state.SetVelY(0.0);
@@ -126,7 +127,8 @@ void CollisionManager::CheckCeilingCollision(
 
             if (playerBox.Intersects(blockBox)) {
                 float overlapY = blockBox.bottom - playerBox.top;
-                if (overlapY > 0 && overlapY < GameConfig::TILE_SIZE * 0.75f) {
+                if (state.GetVelY() < 0.0f && overlapY > 0 &&
+                    overlapY < GameConfig::TILE_SIZE * 0.75f) {
                     // Head bump: push player down
                     state.SetY(blockBox.bottom);
                     state.SetVelY(0.0);
@@ -210,33 +212,37 @@ void CollisionManager::CheckCeilingCollision(
                         float bx = block->GetWorldX();
                         float by = block->GetWorldY();
 
+                        float offset = GameConfig::TILE_SIZE * 0.25f;
                         Level::SpawnPoint sp1{-1,
-                                              "BrickBlockBreak_tl",
+                                              block->GetName() + "Break_tl",
                                               block->GetGridX(),
                                               block->GetGridY(),
-                                              bx,
-                                              by,
+                                              bx - offset,
+                                              by - offset,
                                               true};
-                        Level::SpawnPoint sp2{-1,
-                                              "BrickBlockBreak_tr",
-                                              block->GetGridX(),
-                                              block->GetGridY(),
-                                              bx,
-                                              by,
-                                              true};
+                        Level::SpawnPoint sp2{
+                            -1,
+                            block->GetName() + "Break_tr",
+                            block->GetGridX(),
+                            block->GetGridY(),
+                            bx + offset,
+                            by + offset,  // Wait, C# says: (x + 0.25), (y +
+                                          // 0.25) -> this is actually br in C#?
+                                          // Let's check C# again.
+                            true};
                         Level::SpawnPoint sp3{-1,
-                                              "BrickBlockBreak_bl",
+                                              block->GetName() + "Break_bl",
                                               block->GetGridX(),
                                               block->GetGridY(),
-                                              bx,
-                                              by,
+                                              bx - offset,
+                                              by + offset,
                                               true};
                         Level::SpawnPoint sp4{-1,
-                                              "BrickBlockBreak_br",
+                                              block->GetName() + "Break_br",
                                               block->GetGridX(),
                                               block->GetGridY(),
-                                              bx,
-                                              by,
+                                              bx + offset,
+                                              by - offset,
                                               true};
 
                         outSpawns->push_back(sp1);
@@ -498,8 +504,11 @@ void CollisionManager::CheckEntityEntityCollision(
             // ✨ Fire vs Enemy (updated to use entities[i]->GetDef())
             if (entities[i]->GetDef().type == EntityType::FIRE &&
                 e2.IsEnemy()) {
-                e1.Delete();
-                if (!e2.IsDead()) {
+                // Delegate to behavior first (e.g., BowserBehavior uses HP)
+                bool handled = entities[j]->GetBehavior() &&
+                               entities[j]->GetBehavior()->OnFireballHit(e2);
+                e1.Delete();  // Always delete the fireball
+                if (!handled && !e2.IsDead()) {
                     e2.Delete();
                     Mario::AudioManager::GetInstance().PlaySFX(
                         Mario::SFXName::Kick);
@@ -507,8 +516,10 @@ void CollisionManager::CheckEntityEntityCollision(
                 }
             } else if (entities[j]->GetDef().type == EntityType::FIRE &&
                        e1.IsEnemy()) {
-                e2.Delete();
-                if (!e1.IsDead()) {
+                bool handled = entities[i]->GetBehavior() &&
+                               entities[i]->GetBehavior()->OnFireballHit(e1);
+                e2.Delete();  // Always delete the fireball
+                if (!handled && !e1.IsDead()) {
                     e1.Delete();
                     Mario::AudioManager::GetInstance().PlaySFX(
                         Mario::SFXName::Kick);

@@ -23,8 +23,8 @@ void PrincessBehavior::Update(EntityState& state, const Level& /*level*/,
     }
 }
 
-bool PrincessBehavior::OnPlayerCollision(EntityState& state, Player& /*player*/,
-                                         bool /*isFromAbove*/) {
+bool PrincessBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state, [[maybe_unused]] Player& /*player*/,
+                                         [[maybe_unused]] bool /*isFromAbove*/) {
     // Princess collision marks level as complete
     // The LevelCompleteController will detect princess collision and trigger
     // game clear Princess is consumable (disappears after player touches) Note:

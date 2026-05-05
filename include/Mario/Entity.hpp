@@ -98,6 +98,11 @@ class Entity : public Util::GameObject {
     std::string m_CurrentSpritePath;
     std::unordered_map<std::string, std::shared_ptr<Util::Image>> m_SpriteCache;
 
+    // Flag: size and Y position are initialized only once on first sprite load.
+    // Prevents animated entities (Princess, Goomba) from drifting upward every
+    // animation frame change when spriteSize.y > spriteSize.x.
+    bool m_SizeInitialized = false;
+
     std::unique_ptr<IEntityBehavior> m_Behavior;  // Strategy Pattern behavior
 };
 

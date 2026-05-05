@@ -18,8 +18,8 @@ namespace Mario {
 
 EnemyBehavior::EnemyBehavior(EnemyType type) : m_Type(type) {}
 
-void EnemyBehavior::Update(EntityState& state, const Level& level,
-                           const Player& player, int gameTimer) {
+void EnemyBehavior::Update(EntityState& state, [[maybe_unused]] const Level& level,
+                           [[maybe_unused]] const Player& player, [[maybe_unused]] int gameTimer) {
     if (state.IsSquished() || state.IsDead()) {
         // Dead enemies don't move, just animate squish state
         if (!state.IsAnimated()) {
@@ -42,7 +42,7 @@ void EnemyBehavior::Update(EntityState& state, const Level& level,
     // (This will be handled by collision manager in a future enhancement)
 }
 
-bool EnemyBehavior::OnPlayerCollision(EntityState& state, Player& player,
+bool EnemyBehavior::OnPlayerCollision(EntityState& state, [[maybe_unused]] Player& player,
                                       bool isFromAbove) {
     if (state.IsSquished() || state.IsDead()) {
         return false;

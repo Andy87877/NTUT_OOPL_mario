@@ -81,6 +81,8 @@ classDiagram
     class BowserBehavior {
         +Update()
         +OnPlayerCollision()
+        +OnFireballHit() bool
+        +ConsumeSpawnRequest() bool
     }
     class FireballBehavior {
         +Update()
@@ -94,14 +96,29 @@ classDiagram
         +Update()
         +OnPlayerCollision()
     }
+    class ParaKoopaBehavior {
+        +Update()
+        +OnPlayerCollision()
+    }
+    class AxeKoopaBehavior {
+        +Update()
+        +OnPlayerCollision()
+    }
+    class DefaultEntityBehavior {
+        +Update()
+        +OnPlayerCollision()
+    }
 
     IEntityBehavior <|.. EnemyBehavior : 實作介面 (多型)
     IEntityBehavior <|.. ItemBehavior : 實作介面 (多型)
     IEntityBehavior <|.. KoopaBehavior : 實作介面 (多型)
+    IEntityBehavior <|.. ParaKoopaBehavior : 實作介面 (多型)
     IEntityBehavior <|.. BowserBehavior : 實作介面 (多型)
     IEntityBehavior <|.. FireballBehavior : 實作介面 (多型)
     IEntityBehavior <|.. AxeBehavior : 實作介面 (多型)
+    IEntityBehavior <|.. AxeKoopaBehavior : 實作介面 (多型)
     IEntityBehavior <|.. PrincessBehavior : 實作介面 (多型)
+    IEntityBehavior <|.. DefaultEntityBehavior : 實作介面 (多型)
 
     Entity *-- IEntityBehavior : 組合 (Strategy Pattern)
 
@@ -239,9 +256,10 @@ PHASE 11: LEVEL COMPLETION    // 水管通關、到達旗桿等大狀態跳轉
 | **ItemBehavior** | ✅ DONE | Physics moved to App::UpdatePlaying() |
 | **AxeKoopaBehavior** | ✅ DONE | Simplified to AI logic only |
 | **FireballBehavior** | ✅ DONE | Already correct (AI logic only) |
-| **BowserBehavior** | ⏳ TODO | Needs physics removal (complex multi-phase) |
-| **ParaKoopaBehavior** | ⏳ TODO | Needs physics refactor (floating logic) |
-| **DefaultEntityBehavior** | ⏳ TODO | Review and simplify if needed |
+| **BowserBehavior** | ✅ DONE | Multi-phase AI with health system |
+| **ParaKoopaBehavior** | ✅ DONE | EntityType::PARAKOOPA + flying-to-ground transition |
+| **AxeKoopaBehavior** | ✅ DONE | Projectile throwing behavior |
+| **DefaultEntityBehavior** | ✅ DONE | Fallback for unrecognized entity types |
 
 ### Key Changes in UpdatePlaying() (PHASE 10)
 
@@ -561,32 +579,52 @@ enum class BowserPhase {
 | 階段 | 行為 | 實裝位置 | 驗證狀態 |
 |------|------|--------|--------|
 | **PATROL** | 牆壁偵測 + 碰撞檢查 + 方向反轉 | UpdatePatrol() | ✅ |
-| **FIRE_ATTACK** | 計時攻擊 + SFX 播放 | UpdateFireAttackPhase() | ✅ |
+| **FIRE_ATTACK** | 每 40 frames 射出火球 + SFX + ConsumeSpawnRequest() | UpdateFireAttackPhase() | ✅ |
 | **JUMP_ATTACK** | 定期跳躍 (每 80 frames) + 移動 | UpdateJumpAttack() | ✅ |
 | **DAMAGED** | 閃爍計時器 + 返回巡邏 | UpdateDamaged() | ✅ |
 | **DEFEATED** | 重力應用 + 3秒後 delete | UpdateDefeated() | ✅ |
 
-#### 2️⃣ Boss 碰撞與傷害系統 (OnPlayerCollision)
+#### 2️⃣ Boss 碰撞與傷害系統 (OnFireballHit + IEntityBehavior 介面)
 
 **健康度機制**：
 
 - 初始血量: `m_HealthPoints = 3`
-- 玩家火球命中: `m_HealthPoints--`
-- 3 次命中後: 進入 `DEFEATED` 狀態
-- Bowser 體碰撞: 傷害玩家 (若無 STAR 保護)
+- 玩家火球命中: `OnFireballHit()` → `m_HealthPoints--`
+- 3 次命中後: 進入 `DEFEATED` 狀態, `SetGravity(true)`, `SetCollidable(false)`, play `BowserDie`
+- Bowser 體碰撞: 傷害玩家 (由 `CollisionManager` 的 `TakeDamage()` 處理)
+
+**`IEntityBehavior` 新增介面方法**:
+
+- `OnFireballHit(EntityState&) -> bool` — 預設 false (正常刪除)；BowserBehavior 覆寫 → 使用 HP 系統，回傳 true
+- `ConsumeSpawnRequest(int& type, float& x, float& y, int& dir) -> bool` — BowserBehavior 用於 fire attack 時射出火球
 
 **碰撞处理流程**:
 
 ```
-玩家火球 → CollisionManager::OnPlayerCollision()
-    ↓
+玩家火球 → CollisionManager::CheckEntityEntityCollision()
+    → entities[j]->GetBehavior()->OnFireballHit(e2)
+    ↓ (BowserBehavior 回傳 true)
+↓ 僅刪除火球 (Bowser 不刪除)
 ↓ Bowser 進入 DAMAGED 階段
 ↓ m_HealthPoints--
 ↓ if (m_HealthPoints <= 0)
 │   └─→ m_Phase = DEFEATED
-│       └─→ state.SetFallHeight(0.0)  [開始墜落]
-└─→ UpdateDamaged() 閃爍 60 frames
-    └─→ 返回 PATROL
+│       └─→ SetGravity(true), SetCollidable(false)
+│       └─→ SFX::BowserDie
+└─→ UpdateDamaged() 閃爍 60 frames → 返回 PATROL
+```
+
+**Bowser 火球發射流程**:
+
+```
+BowserBehavior::UpdateFireAttackPhase()
+  → m_FireballPending = true  (每 40 frames)
+  → m_FireballDir 指向玩家方向
+
+App.cpp 實體更新迴圈:
+  → behavior->ConsumeSpawnRequest(...)
+  → EntityFactory::SpawnEntity("Fire", ...)
+  → spawned->SetVelX(±4.0f)
 ```
 
 #### 3️⃣ 遊戲完成流程 (Game Won State)
@@ -1040,6 +1078,95 @@ case EntityType::NEW_ENEMY:
 - ✅ BowserBehavior (5-Phase Boss AI) - 完整 ✓
 - ✅ PrincessBehavior (NPC) - 完整 ✓
 - ✅ DefaultEntityBehavior (Passive) - 完整 ✓
+
+### 8-4 結局序列修復記錄
+
+**Bug 修復: 庫巴 / Axe / 公主不出現 (最終根本原因修復)**
+
+#### 根本原因分析 (完整修復紀錄)
+
+| 問題 | 根本原因 | 修復 |
+|------|---------|------|
+| **[ROOT CAUSE] 8-4 所有實體均不生成** | `Resources/Levels/8-4.csv` 完全空白 (15×320 全為 0)，沒有任何 Spawner 方塊，EntityFactory 無法從空 Level 生成任何東西 | 使用 `make_84_level.py` 重新生成 8-4.csv，包含正確的城堡地圖結構和所有 800+ 段 spawner 方塊 |
+| **[ROOT CAUSE] 城堡牆壁/地板全部不可見** | `make_84_level.py` 使用 `WALL = 801` (tile_0001.png = **純藍色**)，與天空背景色(92,148,252)完全相同，所有牆壁方塊渲染時與背景融合不可見 | 修正 `WALL = 808` (tile_0008.png = 深色棋盤格城堡磚塊，可見) |
+| **[ROOT CAUSE] 橋樑材質錯誤** | `make_84_level.py` 使用 `BRIDG = 818` (tile_0018.png = 月牙形管道開口)，不是橋板的正確材質 | 修正 `BRIDG = 869` (tile_0069.png = 垂直條紋木製橋板)；另新增 `LAVA_DEEP = 904` (tile_0104.png = 實心紅色熔岩填充) |
+| **[ROOT CAUSE] Axe 實體行為錯誤** | `EntityFactory.cpp` 缺少 `case EntityType::AXE:`，Axe 實體被分配到 `DefaultEntityBehavior` 而非 `AxeBehavior`；導致碰撞時無動畫且 `CheckAxeCollision()` 無法觸發序列 | 在 EntityFactory 中新增 `case EntityType::AXE:` → `std::make_unique<AxeBehavior>()` |
+| 玩家生成位置錯誤 | `App.cpp` 有 ~150 行錯誤的 8-4 硬編碼覆蓋，強制 spawn 到 `290*TILE_SIZE, 6*TILE_SIZE` (col=290，但空 level 中是空地)；`Level.cpp` 另有強制覆蓋到 row=3 (牆壁內) | 移除 App.cpp 和 Level.cpp 中的 8-4 強制覆蓋，改用 CSV 中 ID 999 (MarioStart) 標記正確位置 row=9, col=3 |
+| Axe 觸發器無效 (舊問題) | EntityList.csv ID 24 與 BrickBlockBreak_tl 衝突 → m_EntityDefs[24] 被覆蓋為粒子碎片 | Axe ID 改為 30 |
+| 橋樑不坍塌 | LevelCompleteController 只找 "Bridge" 名稱，8-4 橋磚為 "BridgeBlock" | 橋塌程式碼改為同時檢查兩個名稱 |
+| 庫巴走落懸崖 | m_PatrolDirection 初始為 1 (右) 走入地板缺口 | 改為 -1 (左，朝向馬力歐) + 前方地板檢測 |
+| 庫巴生成時跳躍 | EntityList.csv Bowser doesJump=1 → Init() 呼叫 Jump() | 改為 doesJump=0 |
+
+#### 8-4.csv 地圖結構 (完整版 — generate_8-4_map.py 重新生成)
+
+CSV 格式: **15 rows × 392 cols**，完整多房間城堡迷宮 (來自 layout.csv 參考資料)
+
+所有方塊 ID = 原始參考 ID + 800 偏移，僅 MarioStart (999) 為特殊直接寫入
+
+| 實體 | IDList ID | 位置 | 世界座標 |
+|------|----------|------|--------|
+| MarioStart (玩家出生) | 999 | row=9, col=5 | X=225, Y=405 |
+| GoombaSpawn (自 layout.csv) | 882 | 分散於迷宮各處 | 對應 layout.csv tile 82 → +800 |
+| KoopaSpawn (自 layout.csv) | 886 | 分散於迷宮各處 | 對應 layout.csv tile 86 → +800 |
+| BowserSpawn | 847 | row=9, col=334 | X=15030, Y=405 |
+| AxeTrigger | 849 | row=9, col=342 | X=15390, Y=405 |
+| PrincessSpawn | 879 | row=9, col=351 | X=15795, Y=405 |
+| Bridge 橋板 (ID **869**) | - | row=10, col=325-344 (Boss 房) | tile_0069.png 木製橋板 |
+| Lava Surface (ID **893**) | - | row=11, 橋下 | tile_0093.png 紅冠頂部 (背景) |
+| Lava Body (ID **904**) | - | row=12-13, 橋下深處 | tile_0104.png 實心紅色 (背景) |
+| Wall/Floor (ID **808**) | - | 城堡牆壁/地板/天花板 | tile_0008.png 深色棋盤格城堡磚塊 |
+| 各種管道 (ID 825/826/831/832) | - | 迷宮房間 | 對應 layout.csv 管道 tiles |
+
+**Boss 房間範圍**: 絕對 col 320-363 (Boss region 44 列寬)
+**全程迷宮**: col 0-319 來自 NES 8-4 layout.csv 原始關卡資料
+
+#### EntityFactory 實體路由表 (完整)
+
+| EntityType | Behavior 類別 | 對應敵人 |
+|-----------|-------------|--------|
+| GOOMBA | EnemyBehavior (GOOMBA) | Goomba |
+| KOOPA_TROOPA | KoopaBehavior (TROOPA) | Koopa Troopa |
+| KOOPA_SHELL | KoopaBehavior (SHELL) | Koopa Shell |
+| PARA_KOOPA | ParaKoopaBehavior | Para-Koopa |
+| AXE_KOOPA | AxeKoopaBehavior | Axe-Koopa |
+| BOWSER | BowserBehavior | Boss 庫巴 |
+| PRINCESS | PrincessBehavior | 公主 NPC |
+| **AXE** | **AxeBehavior** | **Axe 觸發器 (修復後)** |
+| AXE_PROJECTILE | AxeBehavior | 飛斧投射物 |
+| FIREBALL | FireballBehavior | 火球 |
+| MUSHROOM / STAR / FIRE_FLOWER | ItemBehavior | 道具 |
+| FLAG | DefaultEntityBehavior | 旗杆 |
+| COIN | DefaultEntityBehavior | 金幣 |
+| 其他 | DefaultEntityBehavior | 被動實體 |
+
+#### 8-4 結局序列流程 (最終正確版)
+
+```
+馬力歐觸碰 Axe (row=9, col=65, worldX=2925)
+  ↓ App::CheckAxeCollision() → 找到 entity name=="Axe"
+  ↓ m_CurrentState = State::AXE_SEQUENCE
+  ↓ LevelCompleteController::StartAxeSequence(player, bowser, princess)
+  ↓ [30 ticks] AXE_SEQUENCE_START → 觸斧短暫停頓
+  ↓ [60 ticks] BRIDGE_COLLAPSE → Bridge (ID 869) 磚塊啟動重力落下
+  ↓ [180 ticks] BOWSER_FALL → 庫巴失去碰撞、重力啟動下墜
+  ↓ WALK_TO_PRINCESS → 馬力歐向 col=72 (worldX=3240) 走向公主
+  ↓ [300 ticks] PRINCESS_DIALOG → 對話等待
+  ↓ COMPLETED → GameWon → AdvanceToNextLevel
+```
+
+#### 相關檔案 (最終修復清單)
+
+| 檔案 | 修改內容 |
+|------|---------|
+| `Resources/Levels/8-4.csv` | **完整重新生成** (392×15 全迷宮地圖)；使用 `generate_8-4_map.py`；MarioStart=row9,col5；Boss 房 cols 320-363；牆壁=808、橋=869、熔岩=893/904 |
+| `generate_8-4_map.py` | **完整修正**：TILE_GROUND: 1→8 (→808 可見)；TILE_BRIDGE: 18→69 (→869 橋板)；TILE_AXE: 20→49 (→849 觸發器)；新增 TILE_BOWSER=47/TILE_PRINCESS=79/TILE_LAVA=93/TILE_LAVA_DEEP=104；write_csv 新增 MarioStart(199→999) 特殊處理；generate_boss_region 加入完整實體生成和熔岩 |
+| `make_84_level.py` | **保留備用** (簡化版 85 col)；WALL=808、BRIDG=869、LAVA_DEEP=904 (先前已修正) |
+| `src/Mario/EntityFactory.cpp` | **新增** `case EntityType::AXE:` → `AxeBehavior()` |
+| `src/App.cpp` | **移除** ~150 行錯誤的 8-4 硬編碼 spawn 覆蓋；改用 CSV 作為單一真實來源 |
+| `src/Mario/Level.cpp` | **移除** 強制 8-4 玩家位置覆蓋 (row=3)；改用 CSV ID 999 標記 |
+| `Resources/LookUpSheet/EntityList.csv` | Axe ID: 24→30, isAnimated=0; Bowser doesJump: 1→0 (先前已修復) |
+| `src/Mario/LevelCompleteController.cpp` | Bridge 坍塌: 同時檢查 "Bridge" 和 "BridgeBlock" 名稱 (先前已修復) |
+| `src/Mario/Behaviors/BowserBehavior.cpp` | m_PatrolDirection: 1→-1; 加入前方地板檢測 (先前已修復) |
 
 ### 編譯狀態 ✅
 

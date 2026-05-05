@@ -14,8 +14,8 @@
 
 namespace Mario {
 
-void ParaKoopaBehavior::Update(EntityState& state, const Level& level,
-                               const Player& /* player */, int gameTimer) {
+void ParaKoopaBehavior::Update(EntityState& state, [[maybe_unused]] const Level& level,
+                               [[maybe_unused]] const Player& /* player */, int gameTimer) {
     // Initialize original Y on first frame
     if (m_OriginalY == 0.0f && m_FloatPhase == 0.0f) {
         m_OriginalY = state.GetWorldY();

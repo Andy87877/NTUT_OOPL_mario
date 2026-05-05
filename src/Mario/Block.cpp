@@ -173,6 +173,30 @@ void Block::Update(float cameraOffset) {
         LoadSpriteOnDemand();
     }
 
+    // --- Gravity physics: bridge collapse ---
+    // When SetGravity(true) is called, block enters free-fall using stored
+    // world coordinates instead of the fixed grid position.
+    if (m_HasGravity) {
+        m_FallVelocity += 1.5f;  // Gravity acceleration per tick
+        m_WorldY += m_FallVelocity;
+
+        // Hide and deactivate once the block falls below the level boundary
+        if (m_WorldY > GameConfig::LEVEL_HEIGHT_PX + 200.0f) {
+            SetVisible(false);
+            return;
+        }
+
+        // Use physics world coordinates for screen position
+        float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
+        float sx = m_WorldX + GameConfig::TILE_SIZE / 2.0f - cameraOffset -
+                   GameConfig::WINDOW_WIDTH / 2.0f;
+        float sy = levelHalfH - (m_WorldY + GameConfig::TILE_SIZE / 2.0f) +
+                   GameConfig::RENDER_Y_OFFSET;
+        m_Transform.translation = {sx, sy};
+        return;  // Skip grid-based positioning below
+    }
+
+    // --- Standard grid-based positioning ---
     // Convert grid position to screen position with camera offset
     float sx, sy;
     GridToScreen(m_GridX, m_GridY, cameraOffset, sx, sy);
@@ -240,11 +264,13 @@ void Block::Break() {
 }
 
 float Block::GetWorldX() const {
-    return static_cast<float>(m_GridX * GameConfig::TILE_SIZE);
+    return m_HasGravity ? m_WorldX
+                        : static_cast<float>(m_GridX * GameConfig::TILE_SIZE);
 }
 
 float Block::GetWorldY() const {
-    return static_cast<float>(m_GridY * GameConfig::TILE_SIZE);
+    return m_HasGravity ? m_WorldY
+                        : static_cast<float>(m_GridY * GameConfig::TILE_SIZE);
 }
 
 AABB Block::GetAABB() const {
