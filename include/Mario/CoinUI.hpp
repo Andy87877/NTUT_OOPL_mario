@@ -10,8 +10,7 @@
 #include <memory>
 #include <string>
 
-#include "Mario/UIImage.hpp"
-#include "Mario/UIText.hpp"
+#include "Mario/UIWidgets.hpp"
 
 namespace Mario {
 

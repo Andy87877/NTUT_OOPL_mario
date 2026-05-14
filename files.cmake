@@ -24,14 +24,13 @@ set(SRC_FILES
     # Behaviors (Phase 4 - Strategy Pattern)
     Mario/Behaviors/DefaultEntityBehavior.cpp
     Mario/Behaviors/EnemyBehavior.cpp
-    Mario/Behaviors/KoopaBehavior.cpp
-    Mario/Behaviors/AxeKoopaBehavior.cpp
-    Mario/Behaviors/AxeBehavior.cpp
-    Mario/Behaviors/ParaKoopaBehavior.cpp
-    Mario/Behaviors/PrincessBehavior.cpp
+    Mario/Behaviors/KoopaFamily.cpp
+    Mario/Behaviors/StaticEntityBehaviors.cpp
     Mario/Behaviors/ItemBehavior.cpp
     Mario/Behaviors/FireballBehavior.cpp
     Mario/Behaviors/BowserBehavior.cpp
+    Mario/Behaviors/PiranhaPlantBehavior.cpp
+    Mario/Behaviors/PodobooBehavior.cpp
     Mario/Behaviors/ParticleDebris.cpp
 
     # Collision
@@ -41,23 +40,23 @@ set(SRC_FILES
     Mario/LevelCompleteController.cpp
     Mario/GameStateManager.cpp
 
-    # Scene Handlers (Phase 5)
-    Mario/TitleSceneHandler.cpp
+    # Scene Handlers (State Pattern)
+    Mario/MenuSceneHandlers.cpp
     Mario/LoadingSceneHandler.cpp
-    Mario/DeathSceneHandler.cpp
-    Mario/GameOverSceneHandler.cpp
+    Mario/PlayingSceneHandler.cpp
+    Mario/FlagpoleSceneHandler.cpp
+    Mario/PipeWarpSceneHandler.cpp
+    Mario/AxeSequenceSceneHandler.cpp
     Mario/ESCMenuSceneHandler.cpp
 
-    # Managers (Phase 5)
-    Mario/SceneManager.cpp
+    # Managers
+    # UIManager.cpp also contains CoinUI + FloatingText implementations
+    #   (they are private sub-components of UIManager; no external consumers)
     Mario/UIManager.cpp
+    # AudioManager.cpp also contains AudioPathResolver implementation
+    #   (AudioPathResolver is an internal helper used only by AudioManager)
     Mario/AudioManager.cpp
-    Mario/AudioPathResolver.cpp
-    Mario/GameTheater.cpp
-
-    # UI (Phase 5)
-    Mario/FloatingText.cpp
-    Mario/CoinUI.cpp
+    # SceneManager / GameTheater removed — superseded by App + ISceneHandler State Pattern
 
     # Render
 )
@@ -69,7 +68,6 @@ set(INCLUDE_FILES
     # Core
     Mario/GameConfig.hpp
     Mario/Collider.hpp
-    Mario/CollisionContext.hpp
     Mario/Camera.hpp
     Mario/PhysicsEngine.hpp
     Mario/SpritePathResolver.hpp
@@ -93,13 +91,14 @@ set(INCLUDE_FILES
     Mario/Behaviors/IEntityBehavior.hpp
     Mario/Behaviors/DefaultEntityBehavior.hpp
     Mario/Behaviors/EnemyBehavior.hpp
-    Mario/Behaviors/KoopaBehavior.hpp
-    Mario/Behaviors/AxeKoopaBehavior.hpp
-    Mario/Behaviors/ParaKoopaBehavior.hpp
-    Mario/Behaviors/PrincessBehavior.hpp
+    Mario/Behaviors/KoopaFamily.hpp
+    Mario/Behaviors/StaticEntityBehaviors.hpp
     Mario/Behaviors/ItemBehavior.hpp
     Mario/Behaviors/FireballBehavior.hpp
     Mario/Behaviors/BowserBehavior.hpp
+    Mario/Behaviors/PiranhaPlantBehavior.hpp
+    Mario/Behaviors/PodobooBehavior.hpp
+    Mario/Behaviors/ParticleDebris.hpp
 
     # Collision
     Mario/CollisionManager.hpp
@@ -110,31 +109,28 @@ set(INCLUDE_FILES
 
     # Scene Handlers (Phase 5)
     Mario/ISceneHandler.hpp
-    Mario/TitleSceneHandler.hpp
+    Mario/MenuSceneHandlers.hpp
     Mario/LoadingSceneHandler.hpp
-    Mario/DeathSceneHandler.hpp
-    Mario/GameOverSceneHandler.hpp
+    Mario/PlayingSceneHandler.hpp
+    Mario/FlagpoleSceneHandler.hpp
+    Mario/PipeWarpSceneHandler.hpp
+    Mario/AxeSequenceSceneHandler.hpp
     Mario/ESCMenuSceneHandler.hpp
 
-    # Managers (Phase 5)
-    Mario/SceneManager.hpp
-    Mario/UIManager.hpp
+    # Managers
+    # AudioManager.hpp contains all audio sub-system declarations:
+    #   BGMName/SFXName enums (was AudioType.hpp)
+    #   IAudioService interface (was IAudioService.hpp)
+    #   AudioPathResolver helper (was AudioPathResolver.hpp)
+    #   AudioManager singleton
     Mario/AudioManager.hpp
-    Mario/AudioPathResolver.hpp
-    Mario/AudioType.hpp
-    Mario/GameTheater.hpp
+    # SceneManager.hpp / GameTheater.hpp removed — superseded by App + ISceneHandler State Pattern
+    Mario/UIManager.hpp
 
-    # Audio Service (Phase 5)
-    Mario/IAudioService.hpp
-
-    # Infrastructure (Phase 5)
-    Mario/EventSystem.hpp
-    Mario/ServiceLocator.hpp
-
-    # UI (Phase 5)
+    # UI components
+    # UIWidgets.hpp contains UIText + UIImage (merged — both exclusively used by HUD sub-system)
+    Mario/UIWidgets.hpp
     Mario/FloatingText.hpp
-    Mario/UIText.hpp
-    Mario/UIImage.hpp
     Mario/CoinUI.hpp
 )
 

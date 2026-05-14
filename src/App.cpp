@@ -1,555 +1,101 @@
 /**
  * @file App.cpp
- * @brief Implementation of the main application controller.
- *        Handles game state machine, integrates Level loading, Player MVC,
- *        collision detection, camera following, flagpole/pipe sequences.
- *        Game loop logic ported from C# Form1.cs onTick().
+ * @brief Main application controller implementation.
+ *        App is a thin coordinator: it owns all subsystems and exposes a
+ *        clean public API that ISceneHandler subclasses use to drive the game.
+ *
+ *        Per-frame flow:
+ *          1. m_CurrentHandler->Update(*this)    -- all game logic
+ *          2. m_CurrentHandler->OnRender(*this)  -- background + renderer + UI
+ *
+ *        State Pattern (GoF): App::State enum + ISceneHandler hierarchy.
+ *        MVC: InputHandler (C), PlayerState/EntityState (M), Player/Entity (V).
  * @inheritance None (top-level controller)
  */
 #include "App.hpp"
 
+// Scene handlers — included here so CreateSceneHandler() can instantiate them.
+#include "Mario/AxeSequenceSceneHandler.hpp"
+#include "Mario/ESCMenuSceneHandler.hpp"
+#include "Mario/FlagpoleSceneHandler.hpp"
+#include "Mario/LoadingSceneHandler.hpp"
+#include "Mario/MenuSceneHandlers.hpp"
 #include "Mario/PhysicsEngine.hpp"
+#include "Mario/PipeWarpSceneHandler.hpp"
+#include "Mario/PlayingSceneHandler.hpp"
 #include "Util/Image.hpp"
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
 #include "Util/Logger.hpp"
 
-// OpenGL include for background clearing
+// OpenGL for background clear-colour
 #include <GL/glew.h>
 
 // ============================================================================
-// Start: Initialize game, transition to TITLE
+// Start
 // ============================================================================
 void App::Start() {
     LOG_TRACE("Start");
-
-    // Initialize UI Manager (manages UI state and floating texts)
     m_UIManager = std::make_unique<Mario::UIManager>(&m_GameState);
-
-    m_CurrentState = State::TITLE;
+    TransitionTo(State::TITLE);
     LOG_INFO("Game initialized - entering TITLE state");
 }
 
 // ============================================================================
-// Update: Main loop dispatcher based on current state
+// Update — entirely delegated to the active scene handler
 // ============================================================================
 void App::Update() {
     m_Timer++;
+    if (m_CurrentHandler) m_CurrentHandler->Update(*this);
+    // Each handler owns its own render: background color + renderer + UI.
+    if (m_CurrentHandler)
+        m_CurrentHandler->OnRender(*this);
+    else
+        m_Renderer.Update();
+    if (Util::Input::IfExit()) TransitionTo(State::END);
+}
 
-    switch (m_CurrentState) {
+// ============================================================================
+// TransitionTo — swap active scene handler, fire lifecycle hooks
+// ============================================================================
+void App::TransitionTo(State next) {
+    if (m_CurrentHandler) m_CurrentHandler->OnExit(*this);
+    m_CurrentState = next;
+    m_CurrentHandler = CreateSceneHandler(next);
+    if (m_CurrentHandler) {
+        m_CurrentHandler->OnEnter(*this);
+        LOG_DEBUG("State -> {}", m_CurrentHandler->GetName());
+    }
+}
+
+// ============================================================================
+// CreateSceneHandler — factory for all ISceneHandler subclasses
+// ============================================================================
+std::unique_ptr<Mario::ISceneHandler> App::CreateSceneHandler(State s) {
+    using namespace Mario;
+    switch (s) {
         case State::TITLE:
-            UpdateTitle();
-            break;
+            return std::make_unique<TitleSceneHandler>();
         case State::LOADING:
-            UpdateLoading();
-            break;
+            return std::make_unique<LoadingSceneHandler>();
         case State::PLAYING:
-            UpdatePlaying();
-            break;
+            return std::make_unique<PlayingSceneHandler>();
         case State::FLAGPOLE:
-            UpdateFlagpole();
-            break;
+            return std::make_unique<FlagpoleSceneHandler>();
         case State::PIPE_WARP:
-            UpdatePipeWarp();
-            break;
+            return std::make_unique<PipeWarpSceneHandler>();
         case State::AXE_SEQUENCE:
-            UpdateAxeSequence();
-            break;
+            return std::make_unique<AxeSequenceSceneHandler>();
         case State::DEATH:
-            UpdateDeath();
-            break;
+            return std::make_unique<DeathSceneHandler>();
         case State::GAME_OVER:
-            UpdateGameOver();
-            break;
+            return std::make_unique<GameOverSceneHandler>();
         case State::GAME_WON:
-            UpdateGameWon();
-            break;
+            return std::make_unique<GameWonSceneHandler>();
         case State::ESC_MENU:
-            UpdateESCMenu();
-            break;
+            return std::make_unique<ESCMenuSceneHandler>();
         default:
-            break;
-    }
-
-    // Render the scene
-    RenderAll();
-
-    // Global exit check
-    if (Util::Input::IfExit()) {
-        m_CurrentState = State::END;
-    }
-}
-
-// ============================================================================
-// State Handlers
-// ============================================================================
-
-void App::UpdateTitle() {
-    // Press Enter to start the game
-    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
-        m_GameState.NewGame();
-        m_CurrentState = State::LOADING;
-        m_Loading = false;
-        LOG_INFO("Starting game - entering LOADING state");
-    }
-
-    // ESC to quit from title
-    if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
-        m_CurrentState = State::END;
-    }
-}
-
-void App::UpdateLoading() {
-    if (!m_Loading) {
-        m_Loading = true;
-        m_LoadTimer = m_Timer + Mario::GameConfig::LEVEL_TRANSITION_DELAY;
-
-        std::string levelName = m_GameState.GetLevelName();
-        LOG_INFO("Loading World {}", levelName);
-        LoadLevel(levelName);
-    }
-
-    if (m_Loading && m_LoadTimer < m_Timer) {
-        m_Loading = false;
-        StartLevel();
-        m_CurrentState = State::PLAYING;
-        LOG_INFO("Level loaded - entering PLAYING state");
-    }
-}
-
-void App::UpdatePlaying() {
-    // ESC to open pause menu
-    if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
-        m_ESCMenuSelection = 0;
-        m_CurrentState = State::ESC_MENU;
-        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Pause);
-        Mario::AudioManager::GetInstance().StopBGM();
-        LOG_INFO("Game paused - entering ESC_MENU state");
-        return;
-    }
-
-    if (!m_Player || !m_Level) return;
-
-    // -- Controller: Handle input (MVC Controller layer) --
-    m_InputHandler.HandleInput(m_Player->GetState(), m_Speed);
-
-    // -- Pre-collision position update --
-    // Apply movement physics. This is required because CollisionManager checks
-    // if the theoretical new position collides, and resolves it backward.
-    auto& playerState = m_Player->GetState();
-    float yDelta = playerState.ApplyGravity();
-    playerState.SetX(playerState.GetX() + playerState.GetVelX());
-    playerState.SetY(playerState.GetY() + yDelta);
-
-    // -- Physics & Collision --
-    std::vector<Mario::Level::SpawnPoint> newSpawns;
-    m_CollisionManager.CheckPlayerBlockCollision(
-        *m_Player, *m_Level, m_Camera, m_GameState, *m_UIManager, &newSpawns);
-
-    // -- Process newly spawned entities (e.g. from hitting blocks) --
-    if (!newSpawns.empty()) {
-        for (auto& sp : newSpawns) {
-            auto entity = Mario::EntityFactory::SpawnEntity(
-                m_Level->GetEntityDefByName(sp.entityName), sp.worldX,
-                sp.worldY, 1, true);
-            if (entity) {
-                m_Entities.push_back(entity);
-                m_Renderer.AddChild(entity);
-            }
-        }
-    }
-
-    // -- Update player state (Model tick) --
-    m_Player->GetState().Tick();
-
-    if (m_Player->GetState().IsFireShooting() &&
-        m_Player->GetState().GetSpecialCounter() == 1) {
-        int dir = m_Player->GetState().IsFacingRight() ? 1 : -1;
-        float fbX = m_Player->GetWorldX() +
-                    (dir == 1 ? m_Player->GetState().GetWidth() / 2.0f : 0);
-        float fbY =
-            m_Player->GetWorldY() + (m_Player->GetState().GetHeight() / 4.0f);
-
-        Mario::EntityDef def = m_Level->GetEntityDefByName("Fire");
-        // Fallback if "Fire" is not defined in the level's config (e.g.
-        // IDList.csv)
-        if (def.name.empty()) {
-            def.id = -1;
-            def.name = "Fire";
-            def.type = Mario::EntityType::FIRE;
-            def.isAnimated = true;
-            def.animFrames = 4;
-            def.doesCollide = true;
-            def.isEnemy = false;
-            def.isStatic = false;
-        }
-        auto fbEntity = Mario::EntityFactory::SpawnEntity(
-            def, fbX, fbY, dir == 1 ? 1 : 0, false, m_CurrentLevelName);
-        if (fbEntity) {
-            // Apply initial velocity explicitly right after spawning!
-            fbEntity->GetState().SetVelX(dir * 5.0f);
-            m_Entities.push_back(fbEntity);
-            m_Renderer.AddChild(fbEntity);
-            Mario::AudioManager::GetInstance().PlaySFX(
-                Mario::SFXName::FireBall);
-        }
-    }
-
-    // -- Update entities --
-    for (auto& entity : m_Entities) {
-        if (!entity->GetState().IsActive()) continue;
-
-        // Entity behavior update (AI/strategy pattern)
-        auto behavior = entity->GetBehavior();
-        if (behavior) {
-            behavior->Update(entity->GetState(), *m_Level, *m_Player, m_Timer);
-
-            // -- Process any pending spawn requests (e.g. Bowser fireball) --
-            int spawnType = 0;
-            float spawnX = 0, spawnY = 0;
-            int spawnDir = 1;
-            if (behavior->ConsumeSpawnRequest(spawnType, spawnX, spawnY,
-                                              spawnDir)) {
-                auto spawnEntityType =
-                    static_cast<Mario::EntityType>(spawnType);
-                std::string spawnName;
-                if (spawnEntityType == Mario::EntityType::FIRE)
-                    spawnName = "Fire";
-                if (!spawnName.empty()) {
-                    Mario::EntityDef def =
-                        m_Level->GetEntityDefByName(spawnName);
-                    if (def.name.empty()) {
-                        // Fallback definition for Bowser's fire
-                        def.id = -1;
-                        def.name = spawnName;
-                        def.type = spawnEntityType;
-                        def.isAnimated = true;
-                        def.animFrames = 4;
-                        def.doesCollide = true;
-                        def.isEnemy = false;
-                        def.isStatic = false;
-                    }
-                    auto spawned = Mario::EntityFactory::SpawnEntity(
-                        def, spawnX, spawnY, spawnDir, false,
-                        m_CurrentLevelName);
-                    if (spawned) {
-                        float speed = 4.0f;
-                        spawned->GetState().SetVelX(spawnDir == 1 ? speed
-                                                                  : -speed);
-                        m_Entities.push_back(spawned);
-                        m_Renderer.AddChild(spawned);
-                    }
-                }
-            }
-        }
-
-        auto entityType = entity->GetDef().type;
-        if (entityType == Mario::EntityType::FIRE) {
-            // Keep fireball moving fast
-            float currentSpd = std::abs(entity->GetState().GetVelX());
-            if (currentSpd < 4.0f) {
-                currentSpd = 5.0f;
-            }
-            entity->GetState().SetVelX(entity->GetState().GetDirection() == 1
-                                           ? currentSpd
-                                           : -currentSpd);
-        }
-
-        // Entity Model tick (movement, animation, gravity)
-        entity->GetState().Tick();
-
-        // Entity-block collision (walls, ground)
-        if (entity->GetState().DoesCollide() &&
-            !entity->GetState().IsStatic()) {
-            CheckEntityBlockCollision(*entity);
-        }
-
-        // Entity view update (sprite, screen position)
-        entity->UpdateView(m_Camera.GetOffset());
-    }
-
-    // -- Player-Entity collision --
-    CheckPlayerEntityCollision();
-    CheckEntityEntityCollision();
-
-    // -- Check for Axe collision (8-4) --
-    if (m_CurrentLevelName == "8-4") {
-        CheckAxeCollision();
-    }
-
-    // -- Check flagpole collision (goal block) --
-    CheckFlagpoleCollision();
-
-    // -- Check pipe warp collision --
-    CheckPipeCollision();
-
-    // -- Camera follows player --
-    m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
-
-    // -- Update level blocks (animations, camera-based positioning) --
-    m_Level->UpdateBlocks(m_Camera.GetOffset());
-
-    // -- Check for broken blocks to spawn particle debris --
-    auto blocks = m_Level->GetBlocksInRange(
-        m_Camera.GetOffset() - 100.0f,
-        m_Camera.GetOffset() + Mario::GameConfig::WINDOW_WIDTH + 100.0f);
-    for (auto* block : blocks) {
-        if (block && block->JustBroken()) {
-            float bx = block->GetWorldX();
-            float by = block->GetWorldY();
-            float bs = Mario::GameConfig::TILE_SIZE;
-            std::string levelName = m_GameState.GetLevelName();
-
-            auto debris_tl = Mario::EntityFactory::SpawnEntity(
-                m_Level->GetEntityDefByName("BrickBlockBreak_tl"),
-                bx - bs * 0.25f, by - bs * 0.25f, 0, true);
-            if (debris_tl) m_Entities.push_back(debris_tl);
-
-            auto debris_tr = Mario::EntityFactory::SpawnEntity(
-                m_Level->GetEntityDefByName("BrickBlockBreak_tr"),
-                bx + bs * 0.25f, by - bs * 0.25f, 0, true);
-            if (debris_tr) m_Entities.push_back(debris_tr);
-
-            auto debris_bl = Mario::EntityFactory::SpawnEntity(
-                m_Level->GetEntityDefByName("BrickBlockBreak_bl"),
-                bx - bs * 0.25f, by + bs * 0.25f, 0, true);
-            if (debris_bl) m_Entities.push_back(debris_bl);
-
-            auto debris_br = Mario::EntityFactory::SpawnEntity(
-                m_Level->GetEntityDefByName("BrickBlockBreak_br"),
-                bx + bs * 0.25f, by + bs * 0.25f, 0, true);
-            if (debris_br) m_Entities.push_back(debris_br);
-        }
-    }
-
-    // -- Update player view (sprite selection, screen position) --
-    m_Player->UpdateView(m_Camera.GetOffset());
-
-    // -- Timer (via GameStateManager) --
-    if (m_Player->GetState().IsControllable()) {
-        int oldTime = m_GameState.GetTimeRemaining();
-        m_GameState.Tick();
-        int newTime = m_GameState.GetTimeRemaining();
-        if (oldTime > 100 && newTime <= 100) {
-            PlayCurrentBGM();  // switch to hurry up theme
-        }
-        if (m_GameState.IsTimeUp()) {
-            m_GameState.LoseLife();
-            m_Player->GetState().SetDead(true);
-        }
-    }
-
-    // -- Check pit fall --
-    if (m_CollisionManager.CheckPitFall(*m_Player)) {
-        m_GameState.LoseLife();
-        m_Player->GetState().SetDead(true);
-        m_Player->GetState().SetControllable(false);
-    }
-
-    // -- Check death state transition --
-    if (m_Player->GetState().IsDead()) {
-        m_DeathTimer = m_Timer + 80;  // ~1.6s death animation
-        m_CurrentState = State::DEATH;
-        Mario::AudioManager::GetInstance().PlayBGM(
-            Mario::BGMName::LostALifeTheme);
-        LOG_INFO("Player died - entering DEATH state (Lives: {})",
-                 m_GameState.GetLives());
-    }
-
-    // -- Remove dead entities from renderer --
-    CleanupDeadEntities();
-}
-
-// ============================================================================
-// 8-4 Axe Sequence
-// ============================================================================
-void App::UpdateAxeSequence() {
-    if (!m_Player || !m_Level) return;
-
-    // Find Bowser and Princess if not already cached
-    std::shared_ptr<Mario::Entity> bowser = nullptr;
-    std::shared_ptr<Mario::Entity> princess = nullptr;
-    for (const auto& entity : m_Entities) {
-        if (entity->GetState().GetName() == "Bowser") {
-            bowser = entity;
-        }
-        if (entity->GetState().GetName() == "Princess") {
-            princess = entity;
-        }
-    }
-
-    // Start sequence if not already started
-    if (!m_LevelCompleteCtrl.IsActive()) {
-        m_LevelCompleteCtrl.StartAxeSequence(*m_Player, bowser, princess);
-    }
-
-    // Update the sequence controller
-    bool stillRunning =
-        m_LevelCompleteCtrl.Update(*m_Player, *m_Level, m_Camera.GetOffset());
-
-    // Update camera and blocks during cutscene
-    m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
-    m_Level->UpdateBlocks(m_Camera.GetOffset());
-
-    // Update all entities during the sequence (e.g., Bowser falling)
-    for (auto& entity : m_Entities) {
-        if (entity->GetState().IsActive()) {
-            entity->GetState().Tick();  // For gravity on Bowser/Bridge
-            entity->UpdateView(m_Camera.GetOffset());
-        }
-    }
-
-    if (!stillRunning && m_LevelCompleteCtrl.IsCompleted()) {
-        m_GameState.SetGameWon(true);
-        AdvanceToNextLevel();  // Will transition to TITLE
-    }
-}
-
-// ============================================================================
-// Flagpole Sequence (Phase 5)
-// C# reference: Form1.cs lines 1174-1228, 1231-1265
-// ============================================================================
-void App::UpdateFlagpole() {
-    if (!m_Player || !m_Level) return;
-
-    bool stillRunning =
-        m_LevelCompleteCtrl.Update(*m_Player, *m_Level, m_Camera.GetOffset());
-
-    // Update camera and blocks during cutscene
-    m_Camera.Update(m_Player->GetWorldX(), m_Level->GetWidthPixels());
-    m_Level->UpdateBlocks(m_Camera.GetOffset());
-
-    // Update flag entity view if present
-    if (m_FlagEntity && m_FlagEntity->GetState().IsActive()) {
-        m_FlagEntity->UpdateView(m_Camera.GetOffset());
-    }
-
-    if (!stillRunning && m_LevelCompleteCtrl.IsCompleted()) {
-        // Save power state for next level (C# line 1192)
-        m_GameState.SavePowerState(m_Player->GetState().GetState());
-        AdvanceToNextLevel();
-    }
-}
-
-// ============================================================================
-// Pipe Warp Sequence (Phase 5)
-// C# reference: Form1.cs lines 941-968
-// ============================================================================
-void App::UpdatePipeWarp() {
-    if (!m_Player || !m_Level) return;
-
-    // Play warp SFX on first frame of pipe warp
-    // Ensure it plays when animation begins
-    static bool warpSFXPlayed = false;
-    if (!warpSFXPlayed) {
-        warpSFXPlayed = true;
-        // TODO: Integrate with AudioManager or PTSD audio system
-        // AudioManager::GetInstance().PlaySFX("20. Warp");
-        LOG_DEBUG("Playing Warp SFX: Resources/Audio/SFX/20. Warp.mp3");
-    }
-
-    bool stillRunning =
-        m_LevelCompleteCtrl.Update(*m_Player, *m_Level, m_Camera.GetOffset());
-
-    if (!stillRunning && m_LevelCompleteCtrl.IsCompleted()) {
-        m_GameState.SavePowerState(m_Player->GetState().GetState());
-        warpSFXPlayed = false;  // Reset for next pipe warp
-
-        if (m_GameState.HasNextLevelOverride()) {
-            // Standard warp to a completely new level (e.g. 1-2 pipe to 8-4)
-            AdvanceToNextLevel();
-        } else if (!m_GameState.IsUnderground()) {
-            // We were in the main level, now load the sub-level (underground)
-            m_GameState.SetUnderground(true);
-            std::string subLevel = m_Level->GetSubLevelName();
-            LOG_INFO("Loading sub-level: {}", subLevel);
-            LoadLevel(subLevel);
-            StartLevel();
-            m_CurrentState = State::PLAYING;
-        } else {
-            // We were underground, now return to the main level
-            m_GameState.SetUnderground(false);
-            std::string mainLevel = m_GameState.GetLevelName();
-            LOG_INFO("Returning to main level: {}", mainLevel);
-            LoadLevel(mainLevel);
-            StartLevel();
-
-            // Position Mario at the pipe exit
-            if (m_Player) {
-                m_Player->GetState().SetX(m_Level->GetPipeExitX());
-                m_Player->GetState().SetControllable(true);
-                m_Player->SetVisible(true);
-            }
-            m_CurrentState = State::PLAYING;
-        }
-    }
-}
-
-void App::UpdateDeath() {
-    // Wait for death animation timer
-    if (m_Timer > m_DeathTimer) {
-        if (!m_GameState.IsGameOver()) {
-            m_CurrentState = State::LOADING;
-            m_Loading = false;
-        } else {
-            m_CurrentState = State::GAME_OVER;
-            Mario::AudioManager::GetInstance().PlayBGM(
-                Mario::BGMName::GameOverTheme);
-            LOG_INFO("No lives remaining - GAME_OVER");
-        }
-    }
-}
-
-void App::UpdateGameOver() {
-    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
-        m_CurrentState = State::TITLE;
-        LOG_INFO("Game Over - returning to TITLE");
-    }
-}
-
-void App::UpdateESCMenu() {
-    // Menu navigation
-    if (Util::Input::IsKeyDown(Util::Keycode::UP)) {
-        m_ESCMenuSelection = (m_ESCMenuSelection - 1 + 4) % 4;
-    }
-    if (Util::Input::IsKeyDown(Util::Keycode::DOWN)) {
-        m_ESCMenuSelection = (m_ESCMenuSelection + 1) % 4;
-    }
-
-    // Select
-    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
-        switch (m_ESCMenuSelection) {
-            case 0:
-                m_CurrentState = State::PLAYING;
-                PlayCurrentBGM();
-                LOG_INFO("Resuming game");
-                break;
-            case 1:
-                m_GameState.SetLevel(1, 1);
-                m_CurrentState = State::LOADING;
-                m_Loading = false;
-                LOG_INFO("Jumping to World 1-1");
-                break;
-            case 2:
-                m_GameState.SetLevel(1, 2);
-                m_CurrentState = State::LOADING;
-                m_Loading = false;
-                LOG_INFO("Jumping to World 1-2");
-                break;
-            case 3:
-                m_GameState.SetLevel(8, 4);
-                m_CurrentState = State::LOADING;
-                m_Loading = false;
-                LOG_INFO("Jumping to World 8-4");
-                break;
-        }
-    }
-
-    // ESC to resume
-    if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
-        m_CurrentState = State::PLAYING;
-        PlayCurrentBGM();
-        LOG_INFO("ESC pressed again - resuming game");
+            return nullptr;  // START / END have no handler
     }
 }
 
@@ -567,7 +113,7 @@ void App::LoadLevel(const std::string& levelName) {
     m_Level = std::make_shared<Mario::Level>();
     if (!m_Level->Load(levelName)) {
         LOG_ERROR("Failed to load level: {}", levelName);
-        m_CurrentState = State::TITLE;
+        TransitionTo(State::TITLE);
         return;
     }
 
@@ -579,12 +125,11 @@ void App::LoadLevel(const std::string& levelName) {
     int savedState = m_GameState.GetSavedPowerState();
     m_Player = std::make_shared<Mario::Player>(spawnX, spawnY, savedState);
 
-    // Spawn entities (Goomba, KoopaTroopa, etc.) from level data
+    // Spawn entities (Goomba, KoopaTroopa, etc.) from level data.
+    // EntityFactory::SpawnFromLevel() also handles level-specific hardcoded
+    // entities (e.g. 8-4 Podoboos) so App does not need per-level logic here.
     m_Entities = Mario::EntityFactory::SpawnFromLevel(*m_Level);
 
-    // All 8-4 entities (Bowser, Axe, Princess, enemies) are spawned from
-    // spawner blocks in 8-4.csv via EntityFactory::SpawnFromLevel() above.
-    // No manual overrides needed — the CSV is the single source of truth.
     // Bowser  = ID 847 (BowserSpawn)  at row=9, col=58
     // Axe     = ID 849 (AxeTrigger)   at row=9, col=65
     // Princess= ID 879 (PrincessSpawn) at row=9, col=72
@@ -598,30 +143,32 @@ void App::LoadLevel(const std::string& levelName) {
         }
     }
 
-    // Build renderer: clear and add all blocks + player + entities
+    // Build renderer: clear and add all blocks + player + entities.
+    // ZIndex hierarchy (higher = rendered in front):
+    //   0.0f = tile blocks (background layer)
+    //   1.0f = entities / enemies (in front of tiles)
+    //   2.0f = player (always in front of everything except UI)
+    // During pipe warp entry the player is dropped to -1.0f so it sinks behind
+    // the pipe tiles, giving the correct "enter pipe" visual.
     m_Renderer = Util::Renderer();
     for (const auto& block : m_Level->GetAllBlocks()) {
+        block->SetZIndex(0.0f);
         m_Renderer.AddChild(block);
     }
+    m_Player->SetZIndex(2.0f);
     m_Renderer.AddChild(m_Player);
     for (const auto& entity : m_Entities) {
+        entity->SetZIndex(1.0f);
         m_Renderer.AddChild(entity);
     }
 
-    // Set map background color (Sky Blue or Black for underground)
-    // Alpha = 0.0f for transparent background (chroma key support)
-    // Determine background color: underground/castle = black, surface = sky
-    // blue
+    // Set OpenGL clear color for the level type (underground = black, surface =
+    // sky blue). Delegated to ApplyBackground() to avoid duplicating the color
+    // mapping here.
     bool isUnderground = m_GameState.IsUnderground() ||
                          levelName.find("u") != std::string::npos ||
                          levelName == "1-2" || levelName == "8-4";
-    if (isUnderground) {
-        glClearColor(0.0f, 0.0f, 0.0f,
-                     0.0f);  // Black (castle/dungeon background)
-    } else {
-        glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
-                     0.0f);  // Sky Blue (transparent)
-    }
+    ApplyBackground(isUnderground);
 
     LOG_INFO("Level {} loaded: {} blocks, {} entities, player at ({}, {})",
              levelName, m_Level->GetAllBlocks().size(), m_Entities.size(),
@@ -658,426 +205,38 @@ void App::StartLevel() {
     PlayCurrentBGM();
 }
 
-void App::RenderAll() {
-    // Rendering based on current game state
-    // UIManager now only handles UI state (floating texts)
-
-    if (!m_UIManager) {
-        m_Renderer.Update();
-        return;
-    }
-
-    switch (m_CurrentState) {
-        case State::TITLE:
-            glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
-                         0.0f);
-            m_Renderer.Update();
-            m_UIManager->Update(Mario::UIManager::State::TITLE);
-            break;
-
-        case State::LOADING: {
-            // Set background color based on level being loaded
-            std::string currentLevel = m_GameState.GetLevelName();
-            bool isUnderground = m_GameState.IsUnderground() ||
-                                 currentLevel.find("u") != std::string::npos ||
-                                 currentLevel == "1-2" || currentLevel == "8-4";
-            if (isUnderground) {
-                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // Black
-            } else {
-                glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
-                             0.0f);  // Sky blue
-            }
-            m_Renderer.Update();
-            m_UIManager->Update(Mario::UIManager::State::LOADING);
-            break;
-        }
-
-        case State::PLAYING:
-        case State::FLAGPOLE:
-        case State::PIPE_WARP: {
-            // Determine if current level should have underground/castle
-            // background
-            std::string currentLevel = m_GameState.GetLevelName();
-            bool isUnderground = m_GameState.IsUnderground() ||
-                                 currentLevel.find("u") != std::string::npos ||
-                                 currentLevel == "1-2" || currentLevel == "8-4";
-            if (isUnderground) {
-                glClearColor(0.0f, 0.0f, 0.0f,
-                             0.0f);  // Black for castle/dungeon
-            } else {
-                glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
-                             0.0f);  // Sky blue for surface
-            }
-            m_Renderer.Update();
-
-            // Update UI elements
-            m_UIManager->Update(Mario::UIManager::State::PLAYING);
-            break;
-        }
-
-        case State::AXE_SEQUENCE: {
-            // 8-4 boss defeat cutscene — black castle background
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            m_Renderer.Update();
-            // Show "THANK YOU MARIO!" text once Mario reaches the Princess
-            auto endPhase = (m_LevelCompleteCtrl.GetPhase() ==
-                                 Mario::EndingPhase::PRINCESS_DIALOG ||
-                             m_LevelCompleteCtrl.GetPhase() ==
-                                 Mario::EndingPhase::COMPLETED)
-                                ? Mario::UIManager::EndingTextPhase::CREDITS
-                                : Mario::UIManager::EndingTextPhase::NONE;
-            m_UIManager->SetEndingPhase(endPhase);
-            m_UIManager->Update(Mario::UIManager::State::AXE_SEQUENCE);
-            break;
-        }
-
-        case State::DEATH:
-            m_Renderer.Update();
-            m_UIManager->Update(Mario::UIManager::State::PLAYING);
-            break;
-
-        case State::GAME_OVER:
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            m_Renderer.Update();
-            m_UIManager->Update(Mario::UIManager::State::GAME_OVER);
-            break;
-
-        case State::GAME_WON:
-            m_Renderer.Update();
-            m_UIManager->Update(Mario::UIManager::State::GAME_WON);
-            break;
-
-        case State::ESC_MENU:
-            m_Renderer.Update();
-            m_UIManager->Update(Mario::UIManager::State::ESC_MENU,
-                                m_ESCMenuSelection);
-            break;
-
-        case State::START:
-        case State::END:
-        default:
-            m_Renderer.Update();
-            break;
+// ============================================================================
+// ApplyBackground — helper for ISceneHandler::OnRender() implementations.
+// Concrete handlers call this to set the correct OpenGL clear color before
+// flushing the renderer.  Centralises the level-type → color mapping so no
+// handler needs to include <GL/glew.h> or duplicate this logic.
+// ============================================================================
+void App::ApplyBackground(bool isUnderground) {
+    if (isUnderground) {
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // Castle / dungeon: black
+    } else {
+        glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
+                     0.0f);  // Surface: sky blue
     }
 }
 
 void App::AdvanceToNextLevel() {
     std::string nextLevel = m_GameState.AdvanceLevel();
     if (m_GameState.IsGameWon()) {
-        // All levels beaten
-        m_CurrentState = State::TITLE;
         LOG_INFO("Game Complete! Returning to title.");
+        TransitionTo(State::TITLE);
         return;
     }
-    m_CurrentState = State::LOADING;
-    m_Loading = false;
     LOG_INFO("Advancing to level {}", nextLevel);
+    m_Loading = false;
+    TransitionTo(State::LOADING);
 }
 
 // ============================================================================
 // End
 // ============================================================================
 void App::End() { LOG_TRACE("End"); }
-
-// ============================================================================
-// Flagpole & Pipe Detection
-// ============================================================================
-
-void App::CheckFlagpoleCollision() {
-    if (!m_Player || m_Player->GetState().IsDead()) return;
-    if (m_LevelCompleteCtrl.IsActive()) return;
-
-    Mario::PlayerState& ps = m_Player->GetState();
-    Mario::AABB playerBox = ps.GetHitbox();
-
-    for (const auto& block : m_Level->GetAllBlocks()) {
-        if (!block->IsGoal()) continue;
-
-        Mario::AABB blockBox = block->GetAABB();
-        if (!playerBox.Intersects(blockBox)) continue;
-
-        // Player touched the flagpole goal!
-        LOG_INFO("Flagpole reached at block ({}, {})", block->GetGridX(),
-                 block->GetGridY());
-
-        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Flagpole);
-        Mario::AudioManager::GetInstance().PlayBGM(
-            m_CurrentLevelName == "8-4" ? Mario::BGMName::CastleCompleteTheme
-                                        : Mario::BGMName::LevelCompleteTheme);
-
-        m_LevelCompleteCtrl.StartFlagpole(*m_Player, m_FlagEntity, block.get());
-        m_GameState.StopTime();
-        m_CurrentState = State::FLAGPOLE;
-        return;
-    }
-}
-
-void App::CheckPipeCollision() {
-    if (!m_Player || m_Player->GetState().IsDead()) return;
-    if (m_LevelCompleteCtrl.IsActive()) return;
-
-    Mario::PlayerState& ps = m_Player->GetState();
-    Mario::AABB playerBox = ps.GetHitbox();
-
-    bool pipeDown1 = false, pipeDown2 = false;
-    bool pipeRight1 = false, pipeRight2 = false;
-    float pipeDX = 0.0f, pipeDY = 0.0f;
-    float pipeRX = 0.0f, pipeRY = 0.0f;
-
-    for (const auto& block : m_Level->GetAllBlocks()) {
-        Mario::AABB bBox = block->GetAABB();
-        if (!playerBox.Intersects(bBox)) continue;
-
-        int id = block->GetBlockID();
-
-        // Down pipe check (C# lines 802-813)
-        if (id == Mario::GameConfig::PIPE_DOWN_LEFT) {
-            pipeDown1 = true;
-            pipeDX = block->GetWorldX();
-            pipeDY = block->GetWorldY();
-        }
-        if (id == Mario::GameConfig::PIPE_DOWN_RIGHT) {
-            pipeDown2 = true;
-        }
-
-        // Right pipe check (C# lines 815-827)
-        if (id == Mario::GameConfig::PIPE_RIGHT_TOP) {
-            pipeRight1 = true;
-            pipeRX = block->GetWorldX();
-            pipeRY = block->GetWorldY();
-        }
-        if (id == Mario::GameConfig::PIPE_RIGHT_BOT) {
-            pipeRight2 = true;
-            if (!pipeRight1) {
-                pipeRX = block->GetWorldX();
-                pipeRY = block->GetWorldY();
-            }
-        }
-    }
-
-    // Down pipe: need both halves + player centered + pressing Down
-    // C# line 830: pipeCheck1 && pipeCheck2 && position centered && direction
-    // == "Down"
-    if (pipeDown1 && pipeDown2 &&
-        Util::Input::IsKeyPressed(Util::Keycode::DOWN)) {
-        // Check Mario is centered on the pipe
-        float pipeCenter = pipeDX + Mario::GameConfig::TILE_SIZE;
-        float playerCenter = ps.GetX() + ps.GetWidth() / 2.0f;
-        if (std::abs(playerCenter - pipeCenter) <
-            Mario::GameConfig::TILE_SIZE * 0.6f) {
-            LOG_INFO("Entering pipe DOWN at ({}, {})", pipeDX, pipeDY);
-            m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Down", pipeDX,
-                                              pipeDY);
-            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
-            int time = m_GameState.GetTimeRemaining();
-            Mario::AudioManager::GetInstance().PlayBGM(
-                (time <= 100 && time > 0) ? Mario::BGMName::IntoThePipeHurryUp
-                                          : Mario::BGMName::IntoThePipeTheme);
-            m_GameState.StopTime();
-            m_CurrentState = State::PIPE_WARP;
-            return;
-        }
-    }
-
-    // Right pipe: need any pipe half + player grounded + pressing Right
-    // C# lines 834-837
-    if ((pipeRight1 || pipeRight2) && ps.IsGrounded() &&
-        Util::Input::IsKeyPressed(Util::Keycode::RIGHT)) {
-        // Ensure Mario isn't above the pipe trying to jump over it
-        float playerBot = ps.GetY() - ps.GetHeight();
-        if (playerBot < pipeRY + Mario::GameConfig::TILE_SIZE * 0.1f) {
-            LOG_INFO("Entering pipe RIGHT at ({}, {})", pipeRX, pipeRY);
-            m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Right", pipeRX,
-                                              pipeRY);
-            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
-            int time = m_GameState.GetTimeRemaining();
-            Mario::AudioManager::GetInstance().PlayBGM(
-                (time <= 100 && time > 0) ? Mario::BGMName::IntoThePipeHurryUp
-                                          : Mario::BGMName::IntoThePipeTheme);
-            m_GameState.StopTime();
-            m_CurrentState = State::PIPE_WARP;
-
-            // Warp exactly to 8-4 from 1-2 based on C# code spec "from pipe
-            // teleport to 8-4"
-            if (m_GameState.GetLevelName() == "1-2") {
-                m_GameState.SetNextLevelOverride("8-4");
-            }
-
-            return;
-        }
-    }
-
-    // Auto-trigger pipe warp for ID 42/43 (right pipe in 1-2)
-    // Simply touching these pipe blocks triggers the warp animation
-    // regardless of key input (automatic pipe entry for seamless progression)
-    if (m_GameState.GetLevelName() == "1-2") {
-        // Expand Mario's hitbox slightly since the collision manager will
-        // prevent actual intersection with the solid pipe block
-        Mario::AABB expandedBox = playerBox;
-        expandedBox.left -= 2.0f;
-        expandedBox.right += 2.0f;
-
-        for (const auto& block : m_Level->GetAllBlocks()) {
-            int id = block->GetBlockID();
-            if (id == Mario::GameConfig::PIPE_RIGHT_TOP ||
-                id == Mario::GameConfig::PIPE_RIGHT_BOT) {
-                Mario::AABB bBox = block->GetAABB();
-                if (expandedBox.Intersects(bBox) && ps.IsGrounded()) {
-                    LOG_INFO("Auto-warp triggered by pipe contact at 1-2");
-                    m_LevelCompleteCtrl.StartPipeWarp(*m_Player, "Right",
-                                                      block->GetWorldX(),
-                                                      block->GetWorldY());
-                    Mario::AudioManager::GetInstance().PlaySFX(
-                        Mario::SFXName::Warp);
-                    int time = m_GameState.GetTimeRemaining();
-                    Mario::AudioManager::GetInstance().PlayBGM(
-                        (time <= 100 && time > 0)
-                            ? Mario::BGMName::IntoThePipeHurryUp
-                            : Mario::BGMName::IntoThePipeTheme);
-                    LOG_DEBUG("Warp SFX should play now: 20. Warp.mp3");
-                    m_GameState.StopTime();
-                    m_CurrentState = State::PIPE_WARP;
-                    m_GameState.SetNextLevelOverride("8-4");
-                    return;
-                }
-            }
-        }
-    }
-}
-
-// ============================================================================
-// Entity Helpers
-// ============================================================================
-
-void App::CheckEntityBlockCollision(Mario::Entity& entity) {
-    Mario::EntityState& state = entity.GetState();
-    Mario::AABB box = state.GetHitbox();
-
-    int tileSize = Mario::GameConfig::TILE_SIZE;
-
-    // Ground check
-    int leftTile = static_cast<int>(box.left) / tileSize;
-    int rightTile = static_cast<int>(box.right - 1) / tileSize;
-    int bottomTile = static_cast<int>(box.bottom) / tileSize;
-
-    bool onGround = false;
-    for (int x = leftTile; x <= rightTile; x++) {
-        Mario::Block* block = m_Level->GetBlockAt(x, bottomTile);
-        if (block && block->IsSolid()) {
-            Mario::AABB bb = block->GetAABB();
-            if (box.Intersects(bb)) {
-                float overlap = box.bottom - bb.top;
-                if (overlap > 0 && overlap < tileSize * 0.75f) {
-                    state.SetY(bb.top - state.GetHeight());
-                    state.SetVelY(0.0f);
-                    state.SetGrounded(true);
-                    onGround = true;
-                }
-            }
-        }
-    }
-    if (!onGround && state.IsGrounded()) {
-        state.SetGrounded(false);
-    }
-
-    // Wall check: flip direction on wall collision
-    Mario::AABB updatedBox = state.GetHitbox();
-    if (state.GetVelX() > 0) {
-        int rtile = static_cast<int>(updatedBox.right) / tileSize;
-        for (int y = static_cast<int>(updatedBox.top) / tileSize;
-             y <= static_cast<int>(updatedBox.bottom - 1) / tileSize; y++) {
-            Mario::Block* block = m_Level->GetBlockAt(rtile, y);
-            if (block && block->IsSolid()) {
-                state.FlipDirection();
-                state.SetX(block->GetWorldX() - state.GetWidth());
-                break;
-            }
-        }
-    } else if (state.GetVelX() < 0) {
-        int ltile = static_cast<int>(updatedBox.left) / tileSize;
-        for (int y = static_cast<int>(updatedBox.top) / tileSize;
-             y <= static_cast<int>(updatedBox.bottom - 1) / tileSize; y++) {
-            Mario::Block* block = m_Level->GetBlockAt(ltile, y);
-            if (block && block->IsSolid()) {
-                state.FlipDirection();
-                state.SetX(block->GetWorldX() + tileSize);
-                break;
-            }
-        }
-    }
-
-    // Pit fall: deactivate entity if below level
-    if (state.GetY() > Mario::GameConfig::LEVEL_HEIGHT_PX + tileSize) {
-        state.Delete();
-    }
-}
-
-void App::CheckPlayerEntityCollision() {
-    if (!m_Player || m_Player->GetState().IsDead() ||
-        m_Player->GetState().IsInvincible())
-        return;
-
-    m_CollisionManager.CheckPlayerEntityCollision(
-        *m_Player, m_Entities, m_Camera, m_GameState, *m_UIManager);
-}
-
-void App::CheckEntityEntityCollision() {
-    m_CollisionManager.CheckEntityEntityCollision(m_Entities, m_GameState);
-}
-
-void App::CleanupDeadEntities() {
-    // Remove entities that are marked as dead
-    m_Entities.erase(
-        std::remove_if(m_Entities.begin(), m_Entities.end(),
-                       [&](const std::shared_ptr<Mario::Entity>& entity) {
-                           if (!entity->GetState().IsActive()) {
-                               m_Renderer.RemoveChild(entity);
-                               return true;
-                           }
-                           return false;
-                       }),
-        m_Entities.end());
-}
-
-void App::UpdateGameWon() {
-    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
-        m_CurrentState = State::TITLE;
-        LOG_INFO("Game Won! Returning to TITLE screen.");
-    }
-}
-
-void App::CheckAxeCollision() {
-    if (!m_Player || m_Player->GetState().IsDead() ||
-        m_LevelCompleteCtrl.IsActive())
-        return;
-
-    Mario::AABB playerBox = m_Player->GetState().GetHitbox();
-
-    for (const auto& entity : m_Entities) {
-        if (entity->GetState().GetName() == "Axe") {
-            // Use an extended hitbox for the Axe: it spans from its spawn row
-            // (row 8, Y=360) down through the bridge level (row 10, Y=450+90)
-            // so Mario can trigger it whether walking at the corridor or bridge
-            // level. C# reference: Form1.cs EndingCheck() — axe hitbox covers
-            // vertical approach.
-            float axeX = entity->GetState().GetX();
-            float axeY = entity->GetState().GetY();
-            Mario::AABB extendedAxeBox{
-                axeX - 5.0f,   // left: slightly before axe
-                axeY,          // top: at axe spawn row
-                axeX + 55.0f,  // right: covers one tile right
-                axeY + 120.0f  // bottom: extends to bridge+Mario height below
-            };
-            if (playerBox.Intersects(extendedAxeBox)) {
-                LOG_INFO("Axe touched! Starting 8-4 ending sequence.");
-                entity->GetState().SetActive(false);  // Axe disappears
-                m_CurrentState = State::AXE_SEQUENCE;
-                m_GameState.StopTime();
-                Mario::AudioManager::GetInstance().StopBGM();
-                Mario::AudioManager::GetInstance().PlaySFX(
-                    Mario::SFXName::Break);
-                return;
-            }
-        }
-    }
-}
+// NOTE: CheckFlagpoleCollision, CheckPipeCollision, CheckAxeCollision,
+//       CheckPlayerEntityCollision, CheckEntityEntityCollision, and
+//       CleanupDeadEntities have been moved to PlayingSceneHandler — they are
+//       game-logic decisions that only the PLAYING state ever needs.

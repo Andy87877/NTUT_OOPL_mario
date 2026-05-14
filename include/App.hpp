@@ -1,9 +1,20 @@
 /**
  * @file App.hpp
  * @brief Main application controller for Super Mario Bros.
- *        Manages the game state machine (Title, Loading, Playing, Death,
- * GameOver) and coordinates all subsystems (Level, Player, Input, Collision,
- * Camera).
+ *        Owns all game subsystems and coordinates them through the State
+ *        Pattern: each App::State has a dedicated ISceneHandler that drives
+ *        both update and render logic for that state.
+ *
+ *        App::Update() is a two-liner:
+ *          m_CurrentHandler->Update(*this);   // game logic
+ *          m_CurrentHandler->OnRender(*this); // drawing
+ *
+ *        Adding a new game state requires ONLY:
+ *          1. A new ISceneHandler subclass (.hpp + .cpp)
+ *          2. One case in CreateSceneHandler()
+ *          3. One entry in the State enum
+ *        Zero changes to this file.
+ *
  * @inheritance None (top-level controller)
  */
 #ifndef APP_HPP
@@ -20,6 +31,7 @@
 #include "Mario/EntityFactory.hpp"
 #include "Mario/GameConfig.hpp"
 #include "Mario/GameStateManager.hpp"
+#include "Mario/ISceneHandler.hpp"
 #include "Mario/InputHandler.hpp"
 #include "Mario/Level.hpp"
 #include "Mario/LevelCompleteController.hpp"
@@ -32,6 +44,8 @@ class App {
    public:
     /**
      * Game state machine states.
+     * Each state maps to an ISceneHandler subclass created by
+     * CreateSceneHandler().
      */
     enum class State {
         START,         // Initial boot
@@ -40,12 +54,12 @@ class App {
         PLAYING,       // Active gameplay
         FLAGPOLE,      // Flagpole ending sequence
         PIPE_WARP,     // Pipe warp transition
-        AXE_SEQUENCE,  // State for 8-4 ending
+        AXE_SEQUENCE,  // 8-4 boss-defeat cutscene
         DEATH,         // Mario death animation
         GAME_OVER,     // Game over screen (lives = 0)
-        GAME_WON,      // Game won - 8-4 Boss defeated
-        ESC_MENU,      // Pause menu with level skip
-        END,           // Exiting application
+        GAME_WON,      // All levels cleared
+        ESC_MENU,      // Pause menu
+        END,           // Application exit
     };
 
     State GetCurrentState() const { return m_CurrentState; }
@@ -54,37 +68,70 @@ class App {
     void Update();
     void End();  // NOLINT(readability-convert-member-functions-to-static)
 
-   private:
-    // -- State Machine --
-    void UpdateTitle();
-    void UpdateLoading();
-    void UpdatePlaying();
-    void UpdateFlagpole();
-    void UpdatePipeWarp();
-    void UpdateAxeSequence();
-    void UpdateDeath();
-    void UpdateGameOver();
-    void UpdateGameWon();
-    void UpdateESCMenu();
+    // =========================================================================
+    // Public API — used by ISceneHandler subclasses
+    // =========================================================================
 
-    // -- Level Management --
+    /** Swap the active scene handler (calls OnExit/OnEnter). */
+    void TransitionTo(State next);
+
+    // -- Level management --
     void LoadLevel(const std::string& levelName);
-    void PlayCurrentBGM();
     void StartLevel();
-    void RenderAll();
+    void PlayCurrentBGM();
     void AdvanceToNextLevel();
-    void CheckAxeCollision();
 
-    // -- Helpers --
-    void CheckFlagpoleCollision();
-    void CheckPipeCollision();
-    void CheckEntityBlockCollision(Mario::Entity& entity);
-    void CheckPlayerEntityCollision();
-    void CheckEntityEntityCollision();
-    void CleanupDeadEntities();
+    // -- Collision helpers (called ONLY by PlayingSceneHandler — see there) --
+    // NOTE: CheckFlagpoleCollision, CheckPipeCollision, CheckAxeCollision,
+    //       CheckPlayerEntityCollision, CheckEntityEntityCollision, and
+    //       CleanupDeadEntities are now private methods of PlayingSceneHandler.
+    //       App no longer owns game-logic decisions.
+
+    /**
+     * Set OpenGL background clear color for the current level context.
+     * Called by ISceneHandler::OnRender() implementations.
+     * @param isUnderground  true = black (castle/underground), false = sky blue
+     */
+    void ApplyBackground(bool isUnderground);
+
+    // -- Data accessors (return by reference for handler read/write) --
+    std::shared_ptr<Mario::Player>& GetPlayer() { return m_Player; }
+    std::shared_ptr<Mario::Level>& GetLevel() { return m_Level; }
+    std::vector<std::shared_ptr<Mario::Entity>>& GetEntities() {
+        return m_Entities;
+    }
+    Mario::Camera& GetCamera() { return m_Camera; }
+    Util::Renderer& GetRenderer() { return m_Renderer; }
+    Mario::GameStateManager& GetGameState() { return m_GameState; }
+    Mario::UIManager& GetUIManager() { return *m_UIManager; }
+    Mario::CollisionManager& GetCollisionManager() {
+        return m_CollisionManager;
+    }
+    Mario::InputHandler& GetInputHandler() { return m_InputHandler; }
+    Mario::LevelCompleteController& GetLevelCompleteCtrl() {
+        return m_LevelCompleteCtrl;
+    }
+    std::shared_ptr<Mario::Entity>& GetFlagEntity() { return m_FlagEntity; }
+
+    int GetTimer() const { return m_Timer; }
+    float GetSpeed() const { return m_Speed; }
+    const std::string& GetCurrentLevelName() const {
+        return m_CurrentLevelName;
+    }
+
+    // Mutable primitive accessors (handlers write these directly)
+    bool& GetLoading() { return m_Loading; }
+    int& GetLoadTimer() { return m_LoadTimer; }
+    int& GetDeathTimer() { return m_DeathTimer; }
+    int& GetESCMenuSelection() { return m_ESCMenuSelection; }
 
    private:
+    /** Factory: construct the ISceneHandler for a given state. */
+    std::unique_ptr<Mario::ISceneHandler> CreateSceneHandler(State s);
+
+    // -- State machine --
     State m_CurrentState = State::START;
+    std::unique_ptr<Mario::ISceneHandler> m_CurrentHandler;
 
     // -- Camera --
     Mario::Camera m_Camera;
@@ -92,43 +139,45 @@ class App {
     // -- Renderer --
     Util::Renderer m_Renderer;
 
-    // -- Level Data --
+    // -- Level data --
     std::shared_ptr<Mario::Level> m_Level;
 
-    // -- Player (View, inherits Util::GameObject) --
+    // -- Player --
     std::shared_ptr<Mario::Player> m_Player;
 
-    // -- Input (Controller in MVC) --
+    // -- Input (MVC Controller) --
     Mario::InputHandler m_InputHandler;
 
-    // -- Collision Manager --
+    // -- Collision --
     Mario::CollisionManager m_CollisionManager;
 
-    // -- Entities (Goomba, KoopaTroopa, Mushroom, etc.) --
+    // -- Entities --
     std::vector<std::shared_ptr<Mario::Entity>> m_Entities;
 
-    // -- Phase 5: Level Completion --
+    // -- Level-completion sequences --
     Mario::LevelCompleteController m_LevelCompleteCtrl;
     Mario::GameStateManager m_GameState;
-    std::shared_ptr<Mario::Entity> m_FlagEntity;  // The flag that slides down
+    std::shared_ptr<Mario::Entity> m_FlagEntity;
 
-    // -- Phase 5: UI Manager --
+    // -- UI --
     std::unique_ptr<Mario::UIManager> m_UIManager;
 
-    // -- Movement Speed (matching C# speed calculation) --
+    // -- Movement speed --
     float m_Speed = Mario::GameConfig::SCALED_SPEED;
 
-    // -- Loading State --
+    // -- Loading state --
     bool m_Loading = false;
     int m_LoadTimer = -1;
 
-    // -- Death State --
+    // -- Death state --
     int m_DeathTimer = -1;
+
+    // -- Level info --
     std::string m_CurrentLevelName;
     int m_Timer = 0;
 
-    // -- ESC Menu State --
-    int m_ESCMenuSelection = 0;  // 0=Resume, 1=1-1, 2=1-2, 3=8-4
+    // -- ESC menu --
+    int m_ESCMenuSelection = 0;
 };
 
 #endif  // APP_HPP

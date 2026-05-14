@@ -33,6 +33,8 @@ enum class EntityType {
     PARTICLE_DEBRIS,
     AXE,
     AXE_PROJECTILE,
+    PIRANHA_PLANT,
+    PODOBOO,  // Lava Bubble — jumps from lava, immortal
     UNKNOWN
 };
 

@@ -221,11 +221,8 @@ void CollisionManager::CheckCeilingCollision(
                                               by - offset,
                                               true};
                         Level::SpawnPoint sp2{
-                            -1,
-                            block->GetName() + "Break_tr",
-                            block->GetGridX(),
-                            block->GetGridY(),
-                            bx + offset,
+                            -1, block->GetName() + "Break_tr",
+                            block->GetGridX(), block->GetGridY(), bx + offset,
                             by + offset,  // Wait, C# says: (x + 0.25), (y +
                                           // 0.25) -> this is actually br in C#?
                                           // Let's check C# again.
@@ -320,6 +317,8 @@ void CollisionManager::CheckPlayerEntityCollision(
     for (auto& entity : entities) {
         EntityState& es = entity->GetState();
         if (!es.IsActive()) continue;
+        if (es.IsHidden())
+            continue;  // PiranhaPlant inside pipe — not collidable
 
         AABB entityBox = es.GetHitbox();
         if (!playerBox.Intersects(entityBox)) continue;
@@ -546,6 +545,75 @@ void CollisionManager::CheckEntityEntityCollision(
                 }
             }
         }
+    }
+}
+
+// ============================================================================
+// CheckEntityBlockCollision
+// Ported from old App::CheckEntityBlockCollision().
+// Handles ground, wall, and pit-fall for non-player entities.
+// C# reference: Form1.cs onTick() entity ground/wall checks.
+// ============================================================================
+void CollisionManager::CheckEntityBlockCollision(Entity& entity, Level& level) {
+    EntityState& state = entity.GetState();
+    AABB box = state.GetHitbox();
+
+    const int tileSize = GameConfig::TILE_SIZE;
+
+    // -- Ground check --
+    int leftTile = static_cast<int>(box.left) / tileSize;
+    int rightTile = static_cast<int>(box.right - 1) / tileSize;
+    int bottomTile = static_cast<int>(box.bottom) / tileSize;
+
+    bool onGround = false;
+    for (int x = leftTile; x <= rightTile; x++) {
+        Block* block = level.GetBlockAt(x, bottomTile);
+        if (block && block->IsSolid()) {
+            AABB bb = block->GetAABB();
+            if (box.Intersects(bb)) {
+                float overlap = box.bottom - bb.top;
+                if (overlap > 0 && overlap < tileSize * 0.75f) {
+                    state.SetY(bb.top - state.GetHeight());
+                    state.SetVelY(0.0f);
+                    state.SetGrounded(true);
+                    onGround = true;
+                }
+            }
+        }
+    }
+    if (!onGround && state.IsGrounded()) {
+        state.SetGrounded(false);
+    }
+
+    // -- Wall check: flip direction on wall collision --
+    AABB updatedBox = state.GetHitbox();
+    if (state.GetVelX() > 0.0f) {
+        int rtile = static_cast<int>(updatedBox.right) / tileSize;
+        for (int y = static_cast<int>(updatedBox.top) / tileSize;
+             y <= static_cast<int>(updatedBox.bottom - 1) / tileSize; y++) {
+            Block* block = level.GetBlockAt(rtile, y);
+            if (block && block->IsSolid()) {
+                state.FlipDirection();
+                state.SetX(block->GetWorldX() - state.GetWidth());
+                break;
+            }
+        }
+    } else if (state.GetVelX() < 0.0f) {
+        int ltile = static_cast<int>(updatedBox.left) / tileSize;
+        for (int y = static_cast<int>(updatedBox.top) / tileSize;
+             y <= static_cast<int>(updatedBox.bottom - 1) / tileSize; y++) {
+            Block* block = level.GetBlockAt(ltile, y);
+            if (block && block->IsSolid()) {
+                state.FlipDirection();
+                state.SetX(block->GetWorldX() + tileSize);
+                break;
+            }
+        }
+    }
+
+    // -- Pit fall: deactivate entity if below level --
+    if (state.GetY() > GameConfig::LEVEL_HEIGHT_PX + tileSize) {
+        state.Delete();
     }
 }
 

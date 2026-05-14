@@ -55,7 +55,7 @@ Block::Block(int blockID, int gridX, int gridY, const BlockDef& def)
     // smaller)
     float scaleX = GameConfig::DRAW_SCALE;
     float scaleY = GameConfig::DRAW_SCALE;
-    if (blockID >= 801 && blockID <= 904) {
+    if ((blockID >= 801 && blockID <= 904) || blockID == 905) {
         scaleX *= 2.0f;  // Enlarge 8-4 castle blocks by 2.0x
         scaleY *= 2.0f;
     }
@@ -77,7 +77,7 @@ void Block::SetupSprite() {
     // Lazy-load: Just collect paths, don't load images yet
     try {
         // Special handling for 8-4 castle sprites (IDs 801-904)
-        if (m_BlockID >= 801 && m_BlockID <= 904) {
+        if ((m_BlockID >= 801 && m_BlockID <= 904) || m_BlockID == 905) {
             m_SpritePath =
                 SpritePathResolver::GetCastleSpritePathByID(m_BlockID);
             if (m_SpritePath.empty()) {

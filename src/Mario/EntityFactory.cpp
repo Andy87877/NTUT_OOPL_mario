@@ -7,18 +7,18 @@
  */
 #include "Mario/EntityFactory.hpp"
 
-#include "Mario/Behaviors/AxeBehavior.hpp"
-#include "Mario/Behaviors/AxeKoopaBehavior.hpp"
 #include "Mario/Behaviors/BowserBehavior.hpp"
 #include "Mario/Behaviors/DefaultEntityBehavior.hpp"
 #include "Mario/Behaviors/EnemyBehavior.hpp"
 #include "Mario/Behaviors/FireballBehavior.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
 #include "Mario/Behaviors/ItemBehavior.hpp"
-#include "Mario/Behaviors/KoopaBehavior.hpp"
-#include "Mario/Behaviors/ParaKoopaBehavior.hpp"
+#include "Mario/Behaviors/KoopaFamily.hpp"
 #include "Mario/Behaviors/ParticleDebris.hpp"
-#include "Mario/Behaviors/PrincessBehavior.hpp"
+#include "Mario/Behaviors/PiranhaPlantBehavior.hpp"
+#include "Mario/Behaviors/PodobooBehavior.hpp"
+#include "Mario/Behaviors/StaticEntityBehaviors.hpp"
+#include "Mario/GameConfig.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {
@@ -73,6 +73,29 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
             LOG_DEBUG("Spawned {} at worldX={}, worldY={}", sp.entityName,
                       sp.worldX, sp.worldY);
             entities.push_back(entity);
+        }
+    }
+
+    // 8-4 castle: Spawn Podoboos at hardcoded lava pit positions.
+    // Not in CSV spawn data — baked into 8-4 level design.
+    // row 13 = main castle lava (y = 13 * TILE_SIZE)
+    // row 11 = boss pit lava   (y = 11 * TILE_SIZE)
+    if (levelName == "8-4") {
+        const EntityDef& podobooDef = level.GetEntityDefByName("Podoboo");
+        if (!podobooDef.name.empty()) {
+            static constexpr std::pair<int, int> kPodobooTiles[] = {
+                {68, 13}, {145, 13}, {222, 13}, {336, 11}};
+            for (auto [col, row] : kPodobooTiles) {
+                float wx = static_cast<float>(col * GameConfig::TILE_SIZE);
+                float wy = static_cast<float>(row * GameConfig::TILE_SIZE);
+                auto pb = SpawnEntity(podobooDef, wx, wy, 2, false, levelName);
+                if (pb) {
+                    LOG_DEBUG("Spawned Podoboo at world ({}, {})", wx, wy);
+                    entities.push_back(pb);
+                }
+            }
+        } else {
+            LOG_WARN("Podoboo entity definition not found in EntityList.csv");
         }
     }
 
@@ -137,6 +160,12 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             break;
         case EntityType::AXE_PROJECTILE:
             behavior = std::make_unique<AxeBehavior>();
+            break;
+        case EntityType::PIRANHA_PLANT:
+            behavior = std::make_unique<PiranhaPlantBehavior>();
+            break;
+        case EntityType::PODOBOO:
+            behavior = std::make_unique<PodobooBehavior>();
             break;
         default:
             behavior = std::make_unique<DefaultEntityBehavior>();

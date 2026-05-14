@@ -1,13 +1,20 @@
 /**
  * @file UIManager.cpp
- * @brief Implementation of UI manager with full text rendering logic.
- * @inheritance None (Service)
+ * @brief Implementation of UIManager, CoinUI, and FloatingText.
+ *        CoinUI and FloatingText are private sub-components exclusively owned
+ *        by UIManager; merging their implementations here keeps the entire
+ *        HUD sub-system in one compiled unit.
+ * @inheritance None <- UIManager  (Service)
+ *              None <- CoinUI     (Composite UI component)
+ *              None <- FloatingText (UI effect component)
  */
 #include "Mario/UIManager.hpp"
 
 #include <cstdio>
 
+#include "Util/Color.hpp"
 #include "Util/Logger.hpp"
+#include "config.hpp"
 
 namespace Mario {
 
@@ -357,6 +364,87 @@ void UIManager::AddFloatingText(float screenX, float screenY,
     m_UIRenderer.AddChild(floatingText->GetUIText());
     LOG_DEBUG("Added floating text: '{}' at screen ({}, {})", text, screenX,
               screenY);
+}
+
+// ============================================================================
+// CoinUI — implementation merged here (UIManager is the sole consumer)
+// ============================================================================
+
+CoinUI::CoinUI(const std::string& fontPath, int fontSize, float screenX,
+               float screenY, float coinScale)
+    : m_ScreenX(screenX), m_ScreenY(screenY), m_CoinScale(coinScale) {
+    auto colorWhite = Util::Color::FromRGB(255, 255, 255);
+
+    std::string coinPath =
+        std::string(RESOURCE_DIR) + COIN_SPRITE_BASE + "1.png";
+    m_CoinImage = std::make_shared<UIImage>(coinPath);
+    m_CoinImage->m_Transform.scale = {m_CoinScale, m_CoinScale};
+
+    m_CountText =
+        std::make_shared<UIText>(fontPath, fontSize, "x00", colorWhite);
+
+    float coinScreenX = screenX - 10.0f;
+    m_CoinImage->SetPosition(ScreenXToPTSD(coinScreenX),
+                             ScreenYToPTSD(screenY));
+
+    float textOffsetX = coinScreenX + 60.0f;
+    m_CountText->SetPosition(ScreenXToPTSD(textOffsetX),
+                             ScreenYToPTSD(screenY));
+}
+
+void CoinUI::Update(int coinCount) {
+    m_AnimationCounter++;
+    if (m_AnimationCounter >= FRAME_INTERVAL) {
+        m_AnimationCounter = 0;
+        m_CurrentFrame = (m_CurrentFrame + 1) % COIN_FRAME_COUNT;
+        UpdateCoinSprite();
+    }
+
+    char countStr[10];
+    snprintf(countStr, sizeof(countStr), "x%02d", coinCount % 100);
+    m_CountText->SetTextContent(countStr);
+}
+
+float CoinUI::ScreenXToPTSD(float screenX) const { return screenX - 640.0f; }
+
+float CoinUI::ScreenYToPTSD(float screenY) const { return 360.0f - screenY; }
+
+void CoinUI::UpdateCoinSprite() {
+    int frameNum = m_CurrentFrame + 1;
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s%s%d.png", RESOURCE_DIR,
+             COIN_SPRITE_BASE, frameNum);
+    m_CoinImage->SetImagePath(buffer);
+}
+
+// ============================================================================
+// FloatingText — implementation merged here (UIManager is the sole consumer)
+// ============================================================================
+
+FloatingText::FloatingText(float ptsdX, float ptsdY, const std::string& text,
+                           int durationFrames)
+    : m_LifetimeCounter(durationFrames), m_OriginalDuration(durationFrames) {
+    m_CurrentPosition = {ptsdX, ptsdY};
+    m_UIText =
+        std::make_shared<UIText>(std::string(RESOURCE_DIR) + "/Font/mario.ttf",
+                                 16, text, Util::Color::FromRGB(255, 255, 255));
+    m_UIText->SetPosition(ptsdX, ptsdY);
+}
+
+void FloatingText::Update() {
+    m_LifetimeCounter--;
+
+    if (m_LifetimeCounter > 0) {
+        m_CurrentPosition.y -= 1.0f;
+        m_UIText->SetPosition(m_CurrentPosition.x, m_CurrentPosition.y);
+
+        float progress =
+            static_cast<float>(m_LifetimeCounter) / m_OriginalDuration;
+        int alpha = static_cast<int>(255.0f * progress);
+        alpha = (alpha < 0) ? 0 : alpha;
+        m_UIText->SetTextColor(
+            Util::Color(255, 255, 255, static_cast<Uint8>(alpha)));
+    }
 }
 
 }  // namespace Mario

@@ -114,6 +114,12 @@ void LevelCompleteController::StartPipeWarp(Player& player,
     player.GetState().SetVelX(0.0f);
     player.GetState().SetVelY(0.0);
 
+    // Drop ZIndex so Mario renders BEHIND the pipe tiles (ZIndex=0).
+    // This creates the authentic "sinking into pipe" visual.
+    // The player object is recreated when the next level loads, so no
+    // explicit ZIndex restore is needed.
+    player.SetZIndex(-1.0f);
+
     if (direction == "Down") {
         m_Phase = EndingPhase::PIPE_DESCEND;
         // Mario descends 2 tiles below pipe
@@ -316,6 +322,13 @@ void LevelCompleteController::UpdatePipeDescend(Player& player) {
     float newY = ps.GetY() + GameConfig::PIPE_ANIM_SPEED;
     ps.SetY(newY);
 
+    // Once Mario has sunk one full tile into the pipe, make him invisible.
+    // The ZIndex=-1 (set in StartPipeWarp) already puts him behind the pipe
+    // tiles visually; SetVisible(false) hides any portion still peeking above.
+    if (ps.GetY() > m_pipe_y + GameConfig::TILE_SIZE) {
+        player.SetVisible(false);
+    }
+
     // Check if descended far enough
     if (ps.GetY() > m_pipe_target_y) {
         m_Phase = EndingPhase::COMPLETED;
@@ -336,10 +349,15 @@ void LevelCompleteController::UpdatePipeRight(Player& player) {
     ps.SetMovingRight(true);
     ps.SetFacingRight(true);
 
+    // Once Mario has walked one tile into the pipe, make him invisible.
+    // Combined with ZIndex=-1, this prevents the ghost/pass-through look.
+    if (ps.GetX() > m_pipe_x + GameConfig::TILE_SIZE) {
+        player.SetVisible(false);
+    }
+
     // Check if moved far enough
     if (ps.GetX() > m_pipe_target_x) {
         m_Phase = EndingPhase::COMPLETED;
-        player.SetVisible(false);
         LOG_DEBUG("Pipe right-walk complete");
     }
 }

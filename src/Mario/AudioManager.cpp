@@ -1,14 +1,18 @@
 /**
  * @file AudioManager.cpp
- * @brief Implementation of audio manager.
+ * @brief Implementation of AudioManager (BGM + SFX service) and
+ *        AudioPathResolver (static path-building helper).
+ *        AudioPathResolver is an internal detail of AudioManager;
+ *        the two are compiled together to keep the audio subsystem in one file.
  * @inheritance IAudioService <- AudioManager
+ *              None          <- AudioPathResolver (static helper)
  */
 #include "Mario/AudioManager.hpp"
 
 #include <algorithm>
 
-#include "Mario/AudioPathResolver.hpp"
 #include "Util/Logger.hpp"
+#include "config.hpp"
 
 namespace Mario {
 
@@ -195,6 +199,19 @@ void AudioManager::SetMuted(bool muted) {
             }
         }
     }
+}
+
+// ============================================================================
+// AudioPathResolver — implementation merged here (AudioManager is the sole
+// consumer; keeping them in one file reduces compiled-unit overhead)
+// ============================================================================
+
+std::string AudioPathResolver::GetBGMPath(const std::string& filename) {
+    return std::string(RESOURCE_DIR) + BGM_SUBDIR + filename;
+}
+
+std::string AudioPathResolver::GetSFXPath(const std::string& filename) {
+    return std::string(RESOURCE_DIR) + SFX_SUBDIR + filename;
 }
 
 }  // namespace Mario

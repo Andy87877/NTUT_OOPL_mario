@@ -78,6 +78,15 @@ class CollisionManager {
         std::vector<std::shared_ptr<Entity>>& entities,
         GameStateManager& gameState);
 
+    /**
+     * Check and resolve Entity-Block collision for one entity per frame.
+     * Handles ground, wall, and pit-fall for non-player entities.
+     * Ported from the old App::CheckEntityBlockCollision().
+     * @param entity Entity to check
+     * @param level Current level data
+     */
+    void CheckEntityBlockCollision(Entity& entity, Level& level);
+
    private:
     /**
      * Check ground collision: is the player standing on a solid block?

@@ -23,6 +23,8 @@
 22,Princess,PRINCESS,0,0,0,0,1,0,0,0,1,4,0,0,0,1,0,0
 23,Bowser,BOWSER,0,1,0,0,0,0,0,500,1,4,0,1,0,5,0,0
 30,Axe,AXE,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0
+31,PiranhaPlant,PIRANHA_PLANT,0,1,0,0,1,0,0,200,1,2,0,0,0,3,0,0
+32,Podoboo,PODOBOO,0,1,0,0,0,0,0,0,1,2,0,1,0,3,0,0
 24,BrickBlockBreak_tl,PARTICLE_DEBRIS,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0
 25,BrickBlockBreak_tr,PARTICLE_DEBRIS,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0
 26,BrickBlockBreak_bl,PARTICLE_DEBRIS,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0

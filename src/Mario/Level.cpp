@@ -31,6 +31,8 @@ static EntityType StringToEntityType(const std::string& typeStr) {
     if (typeStr == "ONE_UP") return EntityType::ONE_UP;
     if (typeStr == "COIN") return EntityType::COIN;
     if (typeStr == "FLAG") return EntityType::FLAG;
+    if (typeStr == "PIRANHA_PLANT") return EntityType::PIRANHA_PLANT;
+    if (typeStr == "PODOBOO") return EntityType::PODOBOO;
     if (typeStr == "UNKNOWN") return EntityType::UNKNOWN;
     return EntityType::UNKNOWN;
 }
@@ -67,8 +69,8 @@ bool Level::Load(const std::string& levelName) {
     CreateBlocksFromGrid();
     IdentifySpawnPoints();
 
-    // 8-4 spawn point is read from the CSV (ID 999 = MarioStart at row=9, col=3)
-    // No override needed: the level now has the correct 999 marker.
+    // 8-4 spawn point is read from the CSV (ID 999 = MarioStart at row=9,
+    // col=3) No override needed: the level now has the correct 999 marker.
 
     LOG_INFO("Level {} loaded: {}x{} tiles, {} blocks, {} spawn points",
              levelName, m_Width, m_Height, m_Blocks.size(),
@@ -315,7 +317,14 @@ void Level::CreateBlocksFromGrid() {
                 m_SpawnPoints.push_back(sp);
                 LOG_DEBUG("Created spawner at ({},{}): {} (ID={})", x, y,
                           sp.entityName, sp.entityID);
-                continue;
+
+                // Non-solid spawners are invisible markers — skip block
+                // creation. Solid spawners (e.g. PiranhaPipeTop) also render as
+                // a visible block so the pipe tile appears in the world.
+                if (!it->second.solid) {
+                    continue;
+                }
+                // Fall through to create a visible solid block below.
             }
 
             // Create the block

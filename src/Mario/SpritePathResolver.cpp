@@ -33,6 +33,14 @@ namespace {
 // the reference C# code.
 
 /**
+ * Entity sprite overrides for enemies that cannot be resolved by the normal
+ * level-directory lookup.  Currently empty — all 8-4 entity sprites exist in
+ * Resources/Sprites/8-4/ and are found automatically by GetEntitySpritePath.
+ */
+static const std::unordered_map<std::string, std::string>
+    ENTITY_SPRITE_OVERRIDE = {};
+
+/**
  * Block sprite mapping: C# resource name -> PNG filename
  * Example: C# "BrickBlock20" -> actual file "BrickBlock1.png"
  */
@@ -214,6 +222,17 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
 std::string SpritePathResolver::GetEntitySpritePath(
     const std::string& entityName, int frame, const std::string& levelName) {
     auto resolve = [&]() -> std::string {
+        // Check entity sprite overrides first (e.g. PiranhaPlant placeholder)
+        if (frame >= 0) {
+            std::string overrideKey = entityName + std::to_string(frame + 1);
+            auto oit = ENTITY_SPRITE_OVERRIDE.find(overrideKey);
+            if (oit != ENTITY_SPRITE_OVERRIDE.end()) {
+                std::string path = SPRITE_BASE_PATH + oit->second;
+                std::ifstream test(path);
+                if (test.good()) return path;
+            }
+        }
+
         // Build level-specific sprite path
         std::string levelDir = SPRITE_BASE_PATH + levelName + "/";
 
@@ -270,6 +289,11 @@ std::string SpritePathResolver::GetEntitySpritePath(
 
 std::string SpritePathResolver::GetCastleSpritePathByID(int blockID) {
     // 8-4 castle sprites: ID 801-904 -> Sprites/8-4/tile_XXX.png
+    // ID 905 (PiranhaPipeTop spawner) reuses the pipe-body-right tile (826 =
+    // tile_0026) so the pipe opening row looks visually correct.
+    if (blockID == 905) {
+        blockID = 826;  // render as tile_0026 (right side of pipe body)
+    }
     if (blockID < 801 || blockID > 904) {
         return "";  // Invalid ID for 8-4
     }

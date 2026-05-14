@@ -86,6 +86,10 @@ class EntityState {
 
     void SetCollidable(bool collidable) { m_DoesCollide = collidable; }
     void SetGravity(bool gravity) { m_ApplyGravity = gravity; }
+    // Temporarily hide entity from rendering while keeping it logically active.
+    // Used by PiranhaPlantBehavior when the plant is inside the pipe.
+    void SetHidden(bool hidden) { m_Hidden = hidden; }
+    bool IsHidden() const { return m_Hidden; }
 
     // -- Actions --
     void FlipDirection();
@@ -141,6 +145,7 @@ class EntityState {
     bool m_DeathActive = false;
     int m_SquishCounter = 0;
     int m_ActiveCounter = 0;
+    bool m_Hidden = false;  // Set by PiranhaPlantBehavior to suppress rendering
 };
 
 }  // namespace Mario

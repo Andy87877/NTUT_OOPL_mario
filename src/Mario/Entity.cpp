@@ -35,6 +35,13 @@ void Entity::UpdateView(float cameraOffset) {
         return;
     }
 
+    // PiranhaPlant (and any other behavior that calls SetHidden) hides the
+    // entity while it is inside the pipe without deactivating it.
+    if (m_State.IsHidden()) {
+        SetVisible(false);
+        return;
+    }
+
     // Build sprite path
     std::string spritePath = BuildSpritePath();
 
@@ -61,6 +68,10 @@ void Entity::UpdateView(float cameraOffset) {
                         float targetWidth = 32.0f;
                         if (m_State.GetName() == "Bowser") {
                             targetWidth = 64.0f;
+                        } else if (m_State.GetName() == "PiranhaPlant") {
+                            // 2-tile-wide pipe: collision box = 2 * TILE_SIZE
+                            targetWidth =
+                                static_cast<float>(GameConfig::TILE_SIZE * 2);
                         }
                         m_State.SetSizeX(static_cast<int>(targetWidth));
 
@@ -114,9 +125,14 @@ void Entity::UpdateView(float cameraOffset) {
             // Determine target width based on enemy type
             float targetWidth = 32.0f;  // Default: enemies should be 32px wide
 
-            // Bowser is special: 2x width
             if (m_State.GetName() == "Bowser") {
-                targetWidth = 64.0f;  // 2x for Bowser
+                targetWidth = 64.0f;  // 2x tile width for Bowser
+            } else if (m_State.GetName() == "PiranhaPlant") {
+                // targetWidth drives the scale formula:
+                //   screen_width = DRAW_SCALE * targetWidth
+                // We want screen_width = 2 * TILE_SIZE = 90px
+                //   targetWidth = 90 / DRAW_SCALE = 90 / (45/32) = 64
+                targetWidth = 64.0f;  // renders as 90px = 2 tiles = full pipe
             }
 
             // Calculate scale to match target width

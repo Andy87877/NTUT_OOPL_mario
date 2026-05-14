@@ -108,6 +108,18 @@ classDiagram
         +Update()
         +OnPlayerCollision()
     }
+    class PiranhaPlantBehavior {
+        +Update()
+        +OnPlayerCollision()
+        -Phase: HIDING/EMERGING/VISIBLE/RETREATING
+    }
+    class PodobooBehavior["PodobooBehavior (岩漿火球)"] {
+        -Phase: WAITING/JUMPING
+        +Update()
+        +OnPlayerCollision()
+        +OnFireballHit() bool
+        +不可摘死、忽略地形
+    }
 
     IEntityBehavior <|.. EnemyBehavior : 實作介面 (多型)
     IEntityBehavior <|.. ItemBehavior : 實作介面 (多型)
@@ -119,6 +131,8 @@ classDiagram
     IEntityBehavior <|.. AxeKoopaBehavior : 實作介面 (多型)
     IEntityBehavior <|.. PrincessBehavior : 實作介面 (多型)
     IEntityBehavior <|.. DefaultEntityBehavior : 實作介面 (多型)
+    IEntityBehavior <|.. PiranhaPlantBehavior : 實作介面 (多型)
+    IEntityBehavior <|.. PodobooBehavior : 實作介面 (多型)
 
     Entity *-- IEntityBehavior : 組合 (Strategy Pattern)
 
@@ -144,17 +158,107 @@ classDiagram
     %% Core Systems & Managers (SRP)
     %% --------------------
     class App {
-        <<Game Loop Controller>>
+        <<Game Loop Controller - State Pattern>>
         -State m_CurrentState
+        -ISceneHandler m_CurrentHandler
         +Start()
         +Update()
-        +UpdatePlaying()
+        +TransitionTo(State)
+        +ApplyBackground(isUnderground bool)
+        +LoadLevel()
+        +StartLevel()
+        +PlayCurrentBGM()
+        +AdvanceToNextLevel()
     }
+
+    class ISceneHandler {
+        <<interface>>
+        +OnEnter(App)
+        +Update(App)*
+        +OnRender(App)
+        +OnExit(App)
+        +GetName() string*
+    }
+
+    class TitleSceneHandler {
+        +Update(App)
+        +OnRender(App)
+    }
+
+    class LoadingSceneHandler {
+        +OnEnter(App)
+        +Update(App)
+        +OnRender(App)
+    }
+
+    class PlayingSceneHandler {
+        +Update(App)
+        +OnRender(App)
+        -SpawnPlayerFireball(App)
+        -SpawnBrickDebris(App)
+        -CheckFlagpoleCollision(App)
+        -CheckPipeCollision(App)
+        -CheckAxeCollision(App)
+        -CheckPlayerEntityCollision(App)
+        -CheckEntityEntityCollision(App)
+        -CleanupDeadEntities(App)
+    }
+
+    class FlagpoleSceneHandler {
+        +Update(App)
+        +OnRender(App)
+    }
+
+    class PipeWarpSceneHandler {
+        -m_WarpSFXPlayed bool
+        +OnEnter(App)
+        +Update(App)
+        +OnRender(App)
+    }
+
+    class AxeSequenceSceneHandler {
+        +Update(App)
+        +OnRender(App)
+    }
+
+    class DeathSceneHandler {
+        +Update(App)
+        +OnRender(App)
+    }
+
+    class GameOverSceneHandler {
+        +Update(App)
+        +OnRender(App)
+    }
+
+    class GameWonSceneHandler {
+        +Update(App)
+        +OnRender(App)
+    }
+
+    class ESCMenuSceneHandler {
+        +Update(App)
+        +OnRender(App)
+    }
+
+    ISceneHandler <|-- TitleSceneHandler
+    ISceneHandler <|-- LoadingSceneHandler
+    ISceneHandler <|-- PlayingSceneHandler
+    ISceneHandler <|-- FlagpoleSceneHandler
+    ISceneHandler <|-- PipeWarpSceneHandler
+    ISceneHandler <|-- AxeSequenceSceneHandler
+    ISceneHandler <|-- DeathSceneHandler
+    ISceneHandler <|-- GameOverSceneHandler
+    ISceneHandler <|-- GameWonSceneHandler
+    ISceneHandler <|-- ESCMenuSceneHandler
+    App *-- ISceneHandler : delegates to
 
     class CollisionManager {
         <<Physics & Collision>>
         +CheckPlayerBlockCollision()
-        +CheckEntityBlockCollision()
+        +CheckEntityBlockCollision(entity Entity, level Level)
+        +CheckPlayerEntityCollision()
+        +CheckEntityEntityCollision()
     }
 
     class PhysicsEngine {
@@ -194,15 +298,30 @@ classDiagram
 
 ## 🛠️ 主要設計模式 (Design Patterns Applied)
 
-### 1. MVC 機制 (Model-View-Controller)
+### 1. State 模式 (狀態模式) — App 遊戲狀態機
+
+原先 `App.cpp` 把所有遊戲狀態（Title, Loading, Playing, Death...）的邏輯全部擠在同一個 `switch-case` 裡，導致 `UpdatePlaying()` 超過 250 行且難以擴展。
+
+重構後採用 GoF **State Pattern**：
+
+- **Context**: `App` 持有一個 `std::unique_ptr<ISceneHandler> m_CurrentHandler`。
+- **Abstract State**: `ISceneHandler` 介面定義 `Update(App&)` / `OnRender(App&)` / `OnEnter(App&)` / `OnExit(App&)`。
+- **Concrete States**: `TitleSceneHandler`, `LoadingSceneHandler`, `PlayingSceneHandler`, `FlagpoleSceneHandler`, `PipeWarpSceneHandler`, `AxeSequenceSceneHandler`, `DeathSceneHandler`, `GameOverSceneHandler`, `GameWonSceneHandler`, `ESCMenuSceneHandler`。
+- **Transition**: `App::TransitionTo(State)` 呼叫 `OnExit` → 建立新 Handler → `OnEnter`，一行程式碼完成狀態切換。
+- **Render delegation**: `App::Update()` 調用 `handler->OnRender(App&)` — 每個 Handler 自行呼叫 `ApplyBackground()` + `Renderer::Update()` + `UIManager::Update()`，零 switch-case。
+- **Game-logic ownership**: Trigger checks (`CheckFlagpoleCollision`, `CheckPipeCollision`, `CheckAxeCollision`) and entity lifecycle methods (`CheckPlayerEntityCollision`, `CheckEntityEntityCollision`, `CleanupDeadEntities`) are **private methods of `PlayingSceneHandler`** — only the PLAYING state needs them, so they live there.
+- **App as thin coordinator**: `App` owns subsystems and exposes a clean accessor API. Zero game-logic decisions remain in `App`. Adding a new state = new `ISceneHandler` subclass + one case in `CreateSceneHandler()` only.
+- **擴充性**: 新增一個遊戲狀態只需新增一個 `ISceneHandler` 子類別 + 在 `CreateSceneHandler()` 加一個 case，**不需修改 App.hpp 或 App.cpp 其他任何地方**。
+
+### 2. MVC 機制 (Model-View-Controller)
 
 參考 C# 原版的資料結構，將純數據與渲染邏輯徹底分離：
 
 - **Model**: `PlayerState` 和 `EntityState` 負責保存座標 (X, Y)、速度 (VelX, VelY) 與狀態標籤。它們不依賴任何外部繪圖引擎。
 - **View**: `Player` 和 `Entity` 繼承自 `Util::GameObject`，負責根據 Model 的資料決定要繪製哪一個 Sprite 圖片（例如面向左邊/右邊、跑步/跳躍動畫）。
-- **Controller**: `App::UpdatePlaying()` 搭配 `InputHandler` 負責玩家輸入與主迴圈狀態推進。
+- **Controller**: `PlayingSceneHandler::Update()` 搭配 `InputHandler` 負責玩家輸入與主迴圈狀態推進。
 
-### 2. Strategy 模式 (策略模式)
+### 3. Strategy 模式 (策略模式)
 
 C# 版本在 `Entity.cs` 中堆疊了幾千行的 switch-case 來判斷行為 (`if type == Goomba ...`)。  
 在 C++ 改構中，我們抽象出了 `IEntityBehavior`：
@@ -217,7 +336,7 @@ C# 版本在 `Entity.cs` 中堆疊了幾千行的 switch-case 來判斷行為 (`
 
 ---
 
-## 🎮 Game Loop 架構 (App::UpdatePlaying)
+## 🎮 Game Loop 架構 (PlayingSceneHandler::Update)
 
 我們將 C# `Form1` 內混雜在一塊的邏輯，抽象為有條理的 **11-Phase Update Loop**。確保不會因為物理碰撞與行為運算互相覆蓋而產生 Bug：
 
@@ -242,7 +361,7 @@ PHASE 11: LEVEL COMPLETION    // 水管通關、到達旗桿等大狀態跳轉
 ## ✅ 嚴格遵守 Agent 開發原則
 
 1. **所有的實體均繼承自 `Util::GameObject`**：`Player`, `Entity`, UI 元件。
-2. **沒有上帝類別 (God Class)**：App 只負責遊戲大迴圈與階段派發。物理演算交給 `CollisionManager`，圖形處理交回物件本身，生成器交由 `EntityFactory`。
+2. **沒有上帝類別 (God Class)**：App 只負責持有子系統與狀態切換 (`TransitionTo`)。每個遊戲狀態由獨立的 `ISceneHandler` 子類負責驅動（State Pattern）。物理演算交給 `CollisionManager`，圖形處理交回物件本身，生成器交由 `EntityFactory`。
 3. **無縫整合 PTSD 框架**：使用 `Util::Input`, `Util::Image`, 與 `Util::GameObject`，將外部框架與核心邏輯分離。
 
 **Latest Update**: Complete game loop restructuring to match C# reference code logic
@@ -253,7 +372,7 @@ PHASE 11: LEVEL COMPLETION    // 水管通關、到達旗桿等大狀態跳轉
 | **CollisionManager** | ✅ DONE | Removed duplicate position updates (physics now in App only) |
 | **EnemyBehavior** | ✅ DONE | Removed duplicate ApplyGravity calls |
 | **KoopaBehavior** | ✅ DONE | Physics application removed from Update() |
-| **ItemBehavior** | ✅ DONE | Physics moved to App::UpdatePlaying() |
+| **ItemBehavior** | ✅ DONE | Physics moved to PlayingSceneHandler::Update() |
 | **AxeKoopaBehavior** | ✅ DONE | Simplified to AI logic only |
 | **FireballBehavior** | ✅ DONE | Already correct (AI logic only) |
 | **BowserBehavior** | ✅ DONE | Multi-phase AI with health system |
@@ -903,6 +1022,12 @@ classDiagram
         +僅顯示
     }
 
+    class PodobooBehavior["PodobooBehavior (岩漿火球)"] {
+        -Phase: WAITING/JUMPING
+        +跳出岩漿循環
+        +不可擊殺
+    }
+
     %% 實裝關係
     IEntityBehavior <|.. EnemyBehavior
     IEntityBehavior <|.. KoopaBehavior
@@ -913,6 +1038,9 @@ classDiagram
     IEntityBehavior <|.. BowserBehavior
     IEntityBehavior <|.. PrincessBehavior
     IEntityBehavior <|.. DefaultEntityBehavior
+    IEntityBehavior <|.. PiranhaPlantBehavior
+    IEntityBehavior <|.. PodobooBehavior
+    IEntityBehavior <|.. PodobooBehavior
 ```
 
 ### 2️⃣ 怪物類型與行為對應表
@@ -926,6 +1054,8 @@ classDiagram
 | 878 | AxeKoopa | AxeKoopaBehavior | 巡邏、定期拋斧 | `AxeKoopaBehavior.cpp` |
 | 847 | Bowser | BowserBehavior | Boss 5 階段 AI | `BowserBehavior.cpp` |
 | 879 | Princess | PrincessBehavior | NPC 靜態顯示 | `PrincessBehavior.cpp` |
+| 895 | PiranhaPlant | PiranhaPlantBehavior | 定時從水管伸出/縮回 | `PiranhaPlantBehavior.cpp` |
+| *(hardcoded)* | Podoboo | PodobooBehavior | 從岩漿跳出/不可撃杀；由 `App::LoadLevel` 在 8-4 時程式化生成（非 CSV 砖块）| `PodobooBehavior.cpp` |
 | - | Fireball | FireballBehavior | 拋物線軌跡 | `FireballBehavior.cpp` |
 | 84~86 | 道具 | ItemBehavior | 移動 + 收集 | `ItemBehavior.cpp` |
 | - | 金幣 | DefaultEntityBehavior | 被動顯示 | `DefaultEntityBehavior.cpp` |
@@ -2070,172 +2200,162 @@ stateDiagram-v2
 
 ---
 
-## 五、專案程式碼目錄結構
+## 五、專案程式碼目錄結構 (Actual Current Layout)
 
-專案資料夾按照**領域職責 (Domain-based)** 分類，對應 MVC 架構。分為 **5 大領域**：
+> **Note**: The implementation uses a **flat layout** inside `Mario/` — no subdirectory namespacing. The domain groupings below are logical categories only.
 
 ```mermaid
 graph TD
     Root["Mario/ 根目錄"]
 
-    Root --> Core["🔵 Core<br/>底層引擎與工具"]
-    Root --> Managers["🟢 Managers<br/>跨場景全域服務"]
-    Root --> Entities["🟡 Entities<br/>遊戲物件 (Model + View)"]
-    Root --> Controllers["🔴 Controllers<br/>遊戲流程協調"]
-    Root --> Scenes["🟣 Scenes<br/>場景生命週期"]
+    Root --> Core["🔵 Core (底層)"] 
+    Root --> State["🟣 State Pattern (場景)"] 
+    Root --> Entity["🟡 Entities (遊戲物件)"]
+    Root --> Behavior["🔴 Behaviors (策略模式)"]
+    Root --> Mgr["🟢 Managers (服務)"] 
 
-    Core --> C1["AppCore / GameTheater"]
-    Core --> C2["GameConfig / PhysicsConstants"]
-    Core --> C3["PhysicsEngine / Camera"]
-    Core --> C4["SpritePathResolver"]
+    Core --> C1["GameConfig / PhysicsEngine / Camera"]
+    Core --> C2["SpritePathResolver / AudioPathResolver"]
+    Core --> C3["Collider / CollisionContext"]
 
-    Managers --> M1["AudioManager / IAudioService"]
-    Managers --> M2["GameStateManager / LevelManager"]
-    Managers --> M3["CollisionManager / RenderManager"]
-    Managers --> M4["SceneManager / UIManager"]
-    Managers --> M5["DeathScreenManager / FloatingText"]
+    State --> S1["ISceneHandler (介面)"] 
+    State --> S2["TitleSceneHandler / LoadingSceneHandler"]
+    State --> S3["PlayingSceneHandler / FlagpoleSceneHandler"]
+    State --> S4["PipeWarpSceneHandler / AxeSequenceSceneHandler"]
+    State --> S5["DeathSceneHandler / GameOverSceneHandler"]
+    State --> S6["GameWonSceneHandler / ESCMenuSceneHandler"]
 
-    Entities --> E1["Entity (View) ← EntityModel (Model)"]
-    Entities --> E2["Player (View) ← PlayerState (Model)"]
-    Entities --> E3["Block / BlockState / MovingPlatform"]
-    Entities --> E4["EntityFactory / EntityDef"]
-    Entities --> E5["Level / Collider / CollisionContext"]
-    Entities --> E6["Blocks/ 方塊策略（已存在）"]
-    Entities --> E7["Entities/ 敵人/道具/飛彈（已存在）"]
+    Entity --> E1["Player (View) ← PlayerState (Model)"]
+    Entity --> E2["Entity (View) ← EntityState (Model)"]
+    Entity --> E3["Block / Level / EntityDef"]
+    Entity --> E4["EntityFactory / LevelCompleteController"]
 
-    Controllers --> CT1["PlayingSceneController"]
-    Controllers --> CT2["EndingSequenceController"]
-    Controllers --> CT3["PipeWarpController / InputHandler"]
+    Behavior --> B1["IEntityBehavior (介面)"]
+    Behavior --> B2["EnemyBehavior / KoopaBehavior / ParaKoopaBehavior"]
+    Behavior --> B3["BowserBehavior / AxeKoopaBehavior / AxeBehavior"]
+    Behavior --> B4["ItemBehavior / FireballBehavior / PiranhaPlantBehavior"]
+    Behavior --> B5["PodobooBehavior / PrincessBehavior / DefaultEntityBehavior"]
+    Behavior --> B6["ParticleDebris"]
 
-    Scenes --> S1["ISceneHandler (介面)"]
-    Scenes --> S2["TitleSceneHandler / LoadingSceneHandler"]
-    Scenes --> S3["GameOverSceneHandler / DeathSceneHandler"]
-    Scenes --> S4["ESCMenuSceneHandler / ESCMenuState"]
-    Scenes --> S5["IGameState"]
+    Mgr --> M1["AudioManager (IAudioService impl)"]
+    Mgr --> M2["CollisionManager / InputHandler"]
+    Mgr --> M3["GameStateManager / UIManager"]
+    Mgr --> M4["FloatingText / CoinUI"]
 ```
 
 ---
 
-### `include/Mario/` — 標頭檔
+### `include/Mario/` — Actual Current Header Files
 
 ```text
 include/Mario/
-├── Core/
-│   ├── AppCore.hpp
-│   ├── GameTheater.hpp
-│   ├── GameConfig.hpp
-│   ├── PhysicsConstants.hpp
-│   ├── PhysicsEngine.hpp
-│   ├── Camera.hpp
-│   ├── SpritePathResolver.hpp
-│   └── AudioPathResolver.hpp        ← Audio file path resolution (RESOURCE_DIR)
+├── Behaviors/
+│   ├── IEntityBehavior.hpp        ← Strategy Pattern interface
+│   ├── EnemyBehavior.hpp          ← Goomba / Koopa patrol
+│   ├── KoopaBehavior.hpp          ← Koopa shell transform
+│   ├── ParaKoopaBehavior.hpp      ← Flying Koopa
+│   ├── AxeKoopaBehavior.hpp       ← Axe-throwing Koopa
+│   ├── BowserBehavior.hpp         ← Boss multi-phase AI
+│   ├── AxeBehavior.hpp            ← Axe projectile
+│   ├── FireballBehavior.hpp       ← Fireball projectile
+│   ├── ItemBehavior.hpp           ← Power-up bounce
+│   ├── PiranhaPlantBehavior.hpp   ← Pipe plant
+│   ├── PodobooBehavior.hpp        ← Lava bubble
+│   ├── KoopaFamily.hpp            ← KoopaBehavior + AxeKoopaBehavior + ParaKoopaBehavior
+│   ├── StaticEntityBehaviors.hpp  ← AxeBehavior + PrincessBehavior
+│   ├── DefaultEntityBehavior.hpp  ← Fallback
+│   └── ParticleDebris.hpp         ← Brick break particle
 │
-├── Managers/
-│   ├── AudioManager.hpp            ← Audio service (singleton, lazy loading)
-│   ├── IAudioService.hpp           ← Audio interface (dependency injection)
-│   ├── GameStateManager.hpp
-│   ├── LevelManager.hpp
-│   ├── CollisionManager.hpp
-│   ├── RenderManager.hpp
-│   ├── SceneManager.hpp
-│   ├── UIManager.hpp
-│   ├── DeathScreenManager.hpp
-│   └── FloatingText.hpp
-│
-├── Entities/
-│   ├── Entity.hpp          ← View 層 (繼承 EntityModel + Util::GameObject)
-│   ├── EntityModel.hpp     ← Model 層（純邏輯、可單元測試）
-│   ├── EntityDef.hpp
-│   ├── EntityFactory.hpp
-│   ├── Level.hpp
-│   ├── MovingPlatform.hpp
-│   ├── Block.hpp           ← View 層 (繼承 Util::GameObject)
-│   ├── BlockState.hpp
-│   ├── Collider.hpp
-│   ├── CollisionContext.hpp
-│   ├── Player.hpp          ← View 層 (委派給 PlayerState)
-│   ├── PlayerState.hpp     ← Model 層（狀態機、可單元測試）
-│   ├── Blocks/             ← 方塊碰撞策略（已存在）
-│   └── Entities/           ← 敵人/道具/飛彈模型（已存在）
-│
-├── Controllers/
-│   ├── PlayingSceneController.hpp
-│   ├── EndingSequenceController.hpp
-│   ├── PipeWarpController.hpp
-│   └── InputHandler.hpp
-│
-└── Scenes/
-    ├── ISceneHandler.hpp   ← 場景介面（OCP 擴充點）
-    ├── IGameState.hpp
-    ├── TitleSceneHandler.hpp
-    ├── LoadingSceneHandler.hpp
-    ├── GameOverSceneHandler.hpp
-    ├── DeathSceneHandler.hpp
-    ├── ESCMenuSceneHandler.hpp
-    └── ESCMenuState.hpp
+├── App.hpp                 ← (in include/) thin coordinator
+├── GameConfig.hpp          ← Physics & tile constants
+├── Camera.hpp              ← Viewport scroll
+├── PhysicsEngine.hpp       ← Gravity / jump parabola
+├── SpritePathResolver.hpp  ← Sprite path builder
+├── AudioManager.hpp        ← Full audio sub-system in one header:
+│                               AudioType (BGMName/SFXName enums)
+│                               IAudioService (DIP interface)
+│                               AudioPathResolver (path helper)
+│                               AudioManager (singleton impl)
+├── Collider.hpp            ← AABB struct
+├── CollisionManager.hpp    ← Player-block / entity collision
+├── InputHandler.hpp        ← MVC controller (keyboard)
+├── ISceneHandler.hpp       ← State Pattern interface
+├── MenuSceneHandlers.hpp   ← TitleSceneHandler + DeathSceneHandler +
+│                               GameOverSceneHandler + GameWonSceneHandler
+├── LoadingSceneHandler.hpp
+├── PlayingSceneHandler.hpp
+├── FlagpoleSceneHandler.hpp
+├── PipeWarpSceneHandler.hpp
+├── AxeSequenceSceneHandler.hpp
+├── ESCMenuSceneHandler.hpp
+├── Block.hpp               ← Tile game object
+├── Level.hpp               ← CSV map loader
+├── Entity.hpp              ← Dynamic game object
+├── EntityState.hpp         ← Entity Model
+├── EntityDef.hpp           ← CSV entity definition + EntityType enum
+├── EntityFactory.hpp       ← Factory Pattern
+├── Player.hpp              ← Player game object
+├── PlayerState.hpp         ← Player Model
+├── GameStateManager.hpp    ← Score / lives / time
+├── LevelCompleteController.hpp  ← Flagpole + pipe warp sequences
+├── UIManager.hpp           ← HUD rendering
+├── UIWidgets.hpp           ← UIText + UIImage merged (HUD-only wrappers)
+├── FloatingText.hpp        ← Score popup effect
+└── CoinUI.hpp              ← Coin HUD element
 ```
 
 ---
 
-### `src/Mario/` — 實作檔
+### `src/Mario/` — Actual Current Source Files
 
 ```text
 src/Mario/
-├── Core/
-│   ├── AppCore.cpp
-│   ├── GameTheater.cpp
-│   ├── GameConfig.cpp
-│   ├── PhysicsEngine.cpp
-│   ├── Camera.cpp
-│   ├── SpritePathResolver.cpp
-│   └── AudioPathResolver.cpp       ← Audio path resolution implementation
+├── Behaviors/
+│   ├── EnemyBehavior.cpp
+│   ├── KoopaFamily.cpp            ← KoopaBehavior + AxeKoopaBehavior + ParaKoopaBehavior
+│   ├── StaticEntityBehaviors.cpp  ← AxeBehavior + PrincessBehavior
+│   ├── BowserBehavior.cpp
+│   ├── ItemBehavior.cpp / FireballBehavior.cpp / PiranhaPlantBehavior.cpp
+│   ├── PodobooBehavior.cpp
+│   ├── DefaultEntityBehavior.cpp / ParticleDebris.cpp
 │
-├── Managers/
-│   ├── AudioManager.cpp            ← Audio service implementation (BGM/SFX)
-│   ├── GameStateManager.cpp
-│   ├── LevelManager.cpp
-│   ├── CollisionManager.cpp
-│   ├── RenderManager.cpp
-│   ├── SceneManager.cpp
-│   ├── UIManager.cpp
-│   ├── DeathScreenManager.cpp
-│   └── FloatingText.cpp
+├── MenuSceneHandlers.cpp       ← TitleSceneHandler + DeathSceneHandler +
+│                                  GameOverSceneHandler + GameWonSceneHandler +
+│                                  ISceneHandler::OnRender() default
+├── LoadingSceneHandler.cpp
+├── PlayingSceneHandler.cpp     ← main game loop + 8 private helpers
+├── FlagpoleSceneHandler.cpp
+├── PipeWarpSceneHandler.cpp
+├── AxeSequenceSceneHandler.cpp
+├── ESCMenuSceneHandler.cpp
 │
-├── Entities/
-│   ├── Entity.cpp
-│   ├── EntityModel.cpp
-│   ├── EntityFactory.cpp
-│   ├── Level.cpp
-│   ├── MovingPlatform.cpp
-│   ├── Block.cpp
-│   ├── Player.cpp
-│   ├── PlayerState.cpp
-│   ├── Blocks/             ← 方塊策略實作
-│   └── Entities/           ← 敵人/道具/飛彈實作
-│
-├── Controllers/
-│   ├── PlayingSceneController.cpp
-│   ├── EndingSequenceController.cpp
-│   ├── PipeWarpController.cpp
-│   └── InputHandler.cpp
-│
-└── Scenes/
-    ├── TitleSceneHandler.cpp
-    ├── LoadingSceneHandler.cpp
-    ├── GameOverSceneHandler.cpp
-    ├── DeathSceneHandler.cpp
-    └── ESCMenuSceneHandler.cpp
+├── Camera.cpp / PhysicsEngine.cpp / SpritePathResolver.cpp
+├── AudioManager.cpp  ← AudioPathResolver merged here (internal path helper, no other consumers)
+├── CollisionManager.cpp / InputHandler.cpp
+├── Block.cpp / Level.cpp
+├── Entity.cpp / EntityState.cpp / EntityFactory.cpp
+├── Player.cpp / PlayerState.cpp
+├── GameStateManager.cpp / LevelCompleteController.cpp
+├── UIManager.cpp     ← CoinUI + FloatingText merged here (private HUD sub-components)
+└── (App.cpp is at src/App.cpp, not inside Mario/)
 ```
 
----
+> **File-consolidation rule**: Implementation files for classes that have exactly one owner and no external consumers are merged into the owner's `.cpp`. This reduces compiled-unit count without breaking OOP (headers + class declarations remain separate).
 
-**架構核心精神**：
+**Architecture principles**:
 
-- **Core**：最底層，不依賴任何其他 Mario 元件。
-- **Managers**：跨場景的全域服務，只被 Controller 調用，不主動呼叫 Controller。
-- **Entities**：同時含 Model（`EntityModel`, `PlayerState`）與 View（`Entity`, `Player`, `Block`），將邏輯計算與渲染分開。
-- **Controllers**：協調 Model 與 View，決定每幀的遊戲流程（SRP）。
-- **Scenes**：實作 `ISceneHandler` 介面，每個場景獨立管理生命週期（OCP）。
+- **Flat layout**: All Mario files live directly in `Mario/` (no Core/Managers/ subdirs).
+- **Single Responsibility**: Each file owns exactly one class (headers still separate; small private helpers co-located in owner's .cpp).
+- **No God Class**: App owns subsystems via composition; all game logic lives in ISceneHandler subclasses.
+
+**Rendering ZIndex convention** (`Util::Renderer` sorts by ZIndex; lower = behind):
+
+| Layer | ZIndex | Who |
+|---|---|---|
+| Tile blocks | `0.0f` | `Block` — background tiles, pipes, ground |
+| Entities / enemies | `1.0f` | `Entity` — rendered in front of tiles |
+| Player | `2.0f` | `Player` — always in front of entities |
+| Pipe-entry animation | `-1.0f` | Player ZIndex **drops to -1** inside `LevelCompleteController::StartPipeWarp()` — makes Mario sink visually behind pipe tiles |
 
 ## 一、完整類別繼承圖（View 層 — 繼承 `Util::GameObject`）
 
@@ -2431,7 +2551,7 @@ classDiagram
     EntityModel <|-- Entity : Model 基類
 ```
 
-## 三、Controller 層類別圖
+## 三、Controller 層類別圖 (Actual Implementation)
 
 ```mermaid
 classDiagram
@@ -2439,29 +2559,49 @@ classDiagram
 
     class App {
         -State m_CurrentState
-        -InputHandler m_InputHandler
-        -GameStateManager m_GameState
-        -PhysicsEngine m_Physics
-        -UIManager m_UI
-        -SceneManager m_SceneManager
-        -CollisionManager m_CollisionManager
-        -LevelManager m_LevelManager
-        -RenderManager m_RenderManager
-        -DeathScreenManager m_DeathScreenManager
-        -EntityFactory m_EntityFactory
-        -Level m_Level
-        -shared_ptr~Player~ m_Player
+        -unique_ptr~ISceneHandler~ m_CurrentHandler
         -Camera m_Camera
-        -Renderer m_Root
-        -unique_ptr~TitleSceneHandler~ m_TitleHandler
-        -unique_ptr~LoadingSceneHandler~ m_LoadingHandler
-        -unique_ptr~PlayingSceneController~ m_PlayingController
-        -unique_ptr~GameOverSceneHandler~ m_GameOverHandler
-        -unique_ptr~DeathSceneHandler~ m_DeathHandler
-        -unique_ptr~ESCMenuSceneHandler~ m_ESCMenuHandler
+        -Renderer m_Renderer
+        -shared_ptr~Level~ m_Level
+        -shared_ptr~Player~ m_Player
+        -InputHandler m_InputHandler
+        -CollisionManager m_CollisionManager
+        -vector~shared_ptr~Entity~~ m_Entities
+        -LevelCompleteController m_LevelCompleteCtrl
+        -GameStateManager m_GameState
+        -unique_ptr~UIManager~ m_UIManager
+        -string m_CurrentLevelName
+        -int m_Timer
         +Start() / Update() / End()
-        -UpdatePlaying(dt) / UpdateLevelComplete(dt)
+        +TransitionTo(State)
+        +LoadLevel(levelName)
+        +StartLevel() / PlayCurrentBGM()
+        +AdvanceToNextLevel()
+        +ApplyBackground(isUnderground)
+        +Get*() accessors for all subsystems
     }
+
+    class ISceneHandler {
+        <<interface>>
+        +OnEnter(App)
+        +Update(App)*
+        +OnRender(App)
+        +OnExit(App)
+        +GetName() string*
+    }
+
+    ISceneHandler <|-- TitleSceneHandler
+    ISceneHandler <|-- LoadingSceneHandler
+    ISceneHandler <|-- PlayingSceneHandler
+    ISceneHandler <|-- FlagpoleSceneHandler
+    ISceneHandler <|-- PipeWarpSceneHandler
+    ISceneHandler <|-- AxeSequenceSceneHandler
+    ISceneHandler <|-- DeathSceneHandler
+    ISceneHandler <|-- GameOverSceneHandler
+    ISceneHandler <|-- GameWonSceneHandler
+    ISceneHandler <|-- ESCMenuSceneHandler
+    App *-- ISceneHandler : delegates to (State Pattern)
+```
 
     class PlayingSceneController {
         -InputHandler* m_InputHandler
@@ -2558,6 +2698,7 @@ classDiagram
     App *-- ESCMenuSceneHandler
     PlayingSceneController *-- EndingSequenceController
     PlayingSceneController *-- PipeWarpController
+
 ```
 
 ## 四、Strategy Pattern — 行為策略類別圖
@@ -2653,62 +2794,36 @@ classDiagram
     CollisionStrategyFactory ..> ICollisionStrategy : creates
 ```
 
-## 六、場景狀態管理（GameTheater — State Pattern）
+## 六、場景狀態管理（ISceneHandler — State Pattern — Actual Implementation）
+
+> The `GameTheater` / `Scene` stack approach was **superseded** by the simpler and equally correct **ISceneHandler** pattern.
+> See the top-level UML diagram for the authoritative class hierarchy.
+
+The **actual** State Pattern implementation:
+
+- **Context**: `App` holds `std::unique_ptr<ISceneHandler> m_CurrentHandler`
+- **Interface**: `ISceneHandler` with `Update(App&)` + `OnRender(App&)` + lifecycle hooks
+- **10 Concrete handlers** implement this interface (one per App::State enum value)
+- **No scene stack**: transitions are direct via `App::TransitionTo(State)` which calls OnExit → swap → OnEnter
 
 ```mermaid
-classDiagram
-    direction TB
-
-    class Scene {
-        <<abstract>>
-        +Update(deltaTime, App)*
-        +Render(Renderer)*
-        +GetName() string*
-        +GetNextScene() Scene
-        +OnEnter() / OnExit()
-    }
-
-    class TitleScene {
-        -float m_elapsedTime
-        +Update(deltaTime, App) override
-        +Render(Renderer) override
-        +GetName() string override
-        +GetNextScene() Scene override
-    }
-
-    class PlayingScene {
-        -float m_levelTime
-        +Update(deltaTime, App) override
-        +Render(Renderer) override
-        +GetName() string override
-        +OnEnter() override
-    }
-
-    class PauseScene {
-        -unique_ptr~Scene~ m_resumeTarget
-        +PauseScene(resumeTarget)
-        +Update(deltaTime, App) override
-        +Render(Renderer) override
-        +GetName() string override
-    }
-
-    class GameTheater {
-        -App* m_app
-        -vector~unique_ptr~Scene~~ m_sceneStack
-        +GameTheater(App)
-        +Update(deltaTime)
-        +Render(Renderer)
-        +PushScene(unique_ptr~Scene~)
-        +PopScene()
-        +SwitchScene(unique_ptr~Scene~)
-        +GetCurrentScene() Scene
-        +HasScene() bool
-    }
-
-    Scene <|-- TitleScene
-    Scene <|-- PlayingScene
-    Scene <|-- PauseScene
-    GameTheater o-- Scene : 管理場景堆
+stateDiagram-v2
+    [*] --> TITLE : App::Start()
+    TITLE --> LOADING : Start game
+    LOADING --> PLAYING : Level loaded + timer expired
+    PLAYING --> ESC_MENU : ESC pressed
+    ESC_MENU --> PLAYING : Resume
+    PLAYING --> FLAGPOLE : Player reaches goal block
+    FLAGPOLE --> LOADING : Sequence complete
+    PLAYING --> PIPE_WARP : Player enters pipe
+    PIPE_WARP --> PLAYING : Warp complete
+    PLAYING --> AXE_SEQUENCE : Player touches Axe (8-4)
+    AXE_SEQUENCE --> GAME_WON : Sequence complete
+    PLAYING --> DEATH : Player dies
+    DEATH --> LOADING : Lives remain
+    DEATH --> GAME_OVER : Lives = 0
+    GAME_OVER --> TITLE : Player presses Enter
+    GAME_WON --> TITLE : Final screen done
 ```
 
 ## 七、基礎設施與服務層
@@ -3426,51 +3541,33 @@ NTUT_OOPL_mario_V2/
 │       │   ├── BowserBehavior.hpp       #   Bowser AI
 │       │   ├── ItemBehavior.hpp         #   Item / Coin / CoinGet
 │       │   └── FireballBehavior.hpp     #   Fireball / BowserFire
-│       ├── AppCore.hpp                  # 應用核心生命週期
-│       ├── Block.hpp / BlockState.hpp   # 方塊 View + Model
-│       ├── Camera.hpp                   # 攝影機
-│       ├── Collider.hpp                 # AABB 碰撞箱
-│       ├── CollisionContext.hpp         # 碰撞上下文
-│       ├── CollisionManager.hpp         # 碰撞管理器
-│       ├── CollisionStrategy.hpp        # 碰撞策略介面 + 實作
-│       ├── CollisionStrategyFactory.hpp # 碰撞策略工廠
-│       ├── DeathScreenManager.hpp       # 死亡畫面
-│       ├── DeathSceneHandler.hpp        # 死亡場景 handler
-│       ├── EndingSequenceController.hpp # 結局流程控制器
-│       ├── Entity.hpp / EntityModel.hpp # 實體 View + Model
-│       ├── EntityDef.hpp                # 實體定義結構
-│       ├── EntityFactory.hpp            # 實體工廠
-│       ├── ESCMenuState.hpp             # ESC 選單 Model
-│       ├── ESCMenuSceneHandler.hpp      # ESC 選單場景 handler
-│       ├── EventSystem.hpp              # 事件系統
-│       ├── FloatingText.hpp             # 浮動文字
-│       ├── GameConfig.hpp               # 全域配置
-│       ├── GameOverSceneHandler.hpp     # GameOver 場景 handler
-│       ├── GameStateManager.hpp         # 遊戲狀態管理 (Model)
-│       ├── GameTheater.hpp              # 場景堆管理器 (State Pattern)
-│       ├── IAudioService.hpp            # 音訊服務介面 (DIP)
-│       ├── IGameState.hpp               # 遊戲狀態介面
-│       ├── ISceneHandler.hpp            # 場景處理器介面 (Strategy)
-│       ├── InputDispatcher.hpp          # 輸入分派
-│       ├── InputHandler.hpp             # 輸入處理
-│       ├── Level.hpp                    # 關卡資料與實體管理
-│       ├── LevelManager.hpp             # 多關卡載入切換
-│       ├── LoadingSceneHandler.hpp      # 載入場景 handler
-│       ├── MovingPlatform.hpp           # 移動平台 (繼承 Block)
-│       ├── PhysicsConstants.hpp         # 物理常量
-│       ├── PhysicsCoordinator.hpp       # 物理協調器
-│       ├── PhysicsEngine.hpp            # 物理引擎
-│       ├── PipeWarpController.hpp       # 水管傳送控制器
-│       ├── Player.hpp / PlayerState.hpp # 玩家 View + Model
-│       ├── PlayingSceneController.hpp   # 遊玩場景控制器
-│       ├── RenderManager.hpp            # 渲染管理器
-│       ├── SceneManager.hpp             # 場景切換
-│       ├── ServiceLocator.hpp           # 服務定位器 (DI)
-│       ├── SpritePathResolver.hpp       # 精靈路徑解析
-│       ├── TitleSceneHandler.hpp        # 標題場景 handler
-│       ├── AudioManager.hpp             # 音訊管理器
-│       ├── UIManager.hpp                # HUD 管理器
-│       └── UIOrchestrator.hpp           # UI 協調器
+│       ├── Camera.hpp                   # Camera viewport scroll
+│       ├── Collider.hpp                 # AABB collision box
+│       ├── CollisionManager.hpp         # Collision management
+│       ├── GameConfig.hpp               # Global configuration
+│       ├── GameStateManager.hpp         # Score / lives / time (Model)
+│       ├── ISceneHandler.hpp            # Scene handler interface (State Pattern)
+│       ├── InputHandler.hpp             # Input MVC controller
+│       ├── Level.hpp                    # CSV map loader
+│       ├── LevelCompleteController.hpp  # Flagpole + pipe warp sequences
+│       ├── PhysicsEngine.hpp            # Physics engine
+│       ├── Player.hpp / PlayerState.hpp # Player View + Model
+│       ├── SpritePathResolver.hpp       # Sprite path builder
+│       ├── AudioManager.hpp             # Full audio sub-system (AudioType enums +
+│       │                                #   IAudioService interface + AudioPathResolver
+│       │                                #   + AudioManager singleton consolidated)
+│       ├── UIManager.hpp                # HUD manager
+│       ├── UIWidgets.hpp                # UIText + UIImage (HUD wrappers, consolidated)
+│       ├── FloatingText.hpp             # Score popup effect
+│       ├── CoinUI.hpp                   # Coin HUD element
+│       ├── MenuSceneHandlers.hpp        # TitleSceneHandler + DeathSceneHandler +
+│       │                                #   GameOverSceneHandler + GameWonSceneHandler
+│       ├── LoadingSceneHandler.hpp
+│       ├── PlayingSceneHandler.hpp
+│       ├── FlagpoleSceneHandler.hpp
+│       ├── PipeWarpSceneHandler.hpp
+│       ├── AxeSequenceSceneHandler.hpp
+│       └── ESCMenuSceneHandler.hpp
 ├── src/
 │   ├── main.cpp                         # 程式進入點
 │   ├── App.cpp                          # 主控制器實作
@@ -3521,7 +3618,6 @@ NTUT_OOPL_mario_V2/
 | `Mario/MovingPlatform.hpp` | `MovingPlatform` | View |
 | `Mario/Camera.hpp` | `Camera` | View |
 | `Mario/Collider.hpp` | `AABB` | Data |
-| `Mario/CollisionContext.hpp` | `CollisionContext` | Data |
 | `Mario/CollisionManager.hpp` | `CollisionManager` | Controller |
 | `Mario/CollisionStrategy.hpp` | `ICollisionStrategy` + 3 實作 | Controller |
 | `Mario/CollisionStrategyFactory.hpp` | `CollisionStrategyFactory` | Infrastructure |
@@ -3530,8 +3626,8 @@ NTUT_OOPL_mario_V2/
 | `Mario/PhysicsCoordinator.hpp` | `PhysicsCoordinator` | Controller |
 | `Mario/GameConfig.hpp` | `GameConfig` | Configuration |
 | `Mario/GameStateManager.hpp` | `GameStateManager` | Model |
-| `Mario/GameTheater.hpp` | `GameTheater` + `Scene` | Controller |
-| `Mario/SceneManager.hpp` | `SceneManager` | Controller |
+| `Mario/GameTheater.hpp` | `GameTheater` + `Scene` | ~~superseded~~ |
+| `Mario/SceneManager.hpp` | `SceneManager` | ~~superseded~~ |
 | `Mario/ISceneHandler.hpp` | `ISceneHandler` | Controller (Interface) |
 | `Mario/TitleSceneHandler.hpp` | `TitleSceneHandler` | Controller |
 | `Mario/LoadingSceneHandler.hpp` | `LoadingSceneHandler` | Controller |
@@ -3546,15 +3642,15 @@ NTUT_OOPL_mario_V2/
 | `Mario/LevelManager.hpp` | `LevelManager` | Controller |
 | `Mario/InputHandler.hpp` | `InputHandler` | Controller |
 | `Mario/InputDispatcher.hpp` | `InputDispatcher` | Controller |
-| `Mario/EventSystem.hpp` | `EventSystem` | Infrastructure |
-| `Mario/IAudioService.hpp` | `IAudioService` | Infrastructure (Interface) |
-| `Mario/AudioManager.hpp` | `AudioManager` | Infrastructure |
-| `Mario/ServiceLocator.hpp` | `ServiceLocator` | Infrastructure |
+| `Mario/EventSystem.hpp` | `EventSystem` | ~~unused~~ |
+| `Mario/AudioManager.hpp` | `IAudioService` + `AudioType` + `AudioPathResolver` + `AudioManager` | Infrastructure (consolidated) |
+| `Mario/ServiceLocator.hpp` | `ServiceLocator` | ~~unused~~ |
 | `Mario/UIManager.hpp` | `UIManager` | View |
+| `Mario/UIWidgets.hpp` | `UIText` + `UIImage` | View (consolidated) |
 | `Mario/UIOrchestrator.hpp` | `UIOrchestrator` | Controller |
 | `Mario/RenderManager.hpp` | `RenderManager` | View |
 | `Mario/FloatingText.hpp` | `FloatingText` | View |
-| `Mario/DeathScreenManager.hpp` | `DeathScreenManager` | View |
+| `Mario/CoinUI.hpp` | `CoinUI` | View |
 | `Mario/SpritePathResolver.hpp` | `SpritePathResolver` | Infrastructure |
 | `Mario/IGameState.hpp` | `IGameState` | Model (Interface) |
 | `Mario/Behaviors/IEntityBehavior.hpp` | `IEntityBehavior` | Strategy (Interface) |

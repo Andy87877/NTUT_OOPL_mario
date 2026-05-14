@@ -1,39 +1,48 @@
 /**
  * @file LoadingSceneHandler.cpp
- * @brief Implementation of loading scene handler.
+ * @brief Loading screen scene handler implementation.
  * @inheritance ISceneHandler <- LoadingSceneHandler
  */
 #include "Mario/LoadingSceneHandler.hpp"
 
+#include "App.hpp"
+#include "Mario/GameConfig.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {
 
-LoadingSceneHandler::LoadingSceneHandler(GameStateManager* gameState)
-    : m_GameState(gameState), m_DisplayTimer(0) {}
-
-void LoadingSceneHandler::OnEnter() {
-    LOG_INFO("Entered Loading Scene - World {}-{}", m_GameState->GetWorldNum(),
-             m_GameState->GetLevelNum());
-    m_DisplayTimer = 0;
+void LoadingSceneHandler::OnEnter(App& app) {
+    // Reset loading flag so Update() triggers a fresh level load on its first
+    // frame.
+    app.GetLoading() = false;
 }
 
-bool LoadingSceneHandler::Update() {
-    m_DisplayTimer++;
-
-    // Display for fixed duration before transitioning
-    if (m_DisplayTimer >= DISPLAY_DURATION) {
-        m_NextScene = "PlayingScene";
-        return false;  // Signal transition
+void LoadingSceneHandler::Update(App& app) {
+    bool& loading = app.GetLoading();
+    if (!loading) {
+        loading = true;
+        app.GetLoadTimer() =
+            app.GetTimer() + Mario::GameConfig::LEVEL_TRANSITION_DELAY;
+        std::string levelName = app.GetGameState().GetLevelName();
+        LOG_INFO("Loading World {}", levelName);
+        app.LoadLevel(levelName);
     }
-
-    return true;  // Keep displaying
+    if (loading && app.GetLoadTimer() < app.GetTimer()) {
+        loading = false;
+        app.StartLevel();
+        app.TransitionTo(App::State::PLAYING);
+        LOG_INFO("Level loaded - entering PLAYING state");
+    }
 }
 
-void LoadingSceneHandler::OnExit() { LOG_INFO("Exited Loading Scene"); }
-
-const char* LoadingSceneHandler::GetNextSceneName() const {
-    return m_NextScene ? m_NextScene : "PlayingScene";
+void LoadingSceneHandler::OnRender(App& app) {
+    const std::string& lvl = app.GetCurrentLevelName();
+    bool underground = app.GetGameState().IsUnderground() ||
+                       lvl.find("u") != std::string::npos || lvl == "1-2" ||
+                       lvl == "8-4";
+    app.ApplyBackground(underground);
+    app.GetRenderer().Update();
+    app.GetUIManager().Update(Mario::UIManager::State::LOADING);
 }
 
 }  // namespace Mario
