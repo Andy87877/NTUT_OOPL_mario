@@ -28,8 +28,12 @@ void CollisionManager::CheckPlayerBlockCollision(
     // IMPORTANT: Position has already been updated by UpdatePlaying()
     // This method only resolves collisions, not applies position changes
 
-    // Resolve collisions in order: ground, ceiling, walls
-    // This order matches the C# reference code behavior
+    // Resolve collisions in C# order: ground first, then ceiling, then walls.
+    // C# reference (Form1.cs): CheckCollisionsDown → CheckCollisionsUp →
+    // CheckCollisionsLeft → CheckCollisionsRight.
+    // Ground/ceiling must run before walls so that after a head-hit snap,
+    // the strict wall-overlap threshold no longer fires and Mario slides past
+    // block corners without getting stuck.
     CheckGroundCollision(state, level);
     CheckCeilingCollision(state, level, camera, gameState, uiManager,
                           outSpawns);
@@ -106,6 +110,34 @@ void CollisionManager::CheckGroundCollision(PlayerState& state, Level& level) {
     if (!foundGround && state.IsGrounded()) {
         // Player walked off an edge
         state.SetGrounded(false);
+    }
+
+    // Check moving platforms (not stored in the static grid map)
+    for (MovingPlatform* plat : level.GetMovingPlatforms()) {
+        if (!plat || !plat->IsSolid()) continue;
+        AABB platBox = plat->GetAABB();
+
+        // X overlap — player must be above this platform
+        if (playerBox.left >= platBox.right || playerBox.right <= platBox.left)
+            continue;
+
+        float overlapY = playerBox.bottom - platBox.top;
+        if (state.GetVelY() >= 0.0f && overlapY > 0 &&
+            overlapY < GameConfig::TILE_SIZE * 0.75f) {
+            state.SetY(platBox.top - static_cast<float>(state.GetHeight()));
+            state.SetVelY(0.0);
+            state.SetFallHeight(0.0);
+            state.SetGrounded(true);
+        } else if (!foundGround && state.GetVelY() >= 0.0f) {
+            // Close-approach snap (falling toward platform)
+            float gap = platBox.top - playerBox.bottom;
+            if (gap >= 0.0f && gap <= 2.0f) {
+                state.SetY(platBox.top - static_cast<float>(state.GetHeight()));
+                state.SetVelY(0.0);
+                state.SetFallHeight(0.0);
+                state.SetGrounded(true);
+            }
+        }
     }
 }
 
@@ -207,46 +239,8 @@ void CollisionManager::CheckCeilingCollision(
                         }
                     }
                     block->OnHit(state.GetState());
-
-                    if (block->JustBroken() && outSpawns) {
-                        float bx = block->GetWorldX();
-                        float by = block->GetWorldY();
-
-                        float offset = GameConfig::TILE_SIZE * 0.25f;
-                        Level::SpawnPoint sp1{-1,
-                                              block->GetName() + "Break_tl",
-                                              block->GetGridX(),
-                                              block->GetGridY(),
-                                              bx - offset,
-                                              by - offset,
-                                              true};
-                        Level::SpawnPoint sp2{
-                            -1, block->GetName() + "Break_tr",
-                            block->GetGridX(), block->GetGridY(), bx + offset,
-                            by + offset,  // Wait, C# says: (x + 0.25), (y +
-                                          // 0.25) -> this is actually br in C#?
-                                          // Let's check C# again.
-                            true};
-                        Level::SpawnPoint sp3{-1,
-                                              block->GetName() + "Break_bl",
-                                              block->GetGridX(),
-                                              block->GetGridY(),
-                                              bx - offset,
-                                              by + offset,
-                                              true};
-                        Level::SpawnPoint sp4{-1,
-                                              block->GetName() + "Break_br",
-                                              block->GetGridX(),
-                                              block->GetGridY(),
-                                              bx + offset,
-                                              by - offset,
-                                              true};
-
-                        outSpawns->push_back(sp1);
-                        outSpawns->push_back(sp2);
-                        outSpawns->push_back(sp3);
-                        outSpawns->push_back(sp4);
-                    }
+                    // Brick debris spawning is handled in SpawnBrickDebris()
+                    // via block->JustBroken(). Do NOT consume the flag here.
                 }
             }
         }
@@ -273,9 +267,14 @@ void CollisionManager::CheckWallCollision(PlayerState& state, Level& level,
             Block* block = level.GetBlockAt(rightTile, y);
             if (block && block->IsSolid()) {
                 AABB blockBox = block->GetAABB();
-                if (playerBox.Intersects(blockBox)) {
-                    // Push Mario's position so his hitbox right edge
-                    // is just to the left of block's left edge
+                // C# intersectStrictness = 0.75: only resolve if Mario has
+                // moved more than 25% into the block's width from the right.
+                // This lets Mario slide past block corners smoothly.
+                float rightOverlap = playerBox.right - blockBox.left;
+                bool yOverlap = playerBox.top < blockBox.bottom &&
+                                playerBox.bottom > blockBox.top;
+                if (rightOverlap > 0 &&
+                    rightOverlap < GameConfig::TILE_SIZE * 0.75f && yOverlap) {
                     state.SetX(blockBox.left - w - offsetX);
                     state.SetVelX(0.0f);
                     break;
@@ -291,9 +290,12 @@ void CollisionManager::CheckWallCollision(PlayerState& state, Level& level,
             Block* block = level.GetBlockAt(leftTile, y);
             if (block && block->IsSolid()) {
                 AABB blockBox = block->GetAABB();
-                if (playerBox.Intersects(blockBox)) {
-                    // Push Mario's position so his hitbox left edge
-                    // is just to the right of block's right edge
+                // C# intersectStrictness = 0.75: symmetric check for left wall
+                float leftOverlap = blockBox.right - playerBox.left;
+                bool yOverlap = playerBox.top < blockBox.bottom &&
+                                playerBox.bottom > blockBox.top;
+                if (leftOverlap > 0 &&
+                    leftOverlap < GameConfig::TILE_SIZE * 0.75f && yOverlap) {
                     state.SetX(blockBox.right - offsetX);
                     state.SetVelX(0.0f);
                     break;
@@ -351,33 +353,18 @@ void CollisionManager::CheckPlayerEntityCollision(
 
             if (overlapY > 0 && overlapY < GameConfig::TILE_SIZE * 0.5f &&
                 ps.GetVelY() >= 0 && !ps.IsGrounded()) {
-                // Player stomped on enemy
+                // Player stomped on enemy from above
                 if (es.IsSquishable()) {
                     es.Squish();
+                } else if (es.IsKoopaSquash()) {
+                    // Koopa Troopa stomped: becomes a shell
+                    es.Delete();
+                    AudioManager::GetInstance().PlaySFX(SFXName::Squish);
                 } else if (entity->GetDef().type == EntityType::BOWSER) {
                     AudioManager::GetInstance().PlaySFX(SFXName::BowserDie);
                 } else {
                     AudioManager::GetInstance().PlaySFX(SFXName::Squish);
                 }
-                int scoreWorth = es.GetScoreWorth();
-                gameState.AddScore(scoreWorth);
-
-                float enemyWorldX =
-                    es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
-                float enemyWorldY = es.GetWorldY();
-                float screenPixelX = camera.WorldToScreenX(enemyWorldX);
-                float screenPixelY = camera.WorldToScreenY(enemyWorldY);
-                float ptsdX = screenPixelX - 640.0f;
-                float ptsdY = 360.0f - screenPixelY;
-                uiManager.AddFloatingText(ptsdX, ptsdY,
-                                          "+" + std::to_string(scoreWorth), 60);
-
-                ps.SetFallHeight(PhysicsEngine::GetJumpHeight(0) * 0.5);
-                ps.SetGrounded(false);
-            } else if (es.IsKoopaSquash()) {
-                // Koopa Troopa: spawn shell
-                es.Delete();
-                AudioManager::GetInstance().PlaySFX(SFXName::Squish);
                 int scoreWorth = es.GetScoreWorth();
                 gameState.AddScore(scoreWorth);
 

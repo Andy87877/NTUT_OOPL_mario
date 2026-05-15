@@ -31,12 +31,12 @@ void PiranhaPlantBehavior::Update(EntityState& state,
 
     // Record the pipe opening Y on the very first frame
     if (!m_BaseYSet) {
-        m_BaseY = state.GetY();
+        // Shift base 1 tile higher so the plant emerges 1 tile further above
+        // the pipe mouth, giving the "coming out of the pipe" appearance.
+        m_BaseY = state.GetY() - static_cast<float>(GameConfig::TILE_SIZE);
         m_BaseYSet = true;
-        // Record pipe mouth Y, then push the plant 2 tiles down to hide it.
-        // No X shift needed: the plant is now 2 tiles wide and spawns at the
-        // left edge of the 2-tile pipe — entity left = pipe left exactly.
-        // Start fully hidden inside the pipe (2 tiles below mouth)
+        // Start fully hidden inside the pipe (EMERGE_HEIGHT below adjusted
+        // base)
         state.SetY(m_BaseY + EMERGE_HEIGHT);
         state.SetHidden(true);
     }

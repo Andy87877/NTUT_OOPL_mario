@@ -7,9 +7,11 @@
 #include "Mario/PlayingSceneHandler.hpp"
 
 #include <cmath>
+#include <limits>
 
 #include "App.hpp"
 #include "Mario/AudioManager.hpp"
+#include "Mario/Behaviors/ParticleDebris.hpp"
 #include "Mario/EntityFactory.hpp"
 #include "Mario/GameConfig.hpp"
 #include "Util/Input.hpp"
@@ -42,8 +44,26 @@ void PlayingSceneHandler::Update(App& app) {
     // -- Input (MVC Controller layer) --
     app.GetInputHandler().HandleInput(player->GetState(), app.GetSpeed());
 
-    // -- Apply gravity + position --
+    // -- Step moving platforms and carry player --
+    // Must run before gravity so the player is repositioned before physics.
     auto& ps = player->GetState();
+    for (auto* plat : level->GetMovingPlatforms()) {
+        AABB prevAABB = plat->GetAABB();
+        plat->StepMovement();
+
+        if (ps.IsGrounded()) {
+            AABB playerBox = ps.GetHitbox();
+            float gap = std::abs(playerBox.bottom - prevAABB.top);
+            bool xOverlap = (playerBox.left < prevAABB.right &&
+                             playerBox.right > prevAABB.left);
+            if (gap < 2.0f && xOverlap) {
+                ps.SetX(ps.GetX() + plat->GetLastDeltaX());
+                ps.SetY(ps.GetY() + plat->GetLastDeltaY());
+            }
+        }
+    }
+
+    // -- Apply gravity + position --
     float yDelta = ps.ApplyGravity();
     ps.SetX(ps.GetX() + ps.GetVelX());
     ps.SetY(ps.GetY() + yDelta);
@@ -247,22 +267,31 @@ void PlayingSceneHandler::SpawnBrickDebris(App& app) const {
         float by = block->GetWorldY();
         float bs = static_cast<float>(Mario::GameConfig::TILE_SIZE);
 
+        // C# reference: debris entity name = blockName + "Break"
+        std::string debrisName = block->GetName() + "Break";
+        const Mario::EntityDef& def = level->GetEntityDefByName(debrisName);
+        if (def.id == -1) continue;  // No debris definition for this block type
+
         struct Piece {
-            const char* name;
-            float dx, dy;
+            float dx, dy, vx, vy;
         };
         static constexpr Piece kPieces[4] = {
-            {"BrickBlockBreak_tl", -0.25f, -0.25f},
-            {"BrickBlockBreak_tr", 0.25f, -0.25f},
-            {"BrickBlockBreak_bl", -0.25f, 0.25f},
-            {"BrickBlockBreak_br", 0.25f, 0.25f},
+            {-0.25f, -0.25f, -3.0f, -6.0f},  // top-left
+            {0.25f, -0.25f, 3.0f, -6.0f},    // top-right
+            {-0.25f, 0.25f, -3.0f, -4.0f},   // bottom-left
+            {0.25f, 0.25f, 3.0f, -4.0f},     // bottom-right
         };
 
-        for (auto& p : kPieces) {
+        for (const auto& p : kPieces) {
             auto debris = Mario::EntityFactory::SpawnEntity(
-                level->GetEntityDefByName(p.name), bx + p.dx * bs,
-                by + p.dy * bs, 0, true);
-            if (debris) app.GetEntities().push_back(debris);
+                def, bx + p.dx * bs, by + p.dy * bs, 0, false,
+                app.GetCurrentLevelName());
+            if (debris) {
+                auto* pb =
+                    dynamic_cast<Mario::ParticleDebris*>(debris->GetBehavior());
+                if (pb) pb->SetInitialVelocity(p.vx, p.vy);
+                app.AddEntityToGame(debris);
+            }
         }
     }
 }
@@ -304,6 +333,36 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
         app.GetGameState().StopTime();
         app.TransitionTo(App::State::FLAGPOLE);
         return;
+    }
+
+    // Fallback: if Mario is horizontally within the pole column but above the
+    // topmost goal block (jumped high), trigger goal using the topmost goal
+    // block. This prevents Mario from jumping over the flagpole.
+    // C# makes this physically impossible via jump-height caps; we add an
+    // explicit X-range check as a safety net.
+    const Block* topmostGoal = nullptr;
+    float topmostY = std::numeric_limits<float>::max();
+    for (const auto& block : app.GetLevel()->GetAllBlocks()) {
+        if (!block->IsGoal()) continue;
+        Mario::AABB bBox = block->GetAABB();
+        if (playerBox.right > bBox.left && playerBox.left < bBox.right) {
+            if (block->GetWorldY() < topmostY) {
+                topmostY = block->GetWorldY();
+                topmostGoal = block.get();
+            }
+        }
+    }
+    if (topmostGoal) {
+        LOG_INFO("Flagpole X-range fallback at block ({}, {})",
+                 topmostGoal->GetGridX(), topmostGoal->GetGridY());
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Flagpole);
+        Mario::AudioManager::GetInstance().PlayBGM(
+            lvl == "8-4" ? Mario::BGMName::CastleCompleteTheme
+                         : Mario::BGMName::LevelCompleteTheme);
+        app.GetLevelCompleteCtrl().StartFlagpole(*player, app.GetFlagEntity(),
+                                                 topmostGoal);
+        app.GetGameState().StopTime();
+        app.TransitionTo(App::State::FLAGPOLE);
     }
 }
 
@@ -438,12 +497,38 @@ void PlayingSceneHandler::CheckAxeCollision(App& app) const {
         Mario::AABB extendedAxeBox{axeX - 5.0f, axeY, axeX + 55.0f,
                                    axeY + 120.0f};
         if (playerBox.Intersects(extendedAxeBox)) {
-            LOG_INFO("Axe touched! Starting 8-4 ending sequence.");
+            // In 8-4 there are fake boss rooms with axes that should collapse
+            // the bridge but NOT end the game.  Only the final real Axe (past
+            // the last pipe warp, at ~col 342 = worldX 15390) ends the game.
+            // We detect the real axe by checking for a Princess entity — the
+            // Princess is only spawned in the final boss room.
+            bool hasPrincess = false;
+            for (const auto& e : app.GetEntities()) {
+                if (e->GetState().GetName() == "Princess" &&
+                    e->GetState().IsActive()) {
+                    hasPrincess = true;
+                    break;
+                }
+            }
+
             entity->GetState().SetActive(false);
             app.GetGameState().StopTime();
             Mario::AudioManager::GetInstance().StopBGM();
             Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Break);
-            app.TransitionTo(App::State::AXE_SEQUENCE);
+
+            if (hasPrincess) {
+                LOG_INFO(
+                    "Axe touched (real boss room)! Starting 8-4 ending "
+                    "sequence.");
+                app.TransitionTo(App::State::AXE_SEQUENCE);
+            } else {
+                LOG_INFO(
+                    "Axe touched (fake boss room) - bridge collapses, game "
+                    "continues.");
+                // Resume time and BGM so Mario can continue
+                app.GetGameState().StartTime();
+                app.PlayCurrentBGM();
+            }
             return;
         }
     }

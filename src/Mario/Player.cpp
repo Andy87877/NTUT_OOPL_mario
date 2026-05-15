@@ -107,11 +107,16 @@ void Player::UpdateView(float cameraOffset) {
         m_Transform.scale.x = -absScaleX;
     }
 
-    // Handle invincibility flicker effect
+    // Handle invincibility flicker effect.
+    // Call the PTSD base class directly so that m_Visible (the intentional-hide
+    // flag used by castle/pipe sequences) is never modified by the blink cycle.
+    // If SetVisible() were called here instead, m_Visible would flip to false
+    // on a blink-off frame and the early-return guard at the top of UpdateView
+    // would permanently hide Mario on every subsequent frame.
     if (m_State.IsInvincible()) {
-        SetVisible((m_State.GetInvTimer() % 4) < 2);
+        Util::GameObject::SetVisible((m_State.GetInvTimer() % 4) < 2);
     } else {
-        SetVisible(true);
+        Util::GameObject::SetVisible(true);
     }
 }
 

@@ -45,11 +45,20 @@ void InputHandler::HandleInput(PlayerState& state, float speed) {
     }
 
     // -- Crouch --
+    // Per C# reference (Player.cs): only state > 0 (Big/Fire) can crouch.
+    // Additional rule: crouching locks horizontal movement — Mario cannot
+    // walk left/right while ducking (reference: Form1.cs movement logic).
     m_Crouch = Util::Input::IsKeyPressed(Util::Keycode::DOWN) ||
                Util::Input::IsKeyPressed(Util::Keycode::S);
     if (state.GetState() > 0) {  // Only big/fire mario can crouch
         bool wasCrouching = state.IsCrouching();
         state.SetCrouching(m_Crouch);
+
+        // Block horizontal movement while crouching (grounded only)
+        if (m_Crouch && state.IsGrounded()) {
+            state.SetMovingRight(false);
+            state.SetMovingLeft(false);
+        }
 
         // Adjust Y position when crouch state changes (to keep feet in same
         // place) When crouching: height decrease by TILE_SIZE, so move down by

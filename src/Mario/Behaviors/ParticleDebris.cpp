@@ -18,23 +18,7 @@ ParticleDebris::ParticleDebris()
 void ParticleDebris::Update(EntityState& state, const Level& /*level*/,
                             const Player& /*player*/, int /*gameTimer*/) {
     if (m_LifetimeFrames == 0) {
-        // Parse from name: BrickBlockBreak_tl, tr, bl, br
-        std::string name = state.GetName();
-
-        if (name.find("_tl") != std::string::npos) {
-            m_InitialVelX = -3.0f;
-            m_InitialVelY = -6.0f;
-        } else if (name.find("_tr") != std::string::npos) {
-            m_InitialVelX = 3.0f;
-            m_InitialVelY = -6.0f;
-        } else if (name.find("_bl") != std::string::npos) {
-            m_InitialVelX = -3.0f;
-            m_InitialVelY = -4.0f;
-        } else if (name.find("_br") != std::string::npos) {
-            m_InitialVelX = 3.0f;
-            m_InitialVelY = -4.0f;
-        }
-
+        // Velocity is set at spawn time via SetInitialVelocity()
         state.SetVelX(m_InitialVelX);
         state.SetVelY(m_InitialVelY);
     }

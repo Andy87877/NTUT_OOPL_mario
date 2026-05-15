@@ -9,6 +9,7 @@ set(SRC_FILES
 
     # Level & Block
     Mario/Block.cpp
+    Mario/MovingPlatform.cpp
     Mario/Level.cpp
 
     # Player (MVC)

@@ -196,7 +196,8 @@ int PlayerState::GetWidth() const { return GameConfig::TILE_SIZE; }
 int PlayerState::GetHeight() const {
     if (m_PowerState == PowerState::BIG || m_PowerState == PowerState::FIRE ||
         m_PowerState == PowerState::BIG_STAR) {
-        return m_Crouching ? GameConfig::TILE_SIZE : GameConfig::TILE_SIZE * 2;
+        return GameConfig::TILE_SIZE *
+               2;  // Crouch is visual-only; hitbox height never changes
     }
     return GameConfig::TILE_SIZE;
 }

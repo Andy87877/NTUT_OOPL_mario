@@ -162,6 +162,16 @@ void App::LoadLevel(const std::string& levelName) {
         m_Renderer.AddChild(entity);
     }
 
+    // Hide all game-world objects during the loading/transition screen.
+    // The UIManager's MarioPreview sprite (a separate UIImage) is what shows
+    // on the loading screen; the actual Player and Entities are revealed in
+    // StartLevel() once gameplay begins.  This prevents enemies from being
+    // visible in the background while "WORLD X-X" is displayed.
+    m_Player->SetVisible(false);
+    for (const auto& entity : m_Entities) {
+        entity->SetVisible(false);
+    }
+
     // Set OpenGL clear color for the level type (underground = black, surface =
     // sky blue). Delegated to ApplyBackground() to avoid duplicating the color
     // mapping here.
@@ -195,13 +205,29 @@ void App::PlayCurrentBGM() {
     Mario::AudioManager::GetInstance().PlayBGM(bgm);
 }
 
+void App::AddEntityToGame(std::shared_ptr<Mario::Entity> entity) {
+    // Register with the renderer so it is drawn, then track it in the entity
+    // list so it receives Update/Tick calls.  This is the correct path for any
+    // entity spawned AFTER LoadLevel() (brick debris, fireballs, etc.).
+    if (!entity) return;
+    entity->SetZIndex(1.0f);
+    m_Renderer.AddChild(entity);
+    m_Entities.push_back(entity);
+}
+
 void App::StartLevel() {
     m_GameState.ResetTime();
     m_GameState.StartTime();
 
+    // Reveal game-world objects hidden during the loading screen.
     if (m_Player) {
+        m_Player->SetVisible(true);
         m_Player->GetState().SetControllable(true);
     }
+    for (const auto& entity : m_Entities) {
+        entity->SetVisible(true);
+    }
+
     PlayCurrentBGM();
 }
 

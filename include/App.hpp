@@ -100,6 +100,14 @@ class App {
     std::vector<std::shared_ptr<Mario::Entity>>& GetEntities() {
         return m_Entities;
     }
+
+    /**
+     * Add a dynamically-spawned entity to both the entity list and the
+     * renderer.  Use this instead of GetEntities().push_back() for any entity
+     * created after LoadLevel() (e.g. brick debris, fireballs).
+     */
+    void AddEntityToGame(std::shared_ptr<Mario::Entity> entity);
+
     Mario::Camera& GetCamera() { return m_Camera; }
     Util::Renderer& GetRenderer() { return m_Renderer; }
     Mario::GameStateManager& GetGameState() { return m_GameState; }

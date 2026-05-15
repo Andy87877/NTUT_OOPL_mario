@@ -41,6 +41,28 @@ static const std::unordered_map<std::string, std::string>
     ENTITY_SPRITE_OVERRIDE = {};
 
 /**
+ * Entity name override: maps entity name (no frame) to PNG filename.
+ * Used for entities whose name doesn't directly match the PNG filename.
+ */
+static const std::unordered_map<std::string, std::string> ENTITY_NAME_OVERRIDE =
+    {
+        {"BrickBlock2Break", "BrickBlockBreak1.png"},
+};
+
+/**
+ * Level-specific entity sprite name remapping.
+ * Key format: "levelName/entityName".
+ * Value: the display name to use when looking up sprites in the level subdir.
+ * Example: in 8-4 the KoopaTroopa sprites are stored as Koopa1.png/Koopa2.png
+ * instead of KoopaTroopa1.png/KoopaTroopa2.png.
+ */
+static const std::unordered_map<std::string, std::string>
+    LEVEL_ENTITY_NAME_OVERRIDE = {
+        {"8-4/KoopaTroopa", "Koopa"},
+        {"8-4/KoopaTroopaSquish", "KoopaSquish"},
+};
+
+/**
  * Block sprite mapping: C# resource name -> PNG filename
  * Example: C# "BrickBlock20" -> actual file "BrickBlock1.png"
  */
@@ -131,9 +153,24 @@ std::string SpritePathResolver::GetSpritePath(const std::string& name,
     return SPRITE_BASE_PATH + name + suffix + ".png";
 }
 
-std::string SpritePathResolver::GetBlockSpritePath(const std::string& blockName,
-                                                   int frame) {
+std::string SpritePathResolver::GetBlockSpritePath(
+    const std::string& blockName, int frame, const std::string& levelName) {
     auto resolve = [&]() -> std::string {
+        // Check level-specific directory first (e.g. 1-2/BrickBlock1.png)
+        if (!levelName.empty()) {
+            std::string levelDir = SPRITE_BASE_PATH + levelName + "/";
+
+            // Try exact name match first
+            std::string exactPath = levelDir + blockName + ".png";
+            std::ifstream exactTest(exactPath);
+            if (exactTest.good()) return exactPath;
+
+            // Try 1-based variant (e.g. BrickBlock1.png for BrickBlock in 1-2)
+            std::string oneBased = levelDir + blockName + "1.png";
+            std::ifstream oneTest(oneBased);
+            if (oneTest.good()) return oneBased;
+        }
+
         // Build the C# resource name
         std::string csName = blockName;
         if (frame >= 0 && blockName.find("Hit") == std::string::npos &&
@@ -189,14 +226,12 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
         csName += std::to_string(starState);
     }
 
-    // Try direct file match first (especially for Star states!)
-    std::string directPath = SPRITE_BASE_PATH + csName + ".png";
-    std::ifstream directTest(directPath);
-    if (directTest.good()) {
-        return directPath;
-    }
-
-    // Attempt lookup in static sprite mapping table
+    // Check the sprite mapping table FIRST.
+    // Important: direct file lookup must NOT run first for regular states
+    // because some C# logical names collide with existing PNG filenames that
+    // belong to a different state.  Example: Big Mario running frame 2 builds
+    // csName="MarioRight12", and MarioRight12.png exists — but that file is
+    // the Fire Mario sprite.  The map correctly remaps to MarioRight31.png.
     auto it = PLAYER_SPRITE_MAP.find(csName);
     if (it != PLAYER_SPRITE_MAP.end()) {
         std::string path = SPRITE_BASE_PATH + it->second;
@@ -204,24 +239,33 @@ std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
         if (test.good()) return path;
     }
 
-    // Fallback: For Star power-ups (states 3 and 4)
+    // For Star states (3/4) the sprite names are unique enough that a direct
+    // file match is safe and avoids needing an exhaustive map entry for every
+    // star-color variant.
     if (state == 3 || state == 4) {
-        return SPRITE_BASE_PATH + csName + ".png";
+        std::string directPath = SPRITE_BASE_PATH + csName + ".png";
+        std::ifstream directTest(directPath);
+        if (directTest.good()) {
+            return directPath;
+        }
+        return directPath;  // Return even if missing; caller handles fallback
     }
 
-    // Default fallback
-    std::string path = SPRITE_BASE_PATH + "MarioIdle.png";
-    // LOG_WARN(
-    //     "GetPlayerSpritePath: Could not resolve sprite for state={}, "
-    //     "prefix={}, frame={}, falling back to MarioIdle.png",
-    //     state, prefix, frame);
-
-    return path;
+    // Default fallback (should rarely be reached after map lookup above)
+    return SPRITE_BASE_PATH + "MarioIdle.png";
 }
 
 std::string SpritePathResolver::GetEntitySpritePath(
     const std::string& entityName, int frame, const std::string& levelName) {
     auto resolve = [&]() -> std::string {
+        // Check entity name overrides (frame-independent remapping)
+        auto nit = ENTITY_NAME_OVERRIDE.find(entityName);
+        if (nit != ENTITY_NAME_OVERRIDE.end()) {
+            std::string path = SPRITE_BASE_PATH + nit->second;
+            std::ifstream test(path);
+            if (test.good()) return path;
+        }
+
         // Check entity sprite overrides first (e.g. PiranhaPlant placeholder)
         if (frame >= 0) {
             std::string overrideKey = entityName + std::to_string(frame + 1);
@@ -236,21 +280,30 @@ std::string SpritePathResolver::GetEntitySpritePath(
         // Build level-specific sprite path
         std::string levelDir = SPRITE_BASE_PATH + levelName + "/";
 
+        // Apply level-specific entity name remapping (e.g. 8-4 KoopaTroopa ->
+        // Koopa)
+        std::string resolvedName = entityName;
+        std::string levelKey = levelName + "/" + entityName;
+        auto lit = LEVEL_ENTITY_NAME_OVERRIDE.find(levelKey);
+        if (lit != LEVEL_ENTITY_NAME_OVERRIDE.end()) {
+            resolvedName = lit->second;
+        }
+
         // Try frame-suffixed version first (for animated sprites)
         if (frame >= 0) {
             std::string path =
-                levelDir + entityName + std::to_string(frame) + ".png";
+                levelDir + resolvedName + std::to_string(frame) + ".png";
             std::ifstream test(path);
             if (test.good()) return path;
 
             std::string path1based =
-                levelDir + entityName + std::to_string(frame + 1) + ".png";
+                levelDir + resolvedName + std::to_string(frame + 1) + ".png";
             std::ifstream test1based(path1based);
             if (test1based.good()) return path1based;
         }
 
-        // Fall back to base entity sprite
-        std::string basePath = levelDir + entityName + ".png";
+        // Fall back to base entity sprite (no frame suffix)
+        std::string basePath = levelDir + resolvedName + ".png";
         std::ifstream test(basePath);
         if (test.good()) return basePath;
 

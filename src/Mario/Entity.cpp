@@ -98,6 +98,14 @@ void Entity::UpdateView(float cameraOffset) {
         }
     }
 
+    // Entity is not hidden → ensure it's visible (SetVisible(true) is only
+    // called inside the sprite-change block above, so an entity that was hidden
+    // and then un-hidden without changing its animation frame would stay
+    // invisible. Always sync visibility here after the sprite-path logic.
+    if (m_Drawable) {
+        SetVisible(true);
+    }
+
     // Convert world to PTSD screen coordinates
     float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
 

@@ -252,8 +252,12 @@ void UIManager::UpdateLoadingScreen() {
         "x " + std::string(lives < 10 ? "0" : "") + std::to_string(lives);
     m_SubLabel->SetTextContent(livesStr);
 
-    // Position text slightly to the right
-    m_SubLabel->SetPosition(10.0f, -10.0f);
+    // C# reference: "MARIO" label above "x 00" label (Form1.Designer.cs).
+    // Here we use a sprite instead of text, laid out left-to-right:
+    //   [Mario sprite]  x 03
+    // The group is centered around x=0.  Sprite center at -65, text at +30
+    // keeps ~51 px of clear space between them on a 1280x720 display.
+    m_SubLabel->SetPosition(30.0f, -10.0f);
 
     std::string marioSpritePath =
         std::string(RESOURCE_DIR) + "/Sprites/MarioIdle.png";
@@ -267,7 +271,7 @@ void UIManager::UpdateLoadingScreen() {
     m_MarioPreview->SetVisible(true);
 
     // Position Mario left of the text, aligned vertically
-    m_MarioPreview->SetPosition(-35.0f, -10.0f);
+    m_MarioPreview->SetPosition(-65.0f, -10.0f);
     m_MarioPreview->m_Transform.scale = {1.0f, 1.0f};
     m_MarioPreview->SetZIndex(101.0f);
 }

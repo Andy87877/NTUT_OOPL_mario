@@ -37,8 +37,13 @@ static void GridToScreen(int gridX, int gridY, float cameraOffset,
               GameConfig::RENDER_Y_OFFSET;
 }
 
-Block::Block(int blockID, int gridX, int gridY, const BlockDef& def)
-    : m_BlockID(blockID), m_GridX(gridX), m_GridY(gridY), m_Def(def) {
+Block::Block(int blockID, int gridX, int gridY, const BlockDef& def,
+             const std::string& levelName)
+    : m_BlockID(blockID),
+      m_GridX(gridX),
+      m_GridY(gridY),
+      m_Def(def),
+      m_LevelName(levelName) {
     m_Solid = def.solid;
 
     // Special case: multi-hit coin block (ID 5 in reference)
@@ -85,9 +90,9 @@ void Block::SetupSprite() {
                 return;
             }
         } else {
-            // Standard block sprites: only resolve path, don't load
-            m_SpritePath =
-                SpritePathResolver::GetBlockSpritePath(m_Def.name, 0);
+            // Standard block sprites: check level-specific dir first, then root
+            m_SpritePath = SpritePathResolver::GetBlockSpritePath(m_Def.name, 0,
+                                                                  m_LevelName);
         }
 
         // Verify file exists (without loading it yet)
@@ -100,8 +105,8 @@ void Block::SetupSprite() {
         // For animated blocks, collect all frame paths (don't load yet)
         if (m_Def.animated) {
             for (int i = 0; i <= m_Def.animationFrames; ++i) {
-                std::string animPath =
-                    SpritePathResolver::GetBlockSpritePath(m_Def.name, i);
+                std::string animPath = SpritePathResolver::GetBlockSpritePath(
+                    m_Def.name, i, m_LevelName);
                 std::ifstream testAnim(animPath);
                 if (testAnim.good()) {
                     m_AnimPaths.push_back(animPath);
@@ -113,8 +118,8 @@ void Block::SetupSprite() {
 
         // Collect hit sprite path if available
         if (!m_Def.hitSpriteName.empty()) {
-            m_HitSpritePath =
-                SpritePathResolver::GetBlockSpritePath(m_Def.hitSpriteName, 0);
+            m_HitSpritePath = SpritePathResolver::GetBlockSpritePath(
+                m_Def.hitSpriteName, 0, m_LevelName);
             std::ifstream test(m_HitSpritePath);
             if (!test.good()) {
                 m_HitSpritePath.clear();
@@ -249,7 +254,13 @@ void Block::OnHit(int playerState) {
         Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Bump);
     }
 
-    Bounce();
+    // Only animate bounce for blocks that have the bounceBack flag set.
+    // Castle/hard blocks (bounceBack=false) still play the bump sound but
+    // do NOT visually bounce — matching NES behavior where hitting a hard
+    // stone block gives a "bonk" sound without any block movement.
+    if (m_Def.bounceBack) {
+        Bounce();
+    }
 }
 
 void Block::Bounce() {

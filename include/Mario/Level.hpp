@@ -7,13 +7,14 @@
 #ifndef MARIO_LEVEL_HPP
 #define MARIO_LEVEL_HPP
 
-#include "Mario/Block.hpp"
-#include "Mario/EntityDef.hpp"
-
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "Mario/Block.hpp"
+#include "Mario/EntityDef.hpp"
+#include "Mario/MovingPlatform.hpp"
 
 namespace Mario {
 
@@ -29,7 +30,7 @@ namespace Mario {
  *   - Handle level dimensions and boundaries
  */
 class Level {
-public:
+   public:
     /**
      * Spawn point data from level CSV (GoombaSpawn, KoopaSpawn, etc.)
      */
@@ -40,7 +41,7 @@ public:
         int gridY;
         float worldX;
         float worldY;
-        bool spawned = false; // Only spawn once
+        bool spawned = false;  // Only spawn once
     };
 
     Level();
@@ -80,13 +81,25 @@ public:
     /**
      * Get all spawn points in the level.
      */
-    const std::vector<SpawnPoint>& GetSpawnPoints() const { return m_SpawnPoints; }
+    const std::vector<SpawnPoint>& GetSpawnPoints() const {
+        return m_SpawnPoints;
+    }
     std::vector<SpawnPoint>& GetSpawnPoints() { return m_SpawnPoints; }
 
     /**
      * Get all blocks as a flat list (for Renderer).
      */
-    const std::vector<std::shared_ptr<Block>>& GetAllBlocks() const { return m_Blocks; }
+    const std::vector<std::shared_ptr<Block>>& GetAllBlocks() const {
+        return m_Blocks;
+    }
+
+    /**
+     * Get all moving platform instances (subset of m_Blocks).
+     * Used by CollisionManager and PlayingSceneHandler for carry logic.
+     */
+    const std::vector<MovingPlatform*>& GetMovingPlatforms() const {
+        return m_MovingPlatforms;
+    }
 
     /**
      * Look up a block definition by ID.
@@ -127,7 +140,7 @@ public:
      */
     const std::string& GetLevelName() const { return m_LevelName; }
 
-private:
+   private:
     // -- Parsing --
     bool ParseLevelCSV(const std::string& path);
     void LoadLookupTables();
@@ -139,7 +152,7 @@ private:
     std::string m_LevelName;
     std::string m_SubLevelName;
 
-    int m_Width  = 0;
+    int m_Width = 0;
     int m_Height = 0;
 
     // 2D grid of block IDs [row][col]
@@ -147,6 +160,9 @@ private:
 
     // All block instances
     std::vector<std::shared_ptr<Block>> m_Blocks;
+
+    // Non-owning pointers to moving platforms (owned by m_Blocks)
+    std::vector<MovingPlatform*> m_MovingPlatforms;
 
     // Quick lookup by grid position: key = (gridY * MAX_WIDTH + gridX)
     std::unordered_map<int, Block*> m_BlockMap;
@@ -172,6 +188,6 @@ private:
     int GridKey(int x, int y) const { return y * 10000 + x; }
 };
 
-} // namespace Mario
+}  // namespace Mario
 
-#endif // MARIO_LEVEL_HPP
+#endif  // MARIO_LEVEL_HPP

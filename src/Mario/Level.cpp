@@ -33,6 +33,7 @@ static EntityType StringToEntityType(const std::string& typeStr) {
     if (typeStr == "FLAG") return EntityType::FLAG;
     if (typeStr == "PIRANHA_PLANT") return EntityType::PIRANHA_PLANT;
     if (typeStr == "PODOBOO") return EntityType::PODOBOO;
+    if (typeStr == "PARTICLE_DEBRIS") return EntityType::PARTICLE_DEBRIS;
     if (typeStr == "UNKNOWN") return EntityType::UNKNOWN;
     return EntityType::UNKNOWN;
 }
@@ -272,8 +273,15 @@ void Level::CreateBlocksFromGrid() {
                 sp.entityID = 29;
                 sp.gridX = x;
                 sp.gridY = y;
-                sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE) +
-                            GameConfig::TILE_SIZE * 0.5f;
+                // In 1-1.csv: block 29 (trigger) is at column x and the
+                // flagpole body (block 7) is at column x+1.
+                // C# reference: flag spawns one column to the RIGHT of the
+                // pole body (pole body is at j-1, trigger at j in C# CSV).
+                // Equivalent in our layout: place the flag at x+1 (pole) plus
+                // half a tile offset so it appears on the pole's right side.
+                sp.worldX =
+                    static_cast<float>((x + 1) * GameConfig::TILE_SIZE) +
+                    GameConfig::TILE_SIZE * 0.5f;
                 sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE);
                 m_SpawnPoints.push_back(sp);
                 continue;
@@ -329,7 +337,28 @@ void Level::CreateBlocksFromGrid() {
 
             // Create the block
             const BlockDef& def = it->second;
-            auto block = std::make_shared<Block>(blockID, x, y, def);
+
+            // Moving platforms (IDs 960/961) — stored separately, not in
+            // m_BlockMap
+            if (blockID == 960) {
+                auto plat = std::make_shared<MovingPlatform>(
+                    blockID, x, y, def, MovingPlatform::Direction::VERTICAL,
+                    m_LevelName);
+                m_Blocks.push_back(plat);
+                m_MovingPlatforms.push_back(plat.get());
+                continue;
+            }
+            if (blockID == 961) {
+                auto plat = std::make_shared<MovingPlatform>(
+                    blockID, x, y, def, MovingPlatform::Direction::HORIZONTAL,
+                    m_LevelName);
+                m_Blocks.push_back(plat);
+                m_MovingPlatforms.push_back(plat.get());
+                continue;
+            }
+
+            auto block =
+                std::make_shared<Block>(blockID, x, y, def, m_LevelName);
             m_Blocks.push_back(block);
             m_BlockMap[GridKey(x, y)] = block.get();
         }

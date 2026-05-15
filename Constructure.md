@@ -169,6 +169,7 @@ classDiagram
         +StartLevel()
         +PlayCurrentBGM()
         +AdvanceToNextLevel()
+        +AddEntityToGame(entity)
     }
 
     class ISceneHandler {
@@ -1352,7 +1353,7 @@ C# .resx 精靈名稱不等於實際 PNG 檔名
 
 - [ ] SpritePathResolver 重構驗證 (44 個映射表)
 - [ ] ✅ ?方塊道具掉落驗證 (已修復)
-- [ ] ✅ 撞擊方塊粒子效果驗證 (已修復)
+- [ ] ✅ 撞擊方塊粒子效果驗證 (已修復: SpawnBrickDebris 改用 blockName+"Break", SetInitialVelocity, ENTITY_NAME_OVERRIDE)
 - [ ] ✅ ESC 切換菜單功能驗證 (已修復)
 - [ ] Goomba 簡單巡邏與踩踏死亡
 - [ ] Koopa Troopa 踩踏後生成 Shell
@@ -1534,8 +1535,9 @@ classDiagram
     }
 
     class MovingPlatform["MovingPlatform (移動平台)"] {
-        +來回移動邏輯
-        +承載玩家移動
+        +來回移動邏輯 (VERTICAL / HORIZONTAL)
+        +承載玩家移動 (StepMovement + delta carry)
+        +ID 960 = 1-2 上下移動, ID 961 = 8-4 左右移動
     }
 
     class UIText["UIText (UI 文字)"] {
@@ -2431,16 +2433,19 @@ classDiagram
     }
 
     class MovingPlatform {
-        -Axis m_Axis
-        -float m_Phase, m_AngularSpeed, m_Range
-        -float m_OriginX, m_OriginY
-        -float m_VelocityX, m_VelocityY
-        +MovingPlatform(blockID, gridX, gridY, lookUp, range, period, axis)
-        +UpdatePlatform(dt)
+        -Direction m_Direction
+        -float m_Speed
+        -float m_LiveWorldX, m_LiveWorldY
+        -float m_MinBound, m_MaxBound
+        -float m_Velocity
+        -float m_LastDeltaX, m_LastDeltaY
+        +MovingPlatform(blockID, gridX, gridY, def, dir, speed, rangeHalf)
+        +StepMovement() void
+        +GetLastDeltaX/Y() float
+        +Update(cameraOffset) override
         +GetWorldX() float override
         +GetWorldY() float override
         +GetAABB() AABB override
-        +GetCarrierVelX/Y() float override
     }
 
     class FloatingText {

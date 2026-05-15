@@ -66,10 +66,21 @@ class Player : public Util::GameObject {
     float GetWorldY() const { return m_State.GetY(); }
 
     /**
-     * Set visibility for special sequences (e.g., entering castle).
+     * Set visibility for intentional hide sequences ONLY (entering castle,
+     * pipe warp, etc.). This sets m_Visible, which is checked by the early-
+     * return guard in UpdateView().
+     *
+     * WARNING: Do NOT call this for the invincibility blink effect.
+     * Blink code must call Util::GameObject::SetVisible() directly so that
+     * m_Visible is never corrupted, otherwise the early-return guard will
+     * permanently hide Mario after the first blink-off frame.
+     *
      * C# reference: Form1.cs line 1221 setRecBox(0, 0) makes Mario invisible.
      */
-    void SetVisible(bool visible) { m_Visible = visible; }
+    void SetVisible(bool visible) {
+        m_Visible = visible;
+        Util::GameObject::SetVisible(visible);
+    }
     bool IsVisible() const { return m_Visible; }
 
    private:

@@ -27,12 +27,16 @@ class SpritePathResolver {
 
     /**
      * Get path for a block sprite by looking up the block name.
+     * Checks the level-specific subdirectory first (if levelName is non-empty),
+     * then falls back to the root Sprites/ directory.
      * @param blockName Block sprite name from IDList.csv
      * @param frame Frame number for animated blocks
+     * @param levelName Level name for directory lookup (e.g. "1-1", "1-2")
      * @return Full path string
      */
     static std::string GetBlockSpritePath(const std::string& blockName,
-                                          int frame = 0);
+                                          int frame = 0,
+                                          const std::string& levelName = "");
 
     /**
      * Get path for a player sprite.

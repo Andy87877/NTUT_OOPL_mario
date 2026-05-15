@@ -38,8 +38,10 @@ class Block : public Util::GameObject {
      * @param gridX Grid column index
      * @param gridY Grid row index
      * @param def Block definition from IDList.csv
+     * @param levelName Level name for level-specific sprite lookup (e.g. "1-2")
      */
-    Block(int blockID, int gridX, int gridY, const BlockDef& def);
+    Block(int blockID, int gridX, int gridY, const BlockDef& def,
+          const std::string& levelName = "");
 
     virtual ~Block() = default;
 
@@ -47,7 +49,7 @@ class Block : public Util::GameObject {
      * Update block state (animation, bounce effect).
      * @param cameraOffset Current camera scroll offset
      */
-    void Update(float cameraOffset);
+    virtual void Update(float cameraOffset);
 
     /**
      * Called when player head-bumps this block.
@@ -122,6 +124,7 @@ class Block : public Util::GameObject {
     int m_GridX;
     int m_GridY;
     BlockDef m_Def;
+    std::string m_LevelName;  // Level name for level-specific sprite lookup
 
     bool m_Solid;
     bool m_IsHit = false;
