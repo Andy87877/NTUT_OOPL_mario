@@ -1,7 +1,8 @@
 /**
  * @file CollisionManager.hpp
  * @brief Manages collision detection between Player and Blocks.
- *        Handles ground detection, wall collision, and head bumping.
+ *        Logic ported from C# Form1.cs: FallDetect → ceiling trigger →
+ *        per-block resolution in C# order (DOWN, RIGHT, LEFT, DOWN, UP, LEFT).
  * @inheritance None (manager class)
  */
 #ifndef MARIO_COLLISION_MANAGER_HPP
@@ -26,10 +27,13 @@ class Entity;
  * and the level's block grid.
  *
  * Collision logic ported from C# Form1.cs onTick() collision section.
- * Uses AABB overlap checks and resolves in priority order:
- *   1. Ground (below player)
- *   2. Ceiling (above player - head bump)
- *   3. Wall (left/right - block movement)
+ * Per-frame pipeline (matching C# exactly):
+ *   1. FallDetect  — thin strip below feet; if no solid block →
+ * SetGrounded(false)
+ *   2. Ceiling trigger — head-bump against narrow hitbox, spawns block contents
+ *   3. Per-block resolution (for each intersecting block):
+ *        Airborne  : DOWN → RIGHT → LEFT → DOWN → UP → LEFT
+ *        Grounded  : RIGHT or LEFT only
  */
 class CollisionManager {
    public:
@@ -88,27 +92,47 @@ class CollisionManager {
     void CheckEntityBlockCollision(Entity& entity, Level& level);
 
    private:
-    /**
-     * Check ground collision: is the player standing on a solid block?
-     */
-    void CheckGroundCollision(PlayerState& state, Level& level);
+    // ---- Per-direction resolution helpers (matching C# CheckCollisionsXxx)
+    // ----
 
     /**
-     * Check ceiling collision: did the player hit a block from below?
-     * Directly grants coins for CoinGet blocks instead of spawning entities.
-     * Applies camera offset to display floating text at correct screen
-     * position.
+     * Snap player feet to block top when falling onto it.
+     * C#: if (Bottom > b.Top && Bottom < b.Top + size*0.75 && movingDown)
      */
-    void CheckCeilingCollision(
-        PlayerState& state, Level& level, Camera& camera,
-        GameStateManager& gameState, UIManager& uiManager,
-        std::vector<Level::SpawnPoint>* outSpawns = nullptr);
+    void ResolveDown(PlayerState& state, const AABB& bb, bool& movingDown);
 
     /**
-     * Check horizontal wall collision: left and right sides.
+     * Snap player head to block bottom when jumping into it.
+     * C#: if (Top < b.Bottom && Top > b.Bottom - size*0.75 && movingUp)
      */
-    void CheckWallCollision(PlayerState& state, Level& level,
-                            float cameraOffset);
+    void ResolveUp(PlayerState& state, const AABB& bb, bool& movingUp);
+
+    /**
+     * Snap player right edge to block left edge when moving right.
+     * C#: if (Right > b.Left && Right < b.Left + size*0.75 && movingRight)
+     */
+    void ResolveRight(PlayerState& state, const AABB& bb, bool& movingRight);
+
+    /**
+     * Snap player left edge to block right edge when moving left.
+     * C#: if (Left < b.Right && Left > b.Right - size*0.75 && movingLeft)
+     */
+    void ResolveLeft(PlayerState& state, const AABB& bb, bool& movingLeft);
+
+    /**
+     * Trigger a block hit: play sound, spawn contents, break bricks.
+     * Called when the player's head bumps the bottom of a block.
+     */
+    void TriggerBlockHit(Block& block, PlayerState& state, Camera& camera,
+                         GameStateManager& gameState, UIManager& uiManager,
+                         std::vector<Level::SpawnPoint>* outSpawns);
+
+    // Consecutive stomp combo counter.
+    // Incremented each time Mario stomps an enemy while airborne.
+    // Reset to 0 whenever Mario is grounded (between stomp chains).
+    // Used to compute the NES-authentic score multiplier:
+    //   1st stomp = 100, 2nd = 200, 3rd = 400, 4th = 800, 5th+ = 1000.
+    int m_StompCombo = 0;
 };
 
 }  // namespace Mario

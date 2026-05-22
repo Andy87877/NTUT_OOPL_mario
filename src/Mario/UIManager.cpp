@@ -12,6 +12,8 @@
 
 #include <cstdio>
 
+#include "Mario/GameConfig.hpp"
+
 #include "Util/Color.hpp"
 #include "Util/Logger.hpp"
 #include "config.hpp"
@@ -32,6 +34,7 @@ UIManager::UIManager(GameStateManager* gameState) : m_GameState(gameState) {
 
     InitHUD();
     InitESCMenu();
+    InitLoadingScreen();  // Pre-load Mario preview sprite at startup
 }
 
 void UIManager::InitHUD() {
@@ -90,6 +93,9 @@ void UIManager::Update(State currentState, int escMenuSelection) {
     if (m_AxeEndingInitialized) {
         m_EndingLine1->SetVisible(false);
         m_EndingLine2->SetVisible(false);
+    }
+    if (m_MarioPreview) {
+        m_MarioPreview->SetVisible(false);
     }
 
     bool showHUD =
@@ -239,6 +245,27 @@ void UIManager::UpdateTitleScreen() {
     m_SubLabel->SetPosition(0.0f, -50.0f);  // Center horizontally, lower area
 }
 
+void UIManager::InitLoadingScreen() {
+    // Pre-initialize the Mario preview sprite at construction time so the OpenGL
+    // texture is fully uploaded before the first loading screen frame is drawn.
+    // Creating the UIImage here (not on-demand inside UpdateLoadingScreen) avoids
+    // the one-frame blank texture that occurred when the image was created at runtime.
+    std::string marioSpritePath =
+        std::string(RESOURCE_DIR) + "/Sprites/MarioIdle.png";
+    m_MarioPreview = std::make_shared<UIImage>(marioSpritePath);
+    m_CurrentPreviewSpritePath = marioSpritePath;
+
+    // Set position, scale, and Z-index once at init — they never change.
+    // Position: sprite center at (-65, -10), to the left of the lives text at (30, -10).
+    m_MarioPreview->SetPosition(-65.0f, -10.0f);
+    m_MarioPreview->m_Transform.scale = {GameConfig::DRAW_SCALE, GameConfig::DRAW_SCALE};
+    m_MarioPreview->SetZIndex(101.0f);
+
+    // Hidden by default; shown only during LOADING state.
+    m_MarioPreview->SetVisible(false);
+    m_UIRenderer.AddChild(m_MarioPreview);
+}
+
 void UIManager::UpdateLoadingScreen() {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("WORLD " + m_GameState->GetLevelName());
@@ -252,28 +279,15 @@ void UIManager::UpdateLoadingScreen() {
         "x " + std::string(lives < 10 ? "0" : "") + std::to_string(lives);
     m_SubLabel->SetTextContent(livesStr);
 
-    // C# reference: "MARIO" label above "x 00" label (Form1.Designer.cs).
-    // Here we use a sprite instead of text, laid out left-to-right:
-    //   [Mario sprite]  x 03
-    // The group is centered around x=0.  Sprite center at -65, text at +30
-    // keeps ~51 px of clear space between them on a 1280x720 display.
+    // C# reference: "MARIO" sprite to the left of "x 00" label (Form1.Designer.cs).
+    // Layout (centered around x=0):  [Mario sprite at -65]  [lives text at +30]
     m_SubLabel->SetPosition(30.0f, -10.0f);
 
-    std::string marioSpritePath =
-        std::string(RESOURCE_DIR) + "/Sprites/MarioIdle.png";
-
-    if (!m_MarioPreview) {
-        m_MarioPreview = std::make_shared<UIImage>(marioSpritePath);
-        m_UIRenderer.AddChild(m_MarioPreview);
+    // m_MarioPreview is pre-initialized in InitLoadingScreen().
+    // Simply reveal it — no per-frame image loading or transform changes needed.
+    if (m_MarioPreview) {
+        m_MarioPreview->SetVisible(true);
     }
-
-    m_MarioPreview->SetImagePath(marioSpritePath);
-    m_MarioPreview->SetVisible(true);
-
-    // Position Mario left of the text, aligned vertically
-    m_MarioPreview->SetPosition(-65.0f, -10.0f);
-    m_MarioPreview->m_Transform.scale = {1.0f, 1.0f};
-    m_MarioPreview->SetZIndex(101.0f);
 }
 
 void UIManager::UpdateGameOverScreen() {

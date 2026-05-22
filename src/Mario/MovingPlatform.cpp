@@ -15,12 +15,14 @@ namespace Mario {
 // ---------------------------------------------------------------------------
 static void WorldToScreen(float worldX, float worldY, float cameraOffset,
                           float& sx, float& sy) {
-    const float halfW = GameConfig::WINDOW_WIDTH / 2.0f;
-    const float halfTile = GameConfig::TILE_SIZE / 2.0f;
-    const float levelH = static_cast<float>(GameConfig::LEVEL_HEIGHT_PX);
+    float roundedOffset = std::round(cameraOffset);
+    float leftScreenX = std::round(worldX) - roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
+    sx = leftScreenX + GameConfig::TILE_SIZE / 2.0f;
 
-    sx = worldX + halfTile - cameraOffset - halfW;
-    sy = levelH / 2.0f - (worldY + halfTile) + GameConfig::RENDER_Y_OFFSET;
+    float bottomScreenY = GameConfig::LEVEL_HEIGHT_PX / 2.0f -
+                          (std::round(worldY) + GameConfig::TILE_SIZE) +
+                          GameConfig::RENDER_Y_OFFSET;
+    sy = bottomScreenY + GameConfig::TILE_SIZE / 2.0f;
 }
 
 // ---------------------------------------------------------------------------

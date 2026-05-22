@@ -251,15 +251,14 @@ void Level::CreateBlocksFromGrid() {
             if (it == m_BlockDefs.end()) continue;
             if (it->second.name.empty()) continue;
 
-            // Skip sky (ID 0) and black space (ID 9) - we use background color
-            if (blockID == 0 || blockID == 9) continue;
+            // Skip sky (ID 0) - we use background color
+            if (blockID == 0) continue;
 
             // Check for special IDs (matching C# Form1.cs StartLevel())
             // 997/998/999 = Mario spawn, 897/898/899 = Luigi spawn (unused)
             if (blockID == 997 || blockID == 998 || blockID == 999) {
                 m_PlayerSpawnX = static_cast<float>(x * GameConfig::TILE_SIZE);
                 m_PlayerSpawnY = static_cast<float>(y * GameConfig::TILE_SIZE);
-                continue;
             }
             if (blockID == 897 || blockID == 898 || blockID == 899) {
                 // Luigi spawn - skip for single-player mode

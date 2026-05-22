@@ -87,7 +87,11 @@ void PiranhaPlantBehavior::Update(EntityState& state,
 
         case Phase::VISIBLE: {
             state.SetHidden(false);
-            if (m_PhaseTimer >= VISIBLE_FRAMES) {
+            // Retreat immediately if Mario enters the pipe proximity radius.
+            // This prevents the plant from damaging Mario during pipe entry,
+            // matching NES behavior where the plant cannot hurt Mario while
+            // he is standing directly over the pipe opening.
+            if (marioNearby || m_PhaseTimer >= VISIBLE_FRAMES) {
                 m_Phase = Phase::RETREATING;
                 m_PhaseTimer = 0;
             }

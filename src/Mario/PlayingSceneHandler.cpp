@@ -368,6 +368,22 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
 
 // ============================================================================
 // CheckPipeCollision — owned by PlayingSceneHandler (PLAYING state only)
+// Ported from C# Form1.cs pipe detection logic (pipeCheck1/pipeCheck2 block).
+//
+// Root cause of previous bug: AABB::Intersects uses strict (bottom > top).
+// After CollisionManager::ResolveDown snaps Mario to exactly block.top,
+// Mario's bottom == pipe.top, so Intersects returns false and the pipe
+// is never detected.
+// Fix: use a full-body rect (C# GetRecPosition) expanded +1px downward so
+// standing on a block's top edge still counts as an intersection.
+//
+// Centering condition (down pipe) ported from C#:
+//   pipeRec.X < Mario.X < pipeRec.X + scaleSize/1.25
+//   Scaled to TILE_SIZE=45: pipeDX < ps.GetX() < pipeDX + TILE_SIZE/1.25
+//
+// Vertical alignment (right pipe) ported from C#:
+//   pipeRec.Y + scaleSize + 1 > Mario.Y
+//   Scaled to TILE_SIZE=45: pipeRY + TILE_SIZE + 1 > ps.GetY()
 // ============================================================================
 void PlayingSceneHandler::CheckPipeCollision(App& app) const {
     auto& player = app.GetPlayer();
@@ -375,7 +391,13 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
     if (app.GetLevelCompleteCtrl().IsActive()) return;
 
     Mario::PlayerState& ps = player->GetState();
-    Mario::AABB playerBox = ps.GetHitbox();
+
+    // Full-body AABB (C# GetRecPosition), expanded 1px downward so a player
+    // standing exactly on a block top edge still registers as intersecting.
+    const float TS = static_cast<float>(Mario::GameConfig::TILE_SIZE);
+    Mario::AABB playerBox = Mario::AABB::FromPosSize(
+        ps.GetX(), ps.GetY(),
+        TS, static_cast<float>(ps.GetHeight()) + 1.0f);
 
     bool pipeDown1 = false, pipeDown2 = false;
     bool pipeRight1 = false, pipeRight2 = false;
@@ -406,13 +428,12 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
         }
     }
 
-    // Down pipe: need both halves + player centered + pressing Down
-    if (pipeDown1 && pipeDown2 &&
+    // Down pipe: both halves must intersect + Mario grounded + Down key held.
+    // Centering check (C#): pipeDX < Mario.X < pipeDX + TILE_SIZE/1.25
+    if (pipeDown1 && pipeDown2 && ps.IsGrounded() &&
         Util::Input::IsKeyPressed(Util::Keycode::DOWN)) {
-        float pipeCenter = pipeDX + Mario::GameConfig::TILE_SIZE;
-        float playerCenter = ps.GetX() + ps.GetWidth() / 2.0f;
-        if (std::abs(playerCenter - pipeCenter) <
-            Mario::GameConfig::TILE_SIZE * 0.6f) {
+        float maxOffset = TS / 1.25f;  // = 36px at TILE_SIZE=45
+        if (ps.GetX() > pipeDX && ps.GetX() < pipeDX + maxOffset) {
             LOG_INFO("Entering pipe DOWN at ({}, {})", pipeDX, pipeDY);
             app.GetLevelCompleteCtrl().StartPipeWarp(*player, "Down", pipeDX,
                                                      pipeDY);
@@ -427,11 +448,11 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
         }
     }
 
-    // Right pipe: need any pipe half + player grounded + pressing Right
+    // Right pipe: any half must intersect + grounded + Right key held.
+    // Vertical alignment (C#): pipeRY + TILE_SIZE + 1 > Mario.Y
     if ((pipeRight1 || pipeRight2) && ps.IsGrounded() &&
         Util::Input::IsKeyPressed(Util::Keycode::RIGHT)) {
-        float playerBot = ps.GetY() - ps.GetHeight();
-        if (playerBot < pipeRY + Mario::GameConfig::TILE_SIZE * 0.1f) {
+        if (pipeRY + TS + 1.0f > ps.GetY()) {
             LOG_INFO("Entering pipe RIGHT at ({}, {})", pipeRX, pipeRY);
             app.GetLevelCompleteCtrl().StartPipeWarp(*player, "Right", pipeRX,
                                                      pipeRY);
@@ -446,37 +467,6 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
             }
             app.TransitionTo(App::State::PIPE_WARP);
             return;
-        }
-    }
-
-    // Auto-trigger pipe warp for right-pipe blocks in 1-2
-    if (app.GetGameState().GetLevelName() == "1-2") {
-        Mario::AABB expandedBox = playerBox;
-        expandedBox.left -= 2.0f;
-        expandedBox.right += 2.0f;
-        for (const auto& block : app.GetLevel()->GetAllBlocks()) {
-            int id = block->GetBlockID();
-            if (id == Mario::GameConfig::PIPE_RIGHT_TOP ||
-                id == Mario::GameConfig::PIPE_RIGHT_BOT) {
-                if (expandedBox.Intersects(block->GetAABB()) &&
-                    ps.IsGrounded()) {
-                    LOG_INFO("Auto-warp triggered by pipe contact at 1-2");
-                    app.GetLevelCompleteCtrl().StartPipeWarp(
-                        *player, "Right", block->GetWorldX(),
-                        block->GetWorldY());
-                    Mario::AudioManager::GetInstance().PlaySFX(
-                        Mario::SFXName::Warp);
-                    int time = app.GetGameState().GetTimeRemaining();
-                    Mario::AudioManager::GetInstance().PlayBGM(
-                        (time <= 100 && time > 0)
-                            ? Mario::BGMName::IntoThePipeHurryUp
-                            : Mario::BGMName::IntoThePipeTheme);
-                    app.GetGameState().StopTime();
-                    app.GetGameState().SetNextLevelOverride("8-4");
-                    app.TransitionTo(App::State::PIPE_WARP);
-                    return;
-                }
-            }
         }
     }
 }

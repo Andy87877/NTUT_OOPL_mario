@@ -504,6 +504,7 @@ docs/html/
 .error.log
 .debug.log
 *.py
+python_src/
 
 docs/
 
@@ -519,3 +520,6 @@ _ptsd-template-main/
 
 temp_app.cpp
 temp_app_diff.txt
+
+Constructure_2026.05.18.md
+Summary.md

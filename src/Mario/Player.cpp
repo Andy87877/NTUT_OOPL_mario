@@ -86,14 +86,14 @@ void Player::UpdateView(float cameraOffset) {
     // PTSD needs center of the sprite
     float playerWidth = static_cast<float>(m_State.GetWidth());
     float playerHeight = static_cast<float>(m_State.GetHeight());
-    float playerCenterX = m_State.GetX() + playerWidth / 2.0f;
-    float playerCenterY = m_State.GetY() + playerHeight / 2.0f;
 
-    // Subtract half window width to convert from world-left-origin to
-    // PTSD-center-origin
-    float screenX =
-        playerCenterX - cameraOffset - GameConfig::WINDOW_WIDTH / 2.0f;
-    float screenY = levelHalfH - playerCenterY + GameConfig::RENDER_Y_OFFSET;
+    // Globally round the cameraOffset and align edges to integers
+    float roundedOffset = std::round(cameraOffset);
+    float leftScreenX = std::round(m_State.GetX()) - roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
+    float screenX = leftScreenX + playerWidth / 2.0f;
+
+    float bottomScreenY = levelHalfH - (std::round(m_State.GetY()) + playerHeight) + GameConfig::RENDER_Y_OFFSET;
+    float screenY = bottomScreenY + playerHeight / 2.0f;
 
     m_Transform.translation = {screenX, screenY};
 

@@ -145,14 +145,14 @@ void App::LoadLevel(const std::string& levelName) {
 
     // Build renderer: clear and add all blocks + player + entities.
     // ZIndex hierarchy (higher = rendered in front):
-    //   0.0f = tile blocks (background layer)
+    //   GameConfig::Z_BACKGROUND = background tiles (-10.0f)
+    //   GameConfig::Z_BLOCK      = solid tiles (-5.0f)
     //   1.0f = entities / enemies (in front of tiles)
     //   2.0f = player (always in front of everything except UI)
-    // During pipe warp entry the player is dropped to -1.0f so it sinks behind
+    // During pipe warp entry the player is dropped to GameConfig::Z_BLOCK - 1.0f (-6.0f) so it sinks behind
     // the pipe tiles, giving the correct "enter pipe" visual.
     m_Renderer = Util::Renderer();
     for (const auto& block : m_Level->GetAllBlocks()) {
-        block->SetZIndex(0.0f);
         m_Renderer.AddChild(block);
     }
     m_Player->SetZIndex(2.0f);

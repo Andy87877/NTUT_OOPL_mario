@@ -89,6 +89,22 @@ static const std::unordered_map<std::string, std::string> BLOCK_SPRITE_MAP = {
     // Ground blocks
     {"Ground20", "Ground2.png"},
     {"Ground0", "Ground.png"},
+
+    // Castle blocks
+    {"Castle10", "Castle.png"},
+    {"Castle20", "Castle2.png"},
+    {"Castle30", "Castle3.png"},
+    {"Castle40", "Castle4.png"},
+    {"Castle50", "Castle5.png"},
+    {"Castle60", "Castle6.png"},
+
+    // Black space block
+    {"Black0", "Black.png"},
+
+    // Player spawn blocks
+    {"MarioStartBlack0", "Black.png"},
+    {"MarioStartGreen0", "MarioSpawnGreen.png"},
+    {"MarioStartBlue0", "Sky.png"},
 };
 
 /**

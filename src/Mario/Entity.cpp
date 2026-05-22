@@ -109,11 +109,16 @@ void Entity::UpdateView(float cameraOffset) {
     // Convert world to PTSD screen coordinates
     float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
 
-    float centerX = m_State.GetX() + m_State.GetWidth() / 2.0f;
-    float centerY = m_State.GetY() + m_State.GetHeight() / 2.0f;
+    float entityWidth = static_cast<float>(m_State.GetWidth());
+    float entityHeight = static_cast<float>(m_State.GetHeight());
 
-    float screenX = centerX - cameraOffset - GameConfig::WINDOW_WIDTH / 2.0f;
-    float screenY = levelHalfH - centerY + GameConfig::RENDER_Y_OFFSET;
+    // Globally round the cameraOffset and align edges to integers
+    float roundedOffset = std::round(cameraOffset);
+    float leftScreenX = std::round(m_State.GetX()) - roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
+    float screenX = leftScreenX + entityWidth / 2.0f;
+
+    float bottomScreenY = levelHalfH - (std::round(m_State.GetY()) + entityHeight) + GameConfig::RENDER_Y_OFFSET;
+    float screenY = bottomScreenY + entityHeight / 2.0f;
 
     m_Transform.translation = {screenX, screenY};
 

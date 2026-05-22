@@ -36,11 +36,10 @@ void LoadingSceneHandler::Update(App& app) {
 }
 
 void LoadingSceneHandler::OnRender(App& app) {
-    const std::string& lvl = app.GetCurrentLevelName();
-    bool underground = app.GetGameState().IsUnderground() ||
-                       lvl.find("u") != std::string::npos || lvl == "1-2" ||
-                       lvl == "8-4";
-    app.ApplyBackground(underground);
+    // The loading/transition screen is ALWAYS black in the NES original and the
+    // C# reference (which loads a special "Load" level with a black background).
+    // Force underground=true so 1-1 transitions are not mistakenly sky-blue.
+    app.ApplyBackground(true);
     app.GetRenderer().Update();
     app.GetUIManager().Update(Mario::UIManager::State::LOADING);
 }

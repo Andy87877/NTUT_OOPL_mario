@@ -1,7 +1,8 @@
 /**
  * @file CollisionManager.cpp
  * @brief Implementation of Player-Block collision detection and resolution.
- *        Ported from C# Form1.cs collision logic.
+ *        Fully ported from C# Form1.cs onTick() collision pipeline.
+ *        Pipeline: FallDetect → ceiling trigger → per-block resolution.
  * @inheritance None
  */
 #include "Mario/CollisionManager.hpp"
@@ -20,293 +21,338 @@
 
 namespace Mario {
 
+// ============================================================================
+// File-scope helper: build the full-body AABB (C# GetRecPosition equivalent).
+// The narrow hitbox (HITBOX_WIDTH_RATIO) is only used for the ceiling trigger
+// (Step 2). All other collision checks use the full TILE_SIZE width to match
+// C# which uses GetRecPosition() in its main collision loop.
+// ============================================================================
+static AABB BodyRect(const PlayerState& state) {
+    return AABB::FromPosSize(state.GetX(), state.GetY(),
+                             static_cast<float>(GameConfig::TILE_SIZE),
+                             static_cast<float>(state.GetHeight()));
+}
+
+// ============================================================================
+// CheckPlayerBlockCollision
+// Exactly matches the C# Form1.cs onTick() collision pipeline:
+//
+//   Step 1 — FallDetect (C# "marioIntersect" check)
+//     Thin 4px strip below feet. No solid block → SetGrounded(false).
+//
+//   Step 2 — Ceiling trigger (uses narrow hitbox, C# GetHitBox)
+//     Detects head-bump against block bottom while jumping upward.
+//     Snaps position AND triggers block contents (questions, bricks).
+//     Runs BEFORE the main loop so it uses the exact C# narrower hitbox.
+//
+//   Step 3 — Per-block resolution loop (uses full body rect, C# GetRecPosition)
+//     For each nearby solid block that overlaps Mario's body rectangle:
+//       Airborne  : DOWN → RIGHT → LEFT → DOWN (again) → UP → LEFT (again)
+//       Grounded  : RIGHT or LEFT only
+//     After each resolve step the body rect is recomputed from state.
+// ============================================================================
 void CollisionManager::CheckPlayerBlockCollision(
     Player& player, Level& level, Camera& camera, GameStateManager& gameState,
     UIManager& uiManager, std::vector<Level::SpawnPoint>* outSpawns) {
     PlayerState& state = player.GetState();
 
-    // IMPORTANT: Position has already been updated by UpdatePlaying()
-    // This method only resolves collisions, not applies position changes
+    const float TS = static_cast<float>(GameConfig::TILE_SIZE);
+    const float STR = GameConfig::INTERSECT_STRICTNESS;  // 0.75f
 
-    // Resolve collisions in C# order: ground first, then ceiling, then walls.
-    // C# reference (Form1.cs): CheckCollisionsDown → CheckCollisionsUp →
-    // CheckCollisionsLeft → CheckCollisionsRight.
-    // Ground/ceiling must run before walls so that after a head-hit snap,
-    // the strict wall-overlap threshold no longer fires and Mario slides past
-    // block corners without getting stuck.
-    CheckGroundCollision(state, level);
-    CheckCeilingCollision(state, level, camera, gameState, uiManager,
-                          outSpawns);
-    CheckWallCollision(state, level, camera.GetOffset());
+    // Direction flags — match C# movingDown / movingUp / movingLeft /
+    // movingRight. movingDown: airborne AND jump arc exhausted (falling phase).
+    // movingUp  : jump arc still active (rising phase, fallHeight > 0).
+    bool movingDown = !state.IsGrounded() && state.GetFallHeight() <= 0.0;
+    bool movingUp = state.GetFallHeight() > 0.0;
+    bool movingRight = state.GetVelX() > 0.0f;
+    bool movingLeft = state.GetVelX() < 0.0f;
 
-    // Prevent player from going past left boundary
+    // Tile-range anchor for spatial lookup (±2 columns, +4 rows covers any
+    // state)
+    AABB body = BodyRect(state);
+    int tileX = static_cast<int>(body.left) / GameConfig::TILE_SIZE;
+    int tileY = static_cast<int>(body.top) / GameConfig::TILE_SIZE;
+
+    // -------------------------------------------------------------------------
+    // Step 1: FallDetect (C# marioIntersect)
+    // A full rectangle of sizeX by sizeY shifted down by 1 pixel.
+    // Matches C# Player.cs fallDetect definition: new Rectangle(posX, posY + 1, sizeX, sizeY).
+    // -------------------------------------------------------------------------
+    AABB fallDetect = {body.left, body.top + 1.0f, body.right, body.bottom + 1.0f};
+    bool groundFound = false;
+
+    for (int gy = tileY; gy <= tileY + 3 && !groundFound; gy++) {
+        for (int gx = tileX - 1; gx <= tileX + 2 && !groundFound; gx++) {
+            Block* blk = level.GetBlockAt(gx, gy);
+            if (blk && blk->IsSolid() &&
+                blk->GetAABB().Intersects(fallDetect)) {
+                groundFound = true;
+            }
+        }
+    }
+    for (auto* plat : level.GetMovingPlatforms()) {
+        if (!groundFound && plat && plat->IsSolid() &&
+            plat->GetAABB().Intersects(fallDetect)) {
+            groundFound = true;
+        }
+    }
+    if (!groundFound) {
+        state.SetGrounded(false);
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 2: Ceiling trigger (narrow hitbox, C# GetHitBox)
+    // Fires only while Mario is rising (movingUp). Uses the narrow hitbox to
+    // detect when the head enters the bottom 75% of a block above.
+    // Snaps the Y position and calls TriggerBlockHit which handles contents,
+    // audio, and scoring. The "checkRow-1" extra pass handles the edge case
+    // where Mario's head top is exactly on a tile boundary.
+    // -------------------------------------------------------------------------
+    if (movingUp) {
+        AABB hb = state.GetHitbox();  // narrow hitbox for head detection
+        int htLeft = static_cast<int>(hb.left) / GameConfig::TILE_SIZE;
+        int htRight = static_cast<int>(hb.right) / GameConfig::TILE_SIZE;
+        int headRow = static_cast<int>(hb.top) / GameConfig::TILE_SIZE;
+
+        bool triggered = false;
+        // Check current head tile row AND the one above (handles tile-boundary)
+        for (int row = headRow - 1; row <= headRow && !triggered; row++) {
+            for (int gx = htLeft; gx <= htRight && !triggered; gx++) {
+                Block* blk = level.GetBlockAt(gx, row);
+                if (!blk || !blk->IsSolid()) continue;
+                AABB bb = blk->GetAABB();
+
+                // C#: Top < b.Bottom && Top > b.Bottom - size*0.75 &&
+                // intersects
+                if (hb.top < bb.bottom && hb.top > bb.bottom - TS * STR &&
+                    hb.Intersects(bb)) {
+                    state.SetY(bb.bottom);  // snap head to block bottom
+                    state.SetFallHeight(0.0);
+                    state.SetVelY(0.0);
+                    movingUp = false;
+
+                    TriggerBlockHit(*blk, state, camera, gameState, uiManager,
+                                    outSpawns);
+                    triggered = true;
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 3: Main per-block collision loop
+    // A lambda handles one block so the same logic applies to both static
+    // blocks and moving platforms.
+    // -------------------------------------------------------------------------
+    auto processBlock = [&](const AABB& bb) {
+        body = BodyRect(state);
+        if (!body.Intersects(bb)) return;
+
+        // Reset movingRight/movingLeft for each block to match C# logic
+        bool localMovingRight = movingRight;
+        bool localMovingLeft = movingLeft;
+
+        if (!state.IsGrounded()) {
+            // Airborne resolution order (directly from C# Form1.cs):
+            // DOWN → RIGHT → LEFT → DOWN (2nd pass) → UP → LEFT (2nd pass)
+            ResolveDown(state, bb, movingDown);
+
+            body = BodyRect(state);
+            if (localMovingRight && body.Intersects(bb)) {
+                ResolveRight(state, bb, localMovingRight);
+            }
+
+            body = BodyRect(state);
+            if (localMovingLeft && body.Intersects(bb)) {
+                ResolveLeft(state, bb, localMovingLeft);
+            }
+
+            // Second DOWN pass handles corner cases where a horizontal snap
+            // places Mario back onto the block top.
+            body = BodyRect(state);
+            if (body.Intersects(bb)) {
+                ResolveDown(state, bb, movingDown);
+            }
+
+            // UP (ceiling snap without content trigger — Step 2 already did
+            // that)
+            body = BodyRect(state);
+            if (body.Intersects(bb)) {
+                ResolveUp(state, bb, movingUp);
+            }
+
+            // Second LEFT pass (C# repeats this after UP)
+            body = BodyRect(state);
+            if (localMovingLeft && body.Intersects(bb)) {
+                ResolveLeft(state, bb, localMovingLeft);
+            }
+
+        } else {
+            // Grounded: horizontal resolution only (C# grounded branch)
+            if (localMovingRight) {
+                ResolveRight(state, bb, localMovingRight);
+            } else if (localMovingLeft) {
+                ResolveLeft(state, bb, localMovingLeft);
+            }
+        }
+    };
+
+    // Static blocks in the search window
+    for (int gy = tileY - 1; gy <= tileY + 3; gy++) {
+        for (int gx = tileX - 1; gx <= tileX + 2; gx++) {
+            Block* blk = level.GetBlockAt(gx, gy);
+            if (blk && blk->IsSolid()) {
+                processBlock(blk->GetAABB());
+            }
+        }
+    }
+
+    // Moving platforms (same per-block logic)
+    for (auto* plat : level.GetMovingPlatforms()) {
+        if (plat && plat->IsSolid()) {
+            processBlock(plat->GetAABB());
+        }
+    }
+
+    // Clamp to left level boundary
     if (state.GetX() < 0.0f) {
         state.SetX(0.0f);
     }
 }
 
+// ============================================================================
+// CheckPitFall
+// ============================================================================
 bool CollisionManager::CheckPitFall(const Player& player) const {
-    // Player fell below the level (16 rows * 32 pixels = 512)
     float levelBottom = static_cast<float>(GameConfig::LEVEL_HEIGHT_PX);
     return player.GetState().GetY() > levelBottom + GameConfig::TILE_SIZE;
 }
 
-void CollisionManager::CheckGroundCollision(PlayerState& state, Level& level) {
-    AABB playerBox = state.GetHitbox();
+// ============================================================================
+// Resolution helpers
+// Each method mirrors one C# CheckCollisionsXxx function.
+// All use BodyRect (full TILE_SIZE width) matching C# GetRecPosition().
+// ============================================================================
 
-    // Check blocks below the player's feet
-    int leftTile = static_cast<int>(playerBox.left) / GameConfig::TILE_SIZE;
-    int rightTile =
-        static_cast<int>(playerBox.right - 1) / GameConfig::TILE_SIZE;
-    int bottomTile = static_cast<int>(playerBox.bottom) / GameConfig::TILE_SIZE;
-
-    bool foundGround = false;
-
-    for (int x = leftTile; x <= rightTile; x++) {
-        Block* block = level.GetBlockAt(x, bottomTile);
-        if (block && block->IsSolid()) {
-            AABB blockBox = block->GetAABB();
-
-            // Check if player is actually overlapping
-            if (playerBox.Intersects(blockBox)) {
-                // Check it's a downward collision (feet hitting top of block)
-                float overlapY = playerBox.bottom - blockBox.top;
-                if (state.GetVelY() >= 0.0f && overlapY > 0 &&
-                    overlapY < GameConfig::TILE_SIZE * 0.75f) {
-                    // Snap player to top of block
-                    state.SetY(blockBox.top -
-                               static_cast<float>(state.GetHeight()));
-                    state.SetVelY(0.0);
-                    state.SetFallHeight(0.0);
-                    state.SetGrounded(true);
-                    foundGround = true;
-                }
-            }
-        }
-    }
-
-    // Also check one tile below current position (fall detection)
-    if (!foundGround) {
-        int belowTile =
-            (static_cast<int>(playerBox.bottom) + 1) / GameConfig::TILE_SIZE;
-        for (int x = leftTile; x <= rightTile; x++) {
-            Block* block = level.GetBlockAt(x, belowTile);
-            if (block && block->IsSolid()) {
-                AABB blockBox = block->GetAABB();
-                float gap = blockBox.top - playerBox.bottom;
-                if (state.GetVelY() >= 0.0f && gap >= 0 && gap <= 2.0f) {
-                    state.SetY(blockBox.top -
-                               static_cast<float>(state.GetHeight()));
-                    state.SetVelY(0.0);
-                    state.SetFallHeight(0.0);
-                    state.SetGrounded(true);
-                    foundGround = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (!foundGround && state.IsGrounded()) {
-        // Player walked off an edge
-        state.SetGrounded(false);
-    }
-
-    // Check moving platforms (not stored in the static grid map)
-    for (MovingPlatform* plat : level.GetMovingPlatforms()) {
-        if (!plat || !plat->IsSolid()) continue;
-        AABB platBox = plat->GetAABB();
-
-        // X overlap — player must be above this platform
-        if (playerBox.left >= platBox.right || playerBox.right <= platBox.left)
-            continue;
-
-        float overlapY = playerBox.bottom - platBox.top;
-        if (state.GetVelY() >= 0.0f && overlapY > 0 &&
-            overlapY < GameConfig::TILE_SIZE * 0.75f) {
-            state.SetY(platBox.top - static_cast<float>(state.GetHeight()));
-            state.SetVelY(0.0);
-            state.SetFallHeight(0.0);
-            state.SetGrounded(true);
-        } else if (!foundGround && state.GetVelY() >= 0.0f) {
-            // Close-approach snap (falling toward platform)
-            float gap = platBox.top - playerBox.bottom;
-            if (gap >= 0.0f && gap <= 2.0f) {
-                state.SetY(platBox.top - static_cast<float>(state.GetHeight()));
-                state.SetVelY(0.0);
-                state.SetFallHeight(0.0);
-                state.SetGrounded(true);
-            }
-        }
+// Snap feet to block top when falling (C# CheckCollisionsDown).
+// C#: if (Bottom > b.Top && Bottom < b.Top + size*0.75 && movingDown)
+void CollisionManager::ResolveDown(PlayerState& state, const AABB& bb,
+                                   bool& movingDown) {
+    AABB body = BodyRect(state);
+    if (body.bottom > bb.top &&
+        body.bottom < bb.top + static_cast<float>(GameConfig::TILE_SIZE) *
+                                   GameConfig::INTERSECT_STRICTNESS &&
+        movingDown) {
+        state.SetY(bb.top - static_cast<float>(state.GetHeight()));
+        state.SetGrounded(true);
+        state.SetVelY(0.0);
+        state.SetFallHeight(0.0);
+        movingDown = false;
     }
 }
 
-void CollisionManager::CheckCeilingCollision(
-    PlayerState& state, Level& level, Camera& camera,
-    GameStateManager& gameState, UIManager& uiManager,
-    std::vector<Level::SpawnPoint>* outSpawns) {
-    AABB playerBox = state.GetHitbox();
-
-    int leftTile = static_cast<int>(playerBox.left) / GameConfig::TILE_SIZE;
-    int rightTile =
-        static_cast<int>(playerBox.right - 1) / GameConfig::TILE_SIZE;
-    int topTile = static_cast<int>(playerBox.top) / GameConfig::TILE_SIZE;
-
-    for (int x = leftTile; x <= rightTile; x++) {
-        Block* block = level.GetBlockAt(x, topTile);
-        if (block && block->IsSolid()) {
-            AABB blockBox = block->GetAABB();
-
-            if (playerBox.Intersects(blockBox)) {
-                float overlapY = blockBox.bottom - playerBox.top;
-                if (state.GetVelY() < 0.0f && overlapY > 0 &&
-                    overlapY < GameConfig::TILE_SIZE * 0.75f) {
-                    // Head bump: push player down
-                    state.SetY(blockBox.bottom);
-                    state.SetVelY(0.0);
-                    state.SetFallHeight(0.0);
-
-                    // Trigger block hit
-                    if (!block->IsHit()) {
-                        std::string spawnEntity;
-
-                        // Handle container blocks (question blocks, coin
-                        // blocks) Use GetSpawnContents for powerup conversion
-                        // logic
-                        if (block->GetDef().isContainer) {
-                            spawnEntity =
-                                block->GetSpawnContents(state.GetState());
-                        }
-                        // Handle explicit spawner blocks
-                        else if (block->GetDef().spawner) {
-                            spawnEntity = block->GetDef().spawnEntity;
-                        }
-
-                        // Calculate block hit effect position (center of block)
-                        // Convert world to screen to PTSD coordinates
-                        float blockCenterX =
-                            block->GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
-                        float blockCenterY = block->GetWorldY();
-                        float screenPixelX =
-                            camera.WorldToScreenX(blockCenterX);
-                        float screenPixelY =
-                            camera.WorldToScreenY(blockCenterY);
-                        float ptsdX = screenPixelX - 640.0f;
-                        float ptsdY = 360.0f - screenPixelY;
-
-                        // Special handling for CoinGet blocks: directly add
-                        // coins instead of spawning entities
-                        if (spawnEntity == "CoinGet") {
-                            gameState.AddCoin();
-                            gameState.AddScore(200);
-                            Mario::AudioManager::GetInstance().PlaySFX(
-                                Mario::SFXName::Coin);
-
-                            // Display floating text "+200" particle effect
-                            uiManager.AddFloatingText(ptsdX, ptsdY, "+200", 60);
-                        }
-                        // Spawn the entity if we determined one (and it's not
-                        // CoinGet)
-                        else if (!spawnEntity.empty() && outSpawns) {
-                            Level::SpawnPoint sp;
-                            sp.entityName = spawnEntity;
-                            sp.gridX = block->GetGridX();
-                            sp.gridY = block->GetGridY();
-                            sp.worldX = static_cast<float>(
-                                block->GetGridX() * GameConfig::TILE_SIZE);
-                            // EntityState::Init will handle the fromBlock
-                            // offset (posY -= TILE_SIZE)
-                            sp.worldY = static_cast<float>(
-                                block->GetGridY() * GameConfig::TILE_SIZE);
-                            sp.spawned = true;
-
-                            if (spawnEntity == "Coin" ||
-                                spawnEntity == "CoinText") {
-                                // Block already plays Bump/Coin based on code?
-                                // Actually let's just make it here!
-                                Mario::AudioManager::GetInstance().PlaySFX(
-                                    Mario::SFXName::Coin);
-                            } else {
-                                Mario::AudioManager::GetInstance().PlaySFX(
-                                    Mario::SFXName::Item);
-                                // Display particle effect for other items
-                                // (mushroom, fire flower, star, 1-up)
-                                uiManager.AddFloatingText(ptsdX, ptsdY, "+100",
-                                                          60);
-                            }
-
-                            outSpawns->push_back(sp);
-                        }
-                    }
-                    block->OnHit(state.GetState());
-                    // Brick debris spawning is handled in SpawnBrickDebris()
-                    // via block->JustBroken(). Do NOT consume the flag here.
-                }
-            }
-        }
+// Snap head to block bottom while rising (C# CheckCollisionsUp).
+// Content triggering is done in Step 2; this only resolves position.
+// C#: if (Top < b.Bottom && Top > b.Bottom - size*0.75 && movingUp)
+void CollisionManager::ResolveUp(PlayerState& state, const AABB& bb,
+                                 bool& movingUp) {
+    AABB body = BodyRect(state);
+    if (body.top < bb.bottom &&
+        body.top > bb.bottom - static_cast<float>(GameConfig::TILE_SIZE) *
+                                   GameConfig::INTERSECT_STRICTNESS &&
+        movingUp) {
+        state.SetY(bb.bottom);
+        state.SetFallHeight(0.0);
+        state.SetVelY(0.0);
+        movingUp = false;
     }
 }
 
-void CollisionManager::CheckWallCollision(PlayerState& state, Level& level,
-                                          float /*cameraOffset*/) {
-    AABB playerBox = state.GetHitbox();
-
-    int topTile = static_cast<int>(playerBox.top) / GameConfig::TILE_SIZE;
-    int bottomTile =
-        static_cast<int>(playerBox.bottom - 1) / GameConfig::TILE_SIZE;
-
-    // Calculate hitbox offset from m_PosX
-    float w = playerBox.right - playerBox.left;
-    float offsetX = playerBox.left - state.GetX();
-
-    // Check right wall (moving right into block)
-    if (state.GetVelX() > 0) {
-        int rightTile =
-            static_cast<int>(playerBox.right) / GameConfig::TILE_SIZE;
-        for (int y = topTile; y <= bottomTile; y++) {
-            Block* block = level.GetBlockAt(rightTile, y);
-            if (block && block->IsSolid()) {
-                AABB blockBox = block->GetAABB();
-                // C# intersectStrictness = 0.75: only resolve if Mario has
-                // moved more than 25% into the block's width from the right.
-                // This lets Mario slide past block corners smoothly.
-                float rightOverlap = playerBox.right - blockBox.left;
-                bool yOverlap = playerBox.top < blockBox.bottom &&
-                                playerBox.bottom > blockBox.top;
-                if (rightOverlap > 0 &&
-                    rightOverlap < GameConfig::TILE_SIZE * 0.75f && yOverlap) {
-                    state.SetX(blockBox.left - w - offsetX);
-                    state.SetVelX(0.0f);
-                    break;
-                }
-            }
-        }
+// Snap right edge to block left when moving right (C# CheckCollisionsRight).
+// C#: if (Right > b.Left && Right < b.Left + size*0.75 && movingRight)
+void CollisionManager::ResolveRight(PlayerState& state, const AABB& bb,
+                                    bool& movingRight) {
+    AABB body = BodyRect(state);
+    if (body.right > bb.left &&
+        body.right < bb.left + static_cast<float>(GameConfig::TILE_SIZE) *
+                                   GameConfig::INTERSECT_STRICTNESS &&
+        movingRight) {
+        state.SetX(bb.left - static_cast<float>(GameConfig::TILE_SIZE));
+        state.SetVelX(0.0f);
+        movingRight = false;
     }
+}
 
-    // Check left wall (moving left into block)
-    if (state.GetVelX() < 0) {
-        int leftTile = static_cast<int>(playerBox.left) / GameConfig::TILE_SIZE;
-        for (int y = topTile; y <= bottomTile; y++) {
-            Block* block = level.GetBlockAt(leftTile, y);
-            if (block && block->IsSolid()) {
-                AABB blockBox = block->GetAABB();
-                // C# intersectStrictness = 0.75: symmetric check for left wall
-                float leftOverlap = blockBox.right - playerBox.left;
-                bool yOverlap = playerBox.top < blockBox.bottom &&
-                                playerBox.bottom > blockBox.top;
-                if (leftOverlap > 0 &&
-                    leftOverlap < GameConfig::TILE_SIZE * 0.75f && yOverlap) {
-                    state.SetX(blockBox.right - offsetX);
-                    state.SetVelX(0.0f);
-                    break;
-                }
-            }
-        }
+// Snap left edge to block right when moving left (C# CheckCollisionsLeft).
+// C#: if (Left < b.Right && Left > b.Right - size*0.75 && movingLeft)
+void CollisionManager::ResolveLeft(PlayerState& state, const AABB& bb,
+                                   bool& movingLeft) {
+    AABB body = BodyRect(state);
+    if (body.left < bb.right &&
+        body.left > bb.right - static_cast<float>(GameConfig::TILE_SIZE) *
+                                   GameConfig::INTERSECT_STRICTNESS &&
+        movingLeft) {
+        state.SetX(bb.right);
+        state.SetVelX(0.0f);
+        movingLeft = false;
     }
 }
 
 // ============================================================================
-// ✨ NEW: Player-Entity Collision Detection
+// TriggerBlockHit
+// Called from Step 2 (ceiling trigger) when the player's head bumps a block.
+// Handles question-mark blocks, coin blocks, brick breaking, audio, and score.
+// Extracted into a helper to keep CheckPlayerBlockCollision clean.
+// ============================================================================
+void CollisionManager::TriggerBlockHit(
+    Block& block, PlayerState& state, Camera& camera,
+    GameStateManager& gameState, UIManager& uiManager,
+    std::vector<Level::SpawnPoint>* outSpawns) {
+    if (block.IsHit()) return;  // block already used
+
+    std::string spawnEntity;
+    if (block.GetDef().isContainer) {
+        spawnEntity = block.GetSpawnContents(state.GetState());
+    } else if (block.GetDef().spawner) {
+        spawnEntity = block.GetDef().spawnEntity;
+    }
+
+    // Convert world-space block centre to PTSD coordinates for floating text
+    float blockCX = block.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
+    float blockCY = block.GetWorldY();
+    float ptsdX = camera.WorldToScreenX(blockCX) - 640.0f;
+    float ptsdY = 360.0f - camera.WorldToScreenY(blockCY);
+
+    if (spawnEntity == "CoinGet") {
+        // Coin block: add coins directly, no entity spawn
+        gameState.AddCoin();
+        gameState.AddScore(200);
+        AudioManager::GetInstance().PlaySFX(SFXName::Coin);
+        uiManager.AddFloatingText(ptsdX, ptsdY, "+200", 60);
+    } else if (!spawnEntity.empty() && outSpawns) {
+        Level::SpawnPoint sp;
+        sp.entityName = spawnEntity;
+        sp.gridX = block.GetGridX();
+        sp.gridY = block.GetGridY();
+        sp.worldX =
+            static_cast<float>(block.GetGridX() * GameConfig::TILE_SIZE);
+        sp.worldY =
+            static_cast<float>(block.GetGridY() * GameConfig::TILE_SIZE);
+        sp.spawned = true;
+        outSpawns->push_back(sp);
+
+        if (spawnEntity == "Coin" || spawnEntity == "CoinText") {
+            AudioManager::GetInstance().PlaySFX(SFXName::Coin);
+        } else {
+            AudioManager::GetInstance().PlaySFX(SFXName::Item);
+            uiManager.AddFloatingText(ptsdX, ptsdY, "+100", 60);
+        }
+    }
+
+    block.OnHit(state.GetState());
+    // Brick debris is spawned in PlayingSceneHandler via block->JustBroken().
+}
+
 // ============================================================================
 void CollisionManager::CheckPlayerEntityCollision(
     Player& player, std::vector<std::shared_ptr<Entity>>& entities,
@@ -315,6 +361,13 @@ void CollisionManager::CheckPlayerEntityCollision(
 
     PlayerState& ps = player.GetState();
     AABB playerBox = ps.GetHitbox();
+
+    // Reset stomp combo when Mario lands (between stomp chains).
+    // Stomp detection requires !ps.IsGrounded(), so the reset happens on the
+    // frame Mario touches ground and can never collide with the stomp branch.
+    if (ps.IsGrounded()) {
+        m_StompCombo = 0;
+    }
 
     for (auto& entity : entities) {
         EntityState& es = entity->GetState();
@@ -365,7 +418,17 @@ void CollisionManager::CheckPlayerEntityCollision(
                 } else {
                     AudioManager::GetInstance().PlaySFX(SFXName::Squish);
                 }
-                int scoreWorth = es.GetScoreWorth();
+
+                // NES-authentic consecutive stomp score multiplier:
+                //   1st: base, 2nd: x2, 3rd: x4, 4th: x8, 5th+: cap at 1000
+                m_StompCombo++;
+                int base = es.GetScoreWorth();
+                int scoreWorth;
+                if (m_StompCombo >= 5) {
+                    scoreWorth = 1000;
+                } else {
+                    scoreWorth = base * (1 << (m_StompCombo - 1));
+                }
                 gameState.AddScore(scoreWorth);
 
                 float enemyWorldX =

@@ -23,18 +23,19 @@ namespace Mario {
 // PTSD origin: screen center, Y increases upward
 static void GridToScreen(int gridX, int gridY, float cameraOffset,
                          float& screenX, float& screenY) {
-    // X: tile center in world, minus camera, minus half-window to convert
-    //    from world-left-origin to PTSD-center-origin
-    screenX = static_cast<float>(gridX * GameConfig::TILE_SIZE) +
-              GameConfig::TILE_SIZE / 2.0f - cameraOffset -
-              GameConfig::WINDOW_WIDTH / 2.0f;
-    // Y: flip vertical. Level is 16 rows (512px).
-    // PTSD Y=0 is screen center. Level center Y should be at screen center.
-    float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
-    screenY = levelHalfH -
-              (static_cast<float>(gridY * GameConfig::TILE_SIZE) +
-               GameConfig::TILE_SIZE / 2.0f) +
-              GameConfig::RENDER_Y_OFFSET;
+    // Globally round the cameraOffset to avoid subpixel gaps between adjacent blocks
+    float roundedOffset = std::round(cameraOffset);
+    
+    // Calculate the integer left screen coordinate
+    float leftScreenX = static_cast<float>(gridX * GameConfig::TILE_SIZE) -
+                        roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
+    screenX = leftScreenX + GameConfig::TILE_SIZE / 2.0f;
+
+    // Calculate the integer bottom screen coordinate
+    float bottomScreenY = GameConfig::LEVEL_HEIGHT_PX / 2.0f -
+                          static_cast<float>((gridY + 1) * GameConfig::TILE_SIZE) +
+                          GameConfig::RENDER_Y_OFFSET;
+    screenY = bottomScreenY + GameConfig::TILE_SIZE / 2.0f;
 }
 
 Block::Block(int blockID, int gridX, int gridY, const BlockDef& def,
@@ -191,12 +192,16 @@ void Block::Update(float cameraOffset) {
             return;
         }
 
-        // Use physics world coordinates for screen position
-        float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
-        float sx = m_WorldX + GameConfig::TILE_SIZE / 2.0f - cameraOffset -
-                   GameConfig::WINDOW_WIDTH / 2.0f;
-        float sy = levelHalfH - (m_WorldY + GameConfig::TILE_SIZE / 2.0f) +
-                   GameConfig::RENDER_Y_OFFSET;
+        // Use physics world coordinates for screen position, aligning edges to integers
+        float roundedOffset = std::round(cameraOffset);
+        float leftScreenX = std::round(m_WorldX) - roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
+        float sx = leftScreenX + GameConfig::TILE_SIZE / 2.0f;
+
+        float bottomScreenY = GameConfig::LEVEL_HEIGHT_PX / 2.0f -
+                              (std::round(m_WorldY) + GameConfig::TILE_SIZE) +
+                              GameConfig::RENDER_Y_OFFSET;
+        float sy = bottomScreenY + GameConfig::TILE_SIZE / 2.0f;
+
         m_Transform.translation = {sx, sy};
         return;  // Skip grid-based positioning below
     }

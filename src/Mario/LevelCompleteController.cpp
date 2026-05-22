@@ -51,19 +51,11 @@ void LevelCompleteController::StartFlagpole(Player& player,
     float poleX = m_goal_block_x - GameConfig::TILE_SIZE * 0.4f;
     player.GetState().SetX(poleX);
 
-    // Set Mario's Y to flagpole's Y position (start of descent)
-    if (flagEntity) {
-        float poleY = flagEntity->GetState().GetY();
-        player.GetState().SetY(poleY);
-        LOG_DEBUG("Starting pole slide from Y={}", poleY);
-    }
+    // We do NOT override Mario's Y position (C# lines 1249: Mario.ChangePosition(X + offset, Y))
+    // This allows Mario to slide down from where he contacted the flagpole.
 
     player.GetState().SetVelX(0.0f);
-    player.GetState().SetVelY(0.0);
-
-    // Mario must NOT be grounded during pole slide phase
-    // This allows UpdatePoleSlide to trigger descent (checks !ps.IsGrounded())
-    player.GetState().SetGrounded(false);
+    player.GetState().SetVelY(0.0f);
 
     // Stop star if active (C# line 1237-1239)
     if (player.GetState().GetPowerState() == PowerState::SMALL_STAR ||
@@ -114,11 +106,12 @@ void LevelCompleteController::StartPipeWarp(Player& player,
     player.GetState().SetVelX(0.0f);
     player.GetState().SetVelY(0.0);
 
-    // Drop ZIndex so Mario renders BEHIND the pipe tiles (ZIndex=0).
-    // This creates the authentic "sinking into pipe" visual.
+    // Drop ZIndex so Mario renders BEHIND the pipe tiles.
+    // Since solid blocks are at GameConfig::Z_BLOCK, we drop player Z-index
+    // below that, but above background (-10.0f) to remain in front of background.
     // The player object is recreated when the next level loads, so no
     // explicit ZIndex restore is needed.
-    player.SetZIndex(-1.0f);
+    player.SetZIndex(GameConfig::Z_BLOCK - 1.0f);
 
     if (direction == "Down") {
         m_Phase = EndingPhase::PIPE_DESCEND;
@@ -191,44 +184,43 @@ bool LevelCompleteController::Update(Player& player, Level& level,
 void LevelCompleteController::UpdatePoleSlide(Player& player) {
     PlayerState& ps = player.GetState();
 
-    // C# Form1.cs line 1252-1255 flagpole ending sequence:
-    // Flag slides down, Mario slides down
-    // Both move at: FLAG_SPEED = 2 (pixels per tick)
-
-    // Slide Mario down the pole
-    // Mario must NOT be grounded during pole slide (controlled descent)
-    float marioY = ps.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
-    ps.SetY(marioY);
-    ps.SetGrounded(false);  // Stay ungrounded while sliding
-
-    // Slide flag entity down with Mario
-    // Flag continues sliding as long as its Y is above Mario
-    if (m_flag_entity && m_flag_entity->GetState().IsActive()) {
-        EntityState& fs = m_flag_entity->GetState();
-        // Flag slides parallel to Mario
-        float flagY = fs.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
-        fs.SetY(flagY);
+    // Slide Mario down the pole if not grounded
+    if (!ps.IsGrounded()) {
+        float marioY = ps.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
+        const float groundSurfaceY = 13.0f * GameConfig::TILE_SIZE;
+        if (marioY + ps.GetHeight() >= groundSurfaceY) {
+            marioY = groundSurfaceY - ps.GetHeight();
+            ps.SetGrounded(true);
+            ps.SetVelY(0.0f);
+        }
+        ps.SetY(marioY);
     }
 
-    // Check if Mario reached the ground (ground blocks in row 13)
-    // Ground level Y = 13 * 45 = 585 pixels. This is where Mario's BOTTOM
-    // should rest.
-    const float groundSurfaceY = 13.0f * GameConfig::TILE_SIZE;
+    // Slide flag entity down with Mario/until bottom
+    // C#: Flag.Y <= Mario.Y
+    if (m_flag_entity && m_flag_entity->GetState().IsActive()) {
+        EntityState& fs = m_flag_entity->GetState();
+        if (fs.GetY() <= ps.GetY()) {
+            float flagY = fs.GetY() + GameConfig::FLAGPOLE_SLIDE_SPEED;
+            fs.SetY(flagY);
+        }
+    }
 
-    // Mario's bottom is Y + height
-    if (ps.GetY() + ps.GetHeight() >= groundSurfaceY) {
-        // Mario hit the ground
-        ps.SetY(groundSurfaceY -
-                ps.GetHeight());  // Snap his bottom to the ground surface
-        ps.SetGrounded(true);     // Now grounded
-        ps.SetVelY(0);
-        ps.SetPoleSliding(false);
-
-        // Transition to walking phase (C# lines 1256-1258)
-        m_Phase = EndingPhase::POLE_WALK;
-        m_tick_count = 0;
-        LOG_INFO("Flagpole slide complete - Mario landed at bottom Y={}",
-                 groundSurfaceY);
+    // Check transition to POLE_WALK (which acts as the delay + walk phase)
+    // C#: Flag.Y > Mario.Y && Mario.GetDirection() == "Right" && isGrounded
+    if (ps.IsGrounded()) {
+        bool flagPassedMario = true;
+        if (m_flag_entity && m_flag_entity->GetState().IsActive()) {
+            flagPassedMario = (m_flag_entity->GetState().GetY() > ps.GetY());
+        }
+        if (flagPassedMario && ps.IsFacingRight()) {
+            // Shift Mario right to the other side of the pole
+            ps.SetX(ps.GetX() + GameConfig::TILE_SIZE * 0.6f);
+            ps.SetFacingRight(false); // Flip facing left
+            m_Phase = EndingPhase::POLE_WALK;
+            m_tick_count = 0; // Reset tick count for the 20-tick delay
+            LOG_INFO("Flagpole slide complete - Transitioning to POLE_WALK");
+        }
     }
 }
 
@@ -241,7 +233,6 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
     PlayerState& ps = player.GetState();
 
     // Keep Mario grounded and his bottom exactly at ground level throughout
-    // walk phase
     const float groundSurfaceY = 13.0f * GameConfig::TILE_SIZE;
     ps.SetY(groundSurfaceY - ps.GetHeight());
     ps.SetGrounded(true);
@@ -250,22 +241,25 @@ void LevelCompleteController::UpdatePoleWalk(Player& player, Level& level) {
     // C# reference (Form1.cs lines 1244-1247):
     // Wait 20 ticks (0.4 seconds) before starting to walk
     if (m_tick_count < GameConfig::ENDING_WALK_DELAY) {
-        // Just wait, don't move
+        // Just wait, don't move. Facing left, holding pole.
         ps.SetVelX(0);
         ps.SetMovingRight(false);
         return;
     }
 
+    // After 20 ticks, Mario turns right, let's exit pole state
+    if (ps.IsPoleSliding()) {
+        ps.SetPoleSliding(false);
+        ps.SetFacingRight(true);
+    }
+
     // Walk right toward the castle at normal Mario speed
-    // C# Form1.cs 1218: moveRight(Mario)
-    // This applies SCALED_SPEED to Mario's X position
     float castleWalkSpeed = GameConfig::SCALED_SPEED;
     ps.SetX(ps.GetX() + castleWalkSpeed);
     ps.SetMovingRight(true);
     ps.SetFacingRight(true);
 
     // Look for the Castle5 (door) block to detect when to enter castle
-    // C# Form1.cs lines 1219-1227: searches for block named "Castle5"
     for (const auto& block : level.GetAllBlocks()) {
         if (block && (block->GetName() == "Castle5" ||
                       block->GetName() == "CastleDoor")) {

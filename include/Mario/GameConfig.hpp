@@ -53,9 +53,13 @@ struct GameConfig {
     static constexpr float GRAVITY = 9.81f;
     static constexpr float GRAVITY_ACCELERATION =
         5.0f;  // For collision ground detection
-    static constexpr float JUMP_VELOCITY = 9.81f;
-    static constexpr float JUMP_HIGH_VELOCITY = 19.62f;
-    static constexpr float JUMP_LOW_VELOCITY = 6.0f;
+    // JUMP_VELOCITY scaled from C# reference: v_cs=9.81 at scaleSize=32.
+    // For 45px tiles with 2x rising deceleration (matching C# 2x/4x gravity):
+    //   v0 = sqrt( target_tile_height * tile_size * 2 * decel )
+    //      = 9.81f * sqrt(TILE_SIZE / 32) ≈ 11.63f   (3.83 tiles of rise)
+    static constexpr float JUMP_VELOCITY = 11.63f;
+    static constexpr float JUMP_HIGH_VELOCITY = 23.26f;  // 2x JUMP_VELOCITY
+    static constexpr float JUMP_LOW_VELOCITY = 7.12f;    // scaled from 6.0f
     static constexpr double MUSHROOM_BOUNCE_HEIGHT =
         15.0;  // Height for spawned mushroom bounce
 

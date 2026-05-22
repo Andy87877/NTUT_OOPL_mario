@@ -95,6 +95,7 @@ void PlayerState::Tick() {
     // Set totalFrames based on current state (matching C# Update logic)
     if (m_PoleSliding) {
         m_TotalFrames = 0;
+        m_AnimFrame = m_Grounded ? 1 : 0;
     } else if (!m_SpecialActive) {
         if (m_Grounded) {
             if (m_MovingRight || m_MovingLeft) {
