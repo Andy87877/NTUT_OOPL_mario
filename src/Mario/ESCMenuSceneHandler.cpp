@@ -38,11 +38,16 @@ const char* ESCMenuSceneHandler::GetPowerStateName(int idx) {
 // SMALL_STAR→0 (treated as SMALL), BIG_STAR→3 (STAR slot).
 static int PowerStateToIndex(Mario::PowerState ps) {
     switch (ps) {
-        case Mario::PowerState::BIG:        return 1;
-        case Mario::PowerState::FIRE:       return 2;
-        case Mario::PowerState::BIG_STAR:   return 3;
-        case Mario::PowerState::SMALL_STAR: return 0;
-        default:                            return 0;  // SMALL
+        case Mario::PowerState::BIG:
+            return 1;
+        case Mario::PowerState::FIRE:
+            return 2;
+        case Mario::PowerState::BIG_STAR:
+            return 3;
+        case Mario::PowerState::SMALL_STAR:
+            return 0;
+        default:
+            return 0;  // SMALL
     }
 }
 
