@@ -31,9 +31,15 @@ void PiranhaPlantBehavior::Update(EntityState& state,
 
     // Record the pipe opening Y on the very first frame
     if (!m_BaseYSet) {
-        // Shift base 1 tile higher so the plant emerges 1 tile further above
-        // the pipe mouth, giving the "coming out of the pipe" appearance.
-        m_BaseY = state.GetY() - static_cast<float>(GameConfig::TILE_SIZE);
+        // Record the pipe mouth Y coordinate (spawn position).
+        m_BaseY = state.GetY();
+        
+        // Shift X coordinate left by 1 tile so the 2-tile-wide plant centering is correct.
+        // The spawner block (905) is at column C (the right side of the pipe),
+        // so shifting X left by 1 tile places the plant's left edge at column C-1,
+        // which perfectly covers both columns C-1 and C (the full pipe mouth).
+        state.SetX(state.GetX() - static_cast<float>(GameConfig::TILE_SIZE));
+        
         m_BaseYSet = true;
         // Start fully hidden inside the pipe (EMERGE_HEIGHT below adjusted
         // base)
@@ -51,7 +57,12 @@ void PiranhaPlantBehavior::Update(EntityState& state,
     // --- Is Mario close enough to suppress emergence? ---
     float marioX = player.GetWorldX();
     float plantX = state.GetX();
-    bool marioNearby = std::abs(marioX - plantX) < MARIO_SAFE_RADIUS;
+    // Since state.GetX() is shifted left by 1 tile (so it is the left edge of the pipe),
+    // the pipe center is plantX + TILE_SIZE.
+    // We suppress the plant if Mario is standing anywhere on the 2-tile-wide pipe
+    // (within 1.5 tile widths of the pipe center).
+    float pipeCenterX = plantX + static_cast<float>(GameConfig::TILE_SIZE);
+    bool marioNearby = std::abs(marioX - pipeCenterX) < (static_cast<float>(GameConfig::TILE_SIZE) * 1.5f);
 
     switch (m_Phase) {
         case Phase::HIDING: {
@@ -107,11 +118,8 @@ void PiranhaPlantBehavior::Update(EntityState& state,
                 m_Phase = Phase::HIDING;
                 m_PhaseTimer = 0;
             }
-            // Hide the plant once its base is at the pipe mouth.
-            // Threshold: 1 tile above mouth ≈ when entity bottom enters pipe.
-            state.SetHidden(state.GetY() >=
-                            m_BaseY -
-                                static_cast<float>(GameConfig::TILE_SIZE));
+            // Hide the plant once its base/head is inside the pipe mouth.
+            state.SetHidden(state.GetY() >= m_BaseY);
             break;
         }
     }

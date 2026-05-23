@@ -50,6 +50,7 @@ bool Level::Load(const std::string& levelName) {
     m_BlockMap.clear();
     m_SpawnPoints.clear();
     m_Grid.clear();
+    m_GoalBlocks.clear();
 
     // Determine sub-level name
     if (levelName == "1-1") {
@@ -360,6 +361,7 @@ void Level::CreateBlocksFromGrid() {
                 std::make_shared<Block>(blockID, x, y, def, m_LevelName);
             m_Blocks.push_back(block);
             m_BlockMap[GridKey(x, y)] = block.get();
+            if (def.isGoal) m_GoalBlocks.push_back(block.get());
         }
     }
 }
@@ -410,6 +412,13 @@ const Block* Level::GetBlockAtWorld(float worldX, float worldY) const {
 
 std::vector<Block*> Level::GetBlocksInRange(float leftX, float rightX) const {
     std::vector<Block*> result;
+    QueryBlocksInRange(leftX, rightX, result);
+    return result;
+}
+
+void Level::QueryBlocksInRange(float leftX, float rightX,
+                               std::vector<Block*>& out) const {
+    out.clear();
 
     int startCol =
         std::max(0, static_cast<int>(leftX) / GameConfig::TILE_SIZE - 1);
@@ -420,11 +429,10 @@ std::vector<Block*> Level::GetBlocksInRange(float leftX, float rightX) const {
         for (int y = 0; y < m_Height; y++) {
             auto it = m_BlockMap.find(GridKey(x, y));
             if (it != m_BlockMap.end() && it->second != nullptr) {
-                result.push_back(it->second);
+                out.push_back(it->second);
             }
         }
     }
-    return result;
 }
 
 const BlockDef& Level::GetBlockDef(int id) const {
@@ -453,6 +461,17 @@ std::vector<std::string> Level::SplitCSVLine(const std::string& line) const {
         tokens.push_back(token);
     }
     return tokens;
+}
+
+// ============================================================================
+// IsUnderground
+// Returns true when the level uses a dark (underground / castle) background.
+// Convention: levels whose name contains "u" (e.g. "1-1u", "1-2uu") and the
+// special cases "1-2" and "8-4" are always considered underground/castle.
+// ============================================================================
+bool Level::IsUnderground() const {
+    return m_LevelName.find('u') != std::string::npos || m_LevelName == "1-2" ||
+           m_LevelName == "8-4";
 }
 
 }  // namespace Mario

@@ -164,12 +164,27 @@ void BowserBehavior::UpdateFireAttackPhase(const EntityState& state,
         Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::EnemyFire);
         m_AttackCounter++;
 
-        // Set pending fireball request - App.cpp will spawn it
+        // Set pending fireball request — PlayingSceneHandler consumes it via
+        // ConsumeSpawnRequest() on the same frame.
         m_FireballPending = true;
-        m_FireballX = state.GetWorldX();
-        m_FireballY = state.GetWorldY() + GameConfig::TILE_SIZE * 0.5f;
-        // Shoot toward player
+
+        // Determine direction toward player
         m_FireballDir = (player.GetWorldX() < state.GetWorldX()) ? 0 : 1;
+
+        // Spawn fire OUTSIDE Bowser's body in the shooting direction so it
+        // does not immediately overlap a wall tile or Bowser's own hitbox.
+        if (m_FireballDir == 0) {
+            // Shooting left: place 1 tile to the left of Bowser's left edge
+            m_FireballX =
+                state.GetWorldX() - static_cast<float>(GameConfig::TILE_SIZE);
+        } else {
+            // Shooting right: place at Bowser's right edge
+            m_FireballX =
+                state.GetWorldX() + static_cast<float>(state.GetWidth());
+        }
+        // Vertical: roughly the middle of Bowser's 2-tile body
+        m_FireballY =
+            state.GetWorldY() + static_cast<float>(GameConfig::TILE_SIZE);
     }
 }
 
@@ -321,11 +336,11 @@ bool BowserBehavior::OnFireballHit(EntityState& state) {
     return false;
 }
 
-bool BowserBehavior::ConsumeSpawnRequest(int& outType, float& outX, float& outY,
-                                         int& outDir) {
+bool BowserBehavior::ConsumeSpawnRequest(EntityType& outType, float& outX,
+                                         float& outY, int& outDir) {
     if (!m_FireballPending) return false;
     m_FireballPending = false;
-    outType = static_cast<int>(EntityType::FIRE);  // Bowser fire projectile
+    outType = EntityType::FIRE;  // Bowser fire projectile
     outX = m_FireballX;
     outY = m_FireballY;
     outDir = m_FireballDir;

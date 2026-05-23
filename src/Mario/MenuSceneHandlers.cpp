@@ -55,7 +55,25 @@ void TitleSceneHandler::OnRender(App& app) {
 // DeathSceneHandler
 // ============================================================================
 
+void DeathSceneHandler::OnEnter(App& app) {
+    app.GetGameState().LoseLife();
+    auto& player = app.GetPlayer();
+    if (player) {
+        player->GetState().StartDeathAnimation();
+    }
+    app.GetDeathTimer() = app.GetTimer() + 80;
+    Mario::AudioManager::GetInstance().PlayBGM(Mario::BGMName::LostALifeTheme);
+    LOG_INFO("Player died - entering DEATH state (Lives remaining: {})",
+             app.GetGameState().GetLives());
+}
+
 void DeathSceneHandler::Update(App& app) {
+    auto& player = app.GetPlayer();
+    if (player) {
+        player->GetState().UpdateDeathAnimation();
+        player->UpdateView(app.GetCamera().GetOffset());
+    }
+
     if (app.GetTimer() > app.GetDeathTimer()) {
         if (!app.GetGameState().IsGameOver()) {
             app.TransitionTo(App::State::LOADING);
@@ -69,6 +87,7 @@ void DeathSceneHandler::Update(App& app) {
 }
 
 void DeathSceneHandler::OnRender(App& app) {
+    app.ApplyBackground();
     app.GetRenderer().Update();
     app.GetUIManager().Update(Mario::UIManager::State::PLAYING);
 }
@@ -102,7 +121,7 @@ void GameWonSceneHandler::Update(App& app) {
 }
 
 void GameWonSceneHandler::OnRender(App& app) {
-    app.GetRenderer().Update();
+    app.ApplyBackground(true);  // Solid black background for victory screen
     app.GetUIManager().Update(Mario::UIManager::State::GAME_WON);
 }
 

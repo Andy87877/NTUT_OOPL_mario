@@ -9,7 +9,7 @@
 
 namespace Mario {
 
-void Camera::Update(float playerWorldX, float levelWidthPixels) {
+void Camera::Update(float playerWorldX, float levelWidthPixels, const std::string& levelName, bool isLevelCompleteActive) {
     m_PreviousOffset = m_Offset;
 
     // Camera scrolls when player passes the center of the viewport
@@ -26,6 +26,15 @@ void Camera::Update(float playerWorldX, float levelWidthPixels) {
     float maxOffset = levelWidthPixels - GameConfig::WINDOW_WIDTH;
     if (maxOffset > 0.0f) {
         m_Offset = std::min(m_Offset, maxOffset);
+    }
+
+    // 8-4 Boss Room Camera Lock:
+    // Once the camera reaches column 320 (absolute offset 14400), lock it there during gameplay.
+    // Allow the camera to scroll right during the ending cutscene (Axe Sequence) so Mario can reach the Princess.
+    if (levelName == "8-4" && !isLevelCompleteActive) {
+        if (m_Offset >= 14400.0f) {
+            m_Offset = 14400.0f;
+        }
     }
 }
 

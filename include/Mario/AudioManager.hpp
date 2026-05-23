@@ -147,6 +147,16 @@ class IAudioService {
     virtual void PlaySFX(SFXName name) = 0;
     virtual void SetVolume(float volume) = 0;
     virtual void SetMuted(bool muted) = 0;
+
+    /**
+     * Select and play the correct BGM track for a level.
+     * Encapsulates the level-name -> BGMName mapping so callers (App,
+     * handlers) never hard-code level names against BGMName values.
+     * @param levelName       Current level identifier (e.g. "1-2", "8-4").
+     * @param timeRemaining   Remaining level time; <= 100 triggers hurry-up.
+     */
+    virtual void PlayBGMForLevel(const std::string& levelName,
+                                 int timeRemaining) = 0;
 };
 
 // ============================================================================
@@ -185,6 +195,8 @@ class AudioManager : public IAudioService {
     void PlaySFX(SFXName name) override;
     void SetVolume(float volume) override;
     void SetMuted(bool muted) override;
+    void PlayBGMForLevel(const std::string& levelName,
+                         int timeRemaining) override;
 
    private:
     float m_Volume = 1.0f;

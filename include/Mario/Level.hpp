@@ -75,8 +75,23 @@ class Level {
 
     /**
      * Get all blocks in range (for rendering / collision detection).
+     * Returns a new vector — prefer QueryBlocksInRange() to avoid heap alloc.
      */
     std::vector<Block*> GetBlocksInRange(float leftX, float rightX) const;
+
+    /**
+     * Fill an existing vector with blocks in [leftX, rightX] world range.
+     * @param out  Cleared and filled with matching blocks on each call.
+     *             Pass a reused local vector to avoid per-frame heap alloc.
+     */
+    void QueryBlocksInRange(float leftX, float rightX,
+                            std::vector<Block*>& out) const;
+
+    /**
+     * Get the goal blocks (flagpole / axe triggers) cached at load time.
+     * Use instead of scanning GetAllBlocks() with an IsGoal() filter.
+     */
+    const std::vector<Block*>& GetGoalBlocks() const { return m_GoalBlocks; }
 
     /**
      * Get all spawn points in the level.
@@ -140,6 +155,15 @@ class Level {
      */
     const std::string& GetLevelName() const { return m_LevelName; }
 
+    /**
+     * Returns true when this level uses a dark (underground/castle) background.
+     * Checks the level name convention: levels containing "u", named "1-2", or
+     * named "8-4" are considered underground/castle environments.
+     * Note: does NOT include the runtime pipe-warp underground flag — that is
+     * owned by GameStateManager.
+     */
+    bool IsUnderground() const;
+
    private:
     // -- Parsing --
     bool ParseLevelCSV(const std::string& path);
@@ -163,6 +187,10 @@ class Level {
 
     // Non-owning pointers to moving platforms (owned by m_Blocks)
     std::vector<MovingPlatform*> m_MovingPlatforms;
+
+    // Non-owning pointers to goal blocks (axe/flagpole triggers), cached at
+    // load time to avoid an O(n) GetAllBlocks() scan every frame.
+    std::vector<Block*> m_GoalBlocks;
 
     // Quick lookup by grid position: key = (gridY * MAX_WIDTH + gridX)
     std::unordered_map<int, Block*> m_BlockMap;

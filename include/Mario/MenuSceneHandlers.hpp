@@ -38,6 +38,7 @@ class TitleSceneHandler : public ISceneHandler {
 class DeathSceneHandler : public ISceneHandler {
    public:
     DeathSceneHandler() = default;
+    void OnEnter(App& app) override;
     void Update(App& app) override;
     void OnRender(App& app) override;
     const char* GetName() const override { return "DeathScene"; }

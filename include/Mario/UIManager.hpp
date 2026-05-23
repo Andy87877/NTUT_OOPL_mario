@@ -6,6 +6,7 @@
 #ifndef MARIO_UI_MANAGER_HPP
 #define MARIO_UI_MANAGER_HPP
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -52,8 +53,12 @@ class UIManager {
 
     /**
      * Update floating text state and UI elements based on current game state.
+     * @param powerStateName  Display name of the cheat power state
+     *                        ("SMALL"/"BIG"/"FIRE"/"STAR"). Only used when
+     *                        currentState == ESC_MENU.
      */
-    void Update(State currentState, int escMenuSelection = 0);
+    void Update(State currentState, int escMenuSelection = 0,
+                const std::string& powerStateName = "SMALL");
 
     /**
      * Add a floating text (for points, 1UP, etc) at screen coordinates.
@@ -86,7 +91,7 @@ class UIManager {
     void UpdateLoadingScreen();
     void UpdateGameOverScreen();
     void UpdateGameWonScreen();
-    void UpdateESCMenu(int selection);
+    void UpdateESCMenu(int selection, const std::string& powerStateName);
     void UpdateAxeEndingScreen();
 
     GameStateManager* m_GameState;
@@ -133,6 +138,16 @@ class UIManager {
     std::shared_ptr<UIText> m_FinalScoreText;
     std::shared_ptr<UIImage> m_MarioPreview;
     std::string m_CurrentPreviewSpritePath;
+
+    // FPS Counter
+    std::shared_ptr<UIText> m_FPSText;
+    int m_FPS = 0;
+    int m_FrameCount = 0;
+    std::chrono::steady_clock::time_point m_LastFPSTime =
+        std::chrono::steady_clock::now();
+
+    // Copyright Text
+    std::shared_ptr<UIText> m_CopyrightText;
 };
 
 }  // namespace Mario

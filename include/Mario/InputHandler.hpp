@@ -11,6 +11,8 @@
 
 namespace Mario {
 
+class Level;
+
 /**
  * The Controller in MVC. Reads keyboard input via PTSD Util::Input
  * and applies corresponding commands to the PlayerState (Model).
@@ -30,8 +32,9 @@ public:
      * Read current input state and apply to the player's Model.
      * @param state The PlayerState (Model) to modify
      * @param speed Current movement speed
+     * @param level Current level block grid
      */
-    void HandleInput(PlayerState& state, float speed);
+    void HandleInput(PlayerState& state, float speed, Level& level);
 
     // -- Input state queries --
     bool IsMovingRight() const { return m_Right; }

@@ -50,23 +50,18 @@ struct GameConfig {
         BASE_SPEED * TILE_SIZE * TICK_INTERVAL;
 
     // -- Physics --
-    static constexpr float GRAVITY = 9.81f;
+    static constexpr float GRAVITY = 13.7953f;
     static constexpr float GRAVITY_ACCELERATION =
         5.0f;  // For collision ground detection
-    // JUMP_VELOCITY scaled from C# reference: v_cs=9.81 at scaleSize=32.
-    // For 45px tiles with 2x rising deceleration (matching C# 2x/4x gravity):
-    //   v0 = sqrt( target_tile_height * tile_size * 2 * decel )
-    //      = 9.81f * sqrt(TILE_SIZE / 32) ≈ 11.63f   (3.83 tiles of rise)
-    static constexpr float JUMP_VELOCITY = 11.63f;
-    static constexpr float JUMP_HIGH_VELOCITY = 23.26f;  // 2x JUMP_VELOCITY
-    static constexpr float JUMP_LOW_VELOCITY = 7.12f;    // scaled from 6.0f
+    static constexpr float JUMP_VELOCITY = 13.7953f;
+    static constexpr float JUMP_HIGH_VELOCITY = 27.59f;
+    static constexpr float JUMP_LOW_VELOCITY = 8.4375f;
     static constexpr double MUSHROOM_BOUNCE_HEIGHT =
         15.0;  // Height for spawned mushroom bounce
 
     // -- Entity --
-    static constexpr float ENEMY_SPEED_DIVISOR = 6.0f;  // Halved from 3.0f
-    static constexpr float ITEM_SPEED_DIVISOR =
-        3.0f;  // Slow down items (mushroom, fire flower)
+    static constexpr float ENEMY_SPEED_DIVISOR = 3.0f;
+    static constexpr float ITEM_SPEED_DIVISOR = 1.0f;
     static constexpr float SHELL_SPEED_MULTIPLIER = 1.5f;
 
     // Fireball configuration
@@ -86,8 +81,8 @@ struct GameConfig {
     // -- Z-Index Layers --
     static constexpr float Z_BACKGROUND = -10.0f;
     static constexpr float Z_BLOCK = -5.0f;
-    static constexpr float Z_PLAYER = 0.0f;
-    static constexpr float Z_ENTITY = 5.0f;
+    static constexpr float Z_PLAYER = 2.0f;
+    static constexpr float Z_ENTITY = 1.0f;
     static constexpr float Z_EFFECT = 10.0f;
     static constexpr float Z_UI = 90.0f;
 
@@ -110,6 +105,44 @@ struct GameConfig {
     static constexpr int LEVEL_TRANSITION_DELAY =
         50;                                    // Ticks before next level loads
     static constexpr int PIPE_ANIM_SPEED = 5;  // Mario descend speed in pipe
+
+    // -- Coordinate Conversion Helpers (Unified Systems) --
+    /**
+     * Convert world X coordinates to PTSD screen X coordinates (centered).
+     * @param worldX World X position (origin top-left)
+     * @param cameraOffset Current camera scrolling offset
+     * @return PTSD screen X position
+     */
+    static float WorldToPTSDX(float worldX, float cameraOffset) {
+        return worldX - cameraOffset - WINDOW_WIDTH / 2.0f;
+    }
+
+    /**
+     * Convert world Y coordinates to PTSD screen Y coordinates (centered).
+     * @param worldY World Y position (origin top-left, Y increases downward)
+     * @return PTSD screen Y position
+     */
+    static float WorldToPTSDY(float worldY) {
+        return LEVEL_HEIGHT_PX / 2.0f - worldY + RENDER_Y_OFFSET;
+    }
+
+    /**
+     * Convert standard screen pixel X coordinates to PTSD screen X coordinates (centered).
+     * @param screenX Standard screen X position (origin top-left)
+     * @return PTSD screen X position
+     */
+    static float ScreenXToPTSD(float screenX) {
+        return screenX - WINDOW_WIDTH / 2.0f;
+    }
+
+    /**
+     * Convert standard screen pixel Y coordinates to PTSD screen Y coordinates (centered).
+     * @param screenY Standard screen Y position (origin top-left, Y increases downward)
+     * @return PTSD screen Y position
+     */
+    static float ScreenYToPTSD(float screenY) {
+        return WINDOW_HEIGHT / 2.0f - screenY;
+    }
 };
 
 }  // namespace Mario

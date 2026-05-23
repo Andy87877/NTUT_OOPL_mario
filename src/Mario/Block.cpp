@@ -23,19 +23,14 @@ namespace Mario {
 // PTSD origin: screen center, Y increases upward
 static void GridToScreen(int gridX, int gridY, float cameraOffset,
                          float& screenX, float& screenY) {
+    // Convert grid coordinates to world center coordinates of the block
+    float worldCX = static_cast<float>(gridX * GameConfig::TILE_SIZE) + GameConfig::TILE_SIZE / 2.0f;
+    float worldCY = static_cast<float>(gridY * GameConfig::TILE_SIZE) + GameConfig::TILE_SIZE / 2.0f;
+
     // Globally round the cameraOffset to avoid subpixel gaps between adjacent blocks
     float roundedOffset = std::round(cameraOffset);
-    
-    // Calculate the integer left screen coordinate
-    float leftScreenX = static_cast<float>(gridX * GameConfig::TILE_SIZE) -
-                        roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
-    screenX = leftScreenX + GameConfig::TILE_SIZE / 2.0f;
-
-    // Calculate the integer bottom screen coordinate
-    float bottomScreenY = GameConfig::LEVEL_HEIGHT_PX / 2.0f -
-                          static_cast<float>((gridY + 1) * GameConfig::TILE_SIZE) +
-                          GameConfig::RENDER_Y_OFFSET;
-    screenY = bottomScreenY + GameConfig::TILE_SIZE / 2.0f;
+    screenX = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
+    screenY = GameConfig::WorldToPTSDY(worldCY);
 }
 
 Block::Block(int blockID, int gridX, int gridY, const BlockDef& def,
@@ -136,6 +131,27 @@ void Block::SetupSprite() {
     }
 }
 
+// Static cache helper to avoid duplicate disk loads for identical blocks
+static std::shared_ptr<Util::Image> GetOrLoadBlockSprite(const std::string& path) {
+    static std::unordered_map<std::string, std::shared_ptr<Util::Image>> s_BlockSpriteCache;
+    if (path.empty()) return nullptr;
+    auto it = s_BlockSpriteCache.find(path);
+    if (it != s_BlockSpriteCache.end()) {
+        return it->second;
+    }
+    std::ifstream test(path);
+    if (test.good()) {
+        try {
+            auto img = std::make_shared<Util::Image>(path);
+            s_BlockSpriteCache[path] = img;
+            return img;
+        } catch (...) {
+            LOG_WARN("Failed to load block sprite: {}", path);
+        }
+    }
+    return nullptr;
+}
+
 void Block::LoadSpriteOnDemand() {
     if (m_SpriteLoaded) return;
     m_SpriteLoaded = true;
@@ -145,21 +161,29 @@ void Block::LoadSpriteOnDemand() {
         return;
     }
 
-    // Now actually load the sprite images
+    // Now actually load the sprite images using the cache
     try {
-        m_Sprite = std::make_shared<Util::Image>(m_SpritePath);
-        SetDrawable(m_Sprite);
+        m_Sprite = GetOrLoadBlockSprite(m_SpritePath);
+        if (m_Sprite) {
+            SetDrawable(m_Sprite);
+        } else {
+            SetVisible(false);
+            return;
+        }
 
         // Load animated frames if any
         if (!m_AnimPaths.empty()) {
             for (const auto& path : m_AnimPaths) {
-                m_AnimFrames.push_back(std::make_shared<Util::Image>(path));
+                auto frame = GetOrLoadBlockSprite(path);
+                if (frame) {
+                    m_AnimFrames.push_back(frame);
+                }
             }
         }
 
         // Load hit sprite if available
         if (!m_HitSpritePath.empty()) {
-            m_HitSprite = std::make_shared<Util::Image>(m_HitSpritePath);
+            m_HitSprite = GetOrLoadBlockSprite(m_HitSpritePath);
         }
 
     } catch (...) {
@@ -194,13 +218,11 @@ void Block::Update(float cameraOffset) {
 
         // Use physics world coordinates for screen position, aligning edges to integers
         float roundedOffset = std::round(cameraOffset);
-        float leftScreenX = std::round(m_WorldX) - roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
-        float sx = leftScreenX + GameConfig::TILE_SIZE / 2.0f;
+        float worldCX = std::round(m_WorldX) + GameConfig::TILE_SIZE / 2.0f;
+        float worldCY = std::round(m_WorldY) + GameConfig::TILE_SIZE / 2.0f;
 
-        float bottomScreenY = GameConfig::LEVEL_HEIGHT_PX / 2.0f -
-                              (std::round(m_WorldY) + GameConfig::TILE_SIZE) +
-                              GameConfig::RENDER_Y_OFFSET;
-        float sy = bottomScreenY + GameConfig::TILE_SIZE / 2.0f;
+        float sx = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
+        float sy = GameConfig::WorldToPTSDY(worldCY);
 
         m_Transform.translation = {sx, sy};
         return;  // Skip grid-based positioning below

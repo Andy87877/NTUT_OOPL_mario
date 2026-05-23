@@ -14,6 +14,9 @@
 
 namespace Mario {
 
+EntityState::EntityState()
+    : m_DeathAnimation(std::make_unique<ClassicEnemyDeathAnimation>()) {}
+
 void EntityState::Init(const std::string& name, float worldX, float worldY,
                        int direction, bool isEnemy, bool isPowerUp, bool isCoin,
                        bool isStatic, bool doesCollide, bool squishable,
@@ -43,6 +46,16 @@ void EntityState::Init(const std::string& name, float worldX, float worldY,
     m_PowerUpState = powerUpState;
     m_SizeX = GameConfig::TILE_SIZE;
     m_SizeY = GameConfig::TILE_SIZE;
+    m_Active = true;
+    m_IsGrounded = false;
+    m_Squashed = false;
+    m_CurrentFrame = 0;
+    m_AnimBufferCount = 0;
+    m_ActiveCounter = 0;
+    m_Hidden = false;
+    m_VelY = 0.0;
+    m_FallHeight = 0.0;
+    m_DeathAnimation = std::make_unique<ClassicEnemyDeathAnimation>();
 
     // Offset up if spawned from block (C# line 121: posY -= scaleSize)
     if (m_FromBlock) {
@@ -79,11 +92,13 @@ void EntityState::Tick() {
 
     m_ActiveCounter++;
 
-    // Death timer
-    if (m_DeathActive) {
-        if (m_ActiveCounter > m_SquishCounter) {
-            Delete();
-        }
+    // Death animation timer (strategy-driven)
+    if (m_DeathAnimation && m_DeathAnimation->IsActive()) {
+        EnemyDeathRuntime runtime{m_ActiveCounter, m_IsEnemy, m_Squashed,
+                                  m_ApplyGravity,  m_VelX,    m_VelY,
+                                  m_PosY,          m_Active};
+        m_DeathAnimation->Tick(runtime, GameConfig::GRAVITY,
+                               GameConfig::TICK_INTERVAL);
         return;
     }
 
@@ -103,8 +118,9 @@ void EntityState::Tick() {
         }
     }
 
-    // Apply movement if not static and not squashed
-    if (!m_IsStatic && !m_Squashed) {
+    // Apply movement if not static and not in squash-pause.
+    // Koopa shell mode (koopaSquash + squashed) should still move when kicked.
+    if (!m_IsStatic && (!m_Squashed || m_KoopaSquash)) {
         m_PosX += m_VelX;
 
         // Apply gravity
@@ -121,26 +137,40 @@ void EntityState::FlipDirection() {
         m_Direction = 0;
 }
 
-void EntityState::Squish() {
-    if (m_KoopaSquash) {
-        // Koopa turns into shell
-        m_Squashed = true;
-        m_VelX = 0.0f;
-        m_SquishCounter = m_ActiveCounter + 300;  // Shell stays 6 seconds
-        m_DeathActive = false;                    // Shell doesn't auto-die
-    } else if (m_Squishable) {
-        // Goomba squish
-        m_Squashed = true;
-        m_VelX = 0.0f;
-        m_SquishCounter = m_ActiveCounter + 30;  // Squish sprite for 0.6s
-        m_DeathActive = true;
+void EntityState::Squish() { TriggerDeath(EnemyDeathCause::STOMP); }
+
+void EntityState::TriggerDeath(EnemyDeathCause cause) {
+    if (!m_Active || !m_DeathAnimation || m_DeathAnimation->IsActive()) return;
+
+    // Koopa stomp uses in-place shell conversion (no new entity spawn).
+    // Match classic feel by shrinking to 1-tile shell and dropping Y so the
+    // shell sits on the same ground contact point instead of floating mid-air.
+    if (cause == EnemyDeathCause::STOMP && m_KoopaSquash && !m_Squashed) {
+        if (m_SizeY > GameConfig::TILE_SIZE) {
+            m_PosY += static_cast<float>(m_SizeY - GameConfig::TILE_SIZE);
+        }
+        m_SizeX = GameConfig::TILE_SIZE;
+        m_SizeY = GameConfig::TILE_SIZE;
     }
+
+    EnemyDeathRuntime runtime{m_ActiveCounter, m_IsEnemy, m_Squashed,
+                              m_ApplyGravity,  m_VelX,    m_VelY,
+                              m_PosY,          m_Active};
+    m_DeathAnimation->Start(cause, runtime);
+}
+
+void EntityState::SetDeathAnimationStrategy(
+    std::unique_ptr<IEnemyDeathAnimation> strategy) {
+    if (!strategy) return;
+    m_DeathAnimation = std::move(strategy);
 }
 
 void EntityState::KickShell(float speed) {
     if (m_Squashed) {
         m_VelX = speed * GameConfig::SHELL_SPEED_MULTIPLIER;
-        m_Squashed = false;
+        if (!m_KoopaSquash) {
+            m_Squashed = false;
+        }
         Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Kick);
     }
 }
@@ -155,6 +185,20 @@ void EntityState::Jump() {
 AABB EntityState::GetHitbox() const {
     float w = static_cast<float>(GetWidth());
     float h = static_cast<float>(GetHeight());
+
+    // PiranhaPlant sprites in 8-4 are visually wider/taller than the damaging
+    // body (transparent margins + pipe overlap). Use a tighter body hitbox so
+    // Mario is only damaged by the visible plant body/head region.
+    if (m_Name == "PiranhaPlant") {
+        float hitW = std::min(
+            w * 0.55f, static_cast<float>(GameConfig::TILE_SIZE) * 0.85f);
+        float hitH = std::min(
+            h * 0.70f, static_cast<float>(GameConfig::TILE_SIZE) * 1.30f);
+        float hitX = m_PosX + (w - hitW) * 0.5f;
+        float hitY = m_PosY + h * 0.05f;
+        return AABB::FromPosSize(hitX, hitY, hitW, hitH);
+    }
+
     return AABB::FromPosSize(m_PosX, m_PosY, w, h);
 }
 
@@ -164,10 +208,13 @@ float EntityState::ApplyGravity() {
         return 0.0f;
     }
     if (m_IsGrounded) {
-        m_VelY = 0;
-        m_FallHeight = 0;
+        m_VelY = 0.0;
+        m_FallHeight = 0.0;
+        return 0.0f;
     }
-    return PhysicsEngine::ApplyGravity(m_FallHeight, m_VelY, m_IsGrounded);
+    m_FallHeight -= GameConfig::GRAVITY * GameConfig::TICK_INTERVAL * 4.0;
+    m_VelY = -m_FallHeight;
+    return static_cast<float>(m_VelY);
 }
 
 }  // namespace Mario

@@ -65,7 +65,7 @@ class BowserBehavior : public IEntityBehavior {
      * Consume a pending Bowser fireball spawn request.
      * Set by UpdateFireAttackPhase() when it's time to shoot.
      */
-    bool ConsumeSpawnRequest(int& outType, float& outX, float& outY,
+    bool ConsumeSpawnRequest(EntityType& outType, float& outX, float& outY,
                              int& outDir) override;
 
     /**

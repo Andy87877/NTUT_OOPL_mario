@@ -16,13 +16,11 @@ namespace Mario {
 static void WorldToScreen(float worldX, float worldY, float cameraOffset,
                           float& sx, float& sy) {
     float roundedOffset = std::round(cameraOffset);
-    float leftScreenX = std::round(worldX) - roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
-    sx = leftScreenX + GameConfig::TILE_SIZE / 2.0f;
+    float worldCX = std::round(worldX) + GameConfig::TILE_SIZE / 2.0f;
+    float worldCY = std::round(worldY) + GameConfig::TILE_SIZE / 2.0f;
 
-    float bottomScreenY = GameConfig::LEVEL_HEIGHT_PX / 2.0f -
-                          (std::round(worldY) + GameConfig::TILE_SIZE) +
-                          GameConfig::RENDER_Y_OFFSET;
-    sy = bottomScreenY + GameConfig::TILE_SIZE / 2.0f;
+    sx = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
+    sy = GameConfig::WorldToPTSDY(worldCY);
 }
 
 // ---------------------------------------------------------------------------

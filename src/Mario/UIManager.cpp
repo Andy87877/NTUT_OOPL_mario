@@ -11,9 +11,9 @@
 #include "Mario/UIManager.hpp"
 
 #include <cstdio>
+#include <fstream>
 
 #include "Mario/GameConfig.hpp"
-
 #include "Util/Color.hpp"
 #include "Util/Logger.hpp"
 #include "config.hpp"
@@ -31,6 +31,31 @@ UIManager::UIManager(GameStateManager* gameState) : m_GameState(gameState) {
 
     m_UIRenderer.AddChild(m_CenterLabel);
     m_UIRenderer.AddChild(m_SubLabel);
+
+    // Initialize FPS Text in bottom-right corner
+    m_FPSText =
+        std::make_shared<UIText>(m_FontPath, m_FontSize, "FPS: --", colorWhite);
+    m_FPSText->SetPosition(520.0f, -340.0f);
+    m_UIRenderer.AddChild(m_FPSText);
+
+    // Initialize Copyright Text in bottom-left corner with Chinese font support
+    // fallback
+    std::string chineseFontPath = m_FontPath;
+    {
+        std::ifstream sysFont1("C:/Windows/Fonts/msjh.ttc");
+        if (sysFont1.good()) {
+            chineseFontPath = "C:/Windows/Fonts/msjh.ttc";
+        } else {
+            std::ifstream sysFont2("C:/Windows/Fonts/msjh.ttf");
+            if (sysFont2.good()) {
+                chineseFontPath = "C:/Windows/Fonts/msjh.ttf";
+            }
+        }
+    }
+    m_CopyrightText = std::make_shared<UIText>(
+        chineseFontPath, m_FontSize, "113820033 電資二 謝奕宏", colorWhite);
+    m_CopyrightText->SetPosition(-620.0f, -340.0f);
+    m_UIRenderer.AddChild(m_CopyrightText);
 
     InitHUD();
     InitESCMenu();
@@ -74,7 +99,8 @@ void UIManager::InitHUD() {
 }
 
 void UIManager::InitESCMenu() {
-    std::vector<std::string> menuOptions = {"RESUME", "1-1", "1-2", "8-4"};
+    std::vector<std::string> menuOptions = {"RESUME", "1-1", "1-2", "8-4",
+                                            "POWER: SMALL"};
     for (const auto& opt : menuOptions) {
         auto text = std::make_shared<UIText>(
             m_FontPath, m_FontSize, opt, Util::Color::FromRGB(255, 255, 255));
@@ -84,8 +110,25 @@ void UIManager::InitESCMenu() {
     }
 }
 
-void UIManager::Update(State currentState, int escMenuSelection) {
+void UIManager::Update(State currentState, int escMenuSelection,
+                       const std::string& powerStateName) {
     if (!m_GameState) return;
+
+    // Update FPS Counter
+    m_FrameCount++;
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                       now - m_LastFPSTime)
+                       .count();
+    if (elapsed >= 1000) {
+        m_FPS = static_cast<int>(m_FrameCount * 1000.0f / elapsed);
+        m_FrameCount = 0;
+        m_LastFPSTime = now;
+
+        char fpsStr[32];
+        snprintf(fpsStr, sizeof(fpsStr), "FPS: %d", m_FPS);
+        m_FPSText->SetTextContent(fpsStr);
+    }
 
     // Hide everything first
     m_CenterLabel->SetVisible(false);
@@ -137,7 +180,7 @@ void UIManager::Update(State currentState, int escMenuSelection) {
             UpdateGameWonScreen();
             break;
         case State::ESC_MENU:
-            UpdateESCMenu(escMenuSelection);
+            UpdateESCMenu(escMenuSelection, powerStateName);
             break;
         case State::AXE_SEQUENCE:
             UpdateAxeEndingScreen();
@@ -179,8 +222,10 @@ void UIManager::UpdateHUD() {
     float marioHeaderY = 16.0f;   // pixels from top
     float marioScoreY = 32.0f;
 
-    m_HeaderMario->SetPosition(marioHeaderX - 640.0f, 360.0f - marioHeaderY);
-    m_ScoreText->SetPosition(marioHeaderX - 640.0f, 360.0f - marioScoreY);
+    m_HeaderMario->SetPosition(GameConfig::ScreenXToPTSD(marioHeaderX),
+                               GameConfig::ScreenYToPTSD(marioHeaderY));
+    m_ScoreText->SetPosition(GameConfig::ScreenXToPTSD(marioHeaderX),
+                             GameConfig::ScreenYToPTSD(marioScoreY));
 
     char scoreStr[10];
     snprintf(scoreStr, sizeof(scoreStr), "%06d", m_GameState->GetScore());
@@ -197,8 +242,12 @@ void UIManager::UpdateHUD() {
     float worldHeaderY = 16.0f;  // Same level as MARIO and TIME headers
     float worldLevelY = 32.0f;   // Same level as score and time values
 
-    m_HeaderWorld->SetPosition(0.0f, 360.0f - worldHeaderY);
-    m_WorldText->SetPosition(0.0f, 360.0f - worldLevelY);
+    m_HeaderWorld->SetPosition(
+        GameConfig::ScreenXToPTSD(GameConfig::WINDOW_WIDTH / 2.0f),
+        GameConfig::ScreenYToPTSD(worldHeaderY));
+    m_WorldText->SetPosition(
+        GameConfig::ScreenXToPTSD(GameConfig::WINDOW_WIDTH / 2.0f),
+        GameConfig::ScreenYToPTSD(worldLevelY));
     m_WorldText->SetTextContent(m_GameState->GetLevelName());
 
     // --- TIME Label & Value (Far Right) ---
@@ -207,8 +256,10 @@ void UIManager::UpdateHUD() {
     float timeValueX = 1115.0f;
     float timeValueY = 32.0f;
 
-    m_HeaderTime->SetPosition(timeHeaderX - 640.0f, 360.0f - timeHeaderY);
-    m_TimeText->SetPosition(timeValueX - 640.0f, 360.0f - timeValueY);
+    m_HeaderTime->SetPosition(GameConfig::ScreenXToPTSD(timeHeaderX),
+                              GameConfig::ScreenYToPTSD(timeHeaderY));
+    m_TimeText->SetPosition(GameConfig::ScreenXToPTSD(timeValueX),
+                            GameConfig::ScreenYToPTSD(timeValueY));
 
     char timeStr[10];
     snprintf(timeStr, sizeof(timeStr), "%03d", m_GameState->GetTimeRemaining());
@@ -246,19 +297,22 @@ void UIManager::UpdateTitleScreen() {
 }
 
 void UIManager::InitLoadingScreen() {
-    // Pre-initialize the Mario preview sprite at construction time so the OpenGL
-    // texture is fully uploaded before the first loading screen frame is drawn.
-    // Creating the UIImage here (not on-demand inside UpdateLoadingScreen) avoids
-    // the one-frame blank texture that occurred when the image was created at runtime.
+    // Pre-initialize the Mario preview sprite at construction time so the
+    // OpenGL texture is fully uploaded before the first loading screen frame is
+    // drawn. Creating the UIImage here (not on-demand inside
+    // UpdateLoadingScreen) avoids the one-frame blank texture that occurred
+    // when the image was created at runtime.
     std::string marioSpritePath =
         std::string(RESOURCE_DIR) + "/Sprites/MarioIdle.png";
     m_MarioPreview = std::make_shared<UIImage>(marioSpritePath);
     m_CurrentPreviewSpritePath = marioSpritePath;
 
     // Set position, scale, and Z-index once at init — they never change.
-    // Position: sprite center at (-65, -10), to the left of the lives text at (30, -10).
+    // Position: sprite center at (-65, -10), to the left of the lives text at
+    // (30, -10).
     m_MarioPreview->SetPosition(-65.0f, -10.0f);
-    m_MarioPreview->m_Transform.scale = {GameConfig::DRAW_SCALE, GameConfig::DRAW_SCALE};
+    m_MarioPreview->m_Transform.scale = {GameConfig::DRAW_SCALE,
+                                         GameConfig::DRAW_SCALE};
     m_MarioPreview->SetZIndex(101.0f);
 
     // Hidden by default; shown only during LOADING state.
@@ -279,12 +333,14 @@ void UIManager::UpdateLoadingScreen() {
         "x " + std::string(lives < 10 ? "0" : "") + std::to_string(lives);
     m_SubLabel->SetTextContent(livesStr);
 
-    // C# reference: "MARIO" sprite to the left of "x 00" label (Form1.Designer.cs).
-    // Layout (centered around x=0):  [Mario sprite at -65]  [lives text at +30]
+    // C# reference: "MARIO" sprite to the left of "x 00" label
+    // (Form1.Designer.cs). Layout (centered around x=0):  [Mario sprite at -65]
+    // [lives text at +30]
     m_SubLabel->SetPosition(30.0f, -10.0f);
 
     // m_MarioPreview is pre-initialized in InitLoadingScreen().
-    // Simply reveal it — no per-frame image loading or transform changes needed.
+    // Simply reveal it — no per-frame image loading or transform changes
+    // needed.
     if (m_MarioPreview) {
         m_MarioPreview->SetVisible(true);
     }
@@ -319,11 +375,17 @@ void UIManager::UpdateGameWonScreen() {
     m_SubLabel->SetPosition(0.0f, -50.0f);  // Centered, below WORLD CLEARED
 }
 
-void UIManager::UpdateESCMenu(int selection) {
+void UIManager::UpdateESCMenu(int selection,
+                              const std::string& powerStateName) {
     m_CenterLabel->SetVisible(true);
     m_CenterLabel->SetTextContent("PAUSED");
     m_CenterLabel->SetPosition(0.0f,
                                280.0f);  // Centered horizontally, above menu
+
+    // Update the POWER cheat item text to show the current state.
+    if (m_MenuTexts.size() >= 5) {
+        m_MenuTexts[4]->SetTextContent("POWER: " + powerStateName);
+    }
 
     float startY = 100.0f;
     for (size_t i = 0; i < m_MenuTexts.size(); ++i) {
@@ -423,9 +485,13 @@ void CoinUI::Update(int coinCount) {
     m_CountText->SetTextContent(countStr);
 }
 
-float CoinUI::ScreenXToPTSD(float screenX) const { return screenX - 640.0f; }
+float CoinUI::ScreenXToPTSD(float screenX) const {
+    return GameConfig::ScreenXToPTSD(screenX);
+}
 
-float CoinUI::ScreenYToPTSD(float screenY) const { return 360.0f - screenY; }
+float CoinUI::ScreenYToPTSD(float screenY) const {
+    return GameConfig::ScreenYToPTSD(screenY);
+}
 
 void CoinUI::UpdateCoinSprite() {
     int frameNum = m_CurrentFrame + 1;

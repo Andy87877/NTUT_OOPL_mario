@@ -6,6 +6,8 @@
  */
 #include "Mario/AxeSequenceSceneHandler.hpp"
 
+#include <vector>
+
 #include "App.hpp"
 #include "Util/Logger.hpp"
 
@@ -15,6 +17,17 @@ void AxeSequenceSceneHandler::Update(App& app) {
     auto& player = app.GetPlayer();
     auto& level = app.GetLevel();
     if (!player || !level) return;
+
+    // Keep player grounded/animated during the cutscene so WALK_TO_PRINCESS
+    // looks like walking instead of horizontal gliding.
+    auto& ps = player->GetState();
+    float yDelta = ps.ApplyGravity();
+    ps.SetY(ps.GetY() + yDelta);
+    std::vector<Mario::Level::SpawnPoint> unusedSpawns;
+    app.GetCollisionManager().CheckPlayerBlockCollision(
+        *player, *level, app.GetCamera(), app.GetGameState(),
+        app.GetUIManager(), &unusedSpawns);
+    ps.Tick();
 
     // Find Bowser and Princess in the entity list (cached each frame is fine
     // since the list is small during this cutscene).
@@ -32,7 +45,8 @@ void AxeSequenceSceneHandler::Update(App& app) {
     bool stillRunning = app.GetLevelCompleteCtrl().Update(
         *player, *level, app.GetCamera().GetOffset());
 
-    app.GetCamera().Update(player->GetWorldX(), level->GetWidthPixels());
+    app.GetCamera().Update(player->GetWorldX(), level->GetWidthPixels(),
+                           app.GetCurrentLevelName(), true);
     level->UpdateBlocks(app.GetCamera().GetOffset());
 
     for (auto& entity : app.GetEntities()) {

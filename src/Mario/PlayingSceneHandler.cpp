@@ -11,7 +11,6 @@
 
 #include "App.hpp"
 #include "Mario/AudioManager.hpp"
-#include "Mario/Behaviors/ParticleDebris.hpp"
 #include "Mario/EntityFactory.hpp"
 #include "Mario/GameConfig.hpp"
 #include "Util/Input.hpp"
@@ -42,7 +41,8 @@ void PlayingSceneHandler::Update(App& app) {
     if (!player || !level) return;
 
     // -- Input (MVC Controller layer) --
-    app.GetInputHandler().HandleInput(player->GetState(), app.GetSpeed());
+    app.GetInputHandler().HandleInput(player->GetState(), app.GetSpeed(),
+                                      *level);
 
     // -- Step moving platforms and carry player --
     // Must run before gravity so the player is repositioned before physics.
@@ -81,8 +81,7 @@ void PlayingSceneHandler::Update(App& app) {
                 level->GetEntityDefByName(sp.entityName), sp.worldX, sp.worldY,
                 1, true);
             if (entity) {
-                app.GetEntities().push_back(entity);
-                app.GetRenderer().AddChild(entity);
+                app.AddEntityToGame(entity);
             }
         }
     }
@@ -94,68 +93,119 @@ void PlayingSceneHandler::Update(App& app) {
     SpawnPlayerFireball(app);
 
     // -- Update each entity --
+    std::vector<std::shared_ptr<Entity>> newEntities;
+    float cameraOffset = app.GetCamera().GetOffset();
+    // Activation window for updating entities: 200px buffer on left/right of
+    // viewport. This matches the C# viewport-based entity activation.
+    float leftBound = cameraOffset - 200.0f;
+    float rightBound = cameraOffset + GameConfig::WINDOW_WIDTH + 200.0f;
+
     for (auto& entity : app.GetEntities()) {
         if (!entity->GetState().IsActive()) continue;
 
-        auto behavior = entity->GetBehavior();
-        if (behavior) {
-            behavior->Update(entity->GetState(), *level, *player,
-                             app.GetTimer());
+        float entityX = entity->GetWorldX();
+        float entityWidth = static_cast<float>(entity->GetState().GetWidth());
+        bool inUpdateWindow =
+            (entityX + entityWidth >= leftBound && entityX <= rightBound);
 
-            // Process pending spawn request from this entity's behavior
-            int spawnType = 0;
-            float spawnX = 0.0f, spawnY = 0.0f;
-            int spawnDir = 1;
-            if (behavior->ConsumeSpawnRequest(spawnType, spawnX, spawnY,
-                                              spawnDir)) {
-                auto spawnEntityType =
-                    static_cast<Mario::EntityType>(spawnType);
-                std::string spawnName;
-                if (spawnEntityType == Mario::EntityType::FIRE)
-                    spawnName = "Fire";
-                if (!spawnName.empty()) {
-                    Mario::EntityDef def = level->GetEntityDefByName(spawnName);
-                    if (def.name.empty()) {
-                        def.id = -1;
-                        def.name = spawnName;
-                        def.type = spawnEntityType;
-                        def.isAnimated = true;
-                        def.animFrames = 4;
-                        def.doesCollide = true;
-                        def.isEnemy = false;
-                        def.isStatic = false;
-                    }
-                    auto spawned = Mario::EntityFactory::SpawnEntity(
-                        def, spawnX, spawnY, spawnDir, false,
-                        app.GetCurrentLevelName());
-                    if (spawned) {
-                        float speed = 4.0f;
-                        spawned->GetState().SetVelX(spawnDir == 1 ? speed
-                                                                  : -speed);
-                        app.GetEntities().push_back(spawned);
-                        app.GetRenderer().AddChild(spawned);
+        // Always update short-lived particles/debris, and only update regular
+        // entities when within viewport window. Also fireballs shot by the
+        // player should keep moving even if they go slightly off screen.
+        auto behavior = entity->GetBehavior();
+        bool isParticle = behavior && behavior->AlwaysUpdate();
+        bool isPlayerFireball = (entity->GetDef().type == EntityType::FIRE &&
+                                 !entity->GetState().IsEnemy());
+
+        if (inUpdateWindow || isParticle || isPlayerFireball) {
+            if (behavior) {
+                behavior->Update(entity->GetState(), *level, *player,
+                                 app.GetTimer());
+
+                // Process pending spawn request from this entity's behavior
+                EntityType spawnType = EntityType::UNKNOWN;
+                float spawnX = 0.0f, spawnY = 0.0f;
+                int spawnDir = 1;
+                if (behavior->ConsumeSpawnRequest(spawnType, spawnX, spawnY,
+                                                  spawnDir)) {
+                    std::string spawnName;
+                    if (spawnType == Mario::EntityType::FIRE)
+                        spawnName = "Fire";
+                    else if (spawnType == Mario::EntityType::AXE_PROJECTILE)
+                        spawnName =
+                            "Axe";  // Reuse Axe sprite; type overridden below
+                    if (!spawnName.empty()) {
+                        Mario::EntityDef def =
+                            level->GetEntityDefByName(spawnName);
+                        bool isEnemyProjectile =
+                            entity->GetDef().type ==
+                                Mario::EntityType::BOWSER ||
+                            entity->GetDef().type ==
+                                Mario::EntityType::AXE_KOOPA;
+                        if (def.name.empty()) {
+                            def.id = -1;
+                            def.name = spawnName;
+                            def.type = spawnType;
+                            def.isAnimated = true;
+                            def.animFrames = 4;
+                            def.doesCollide = true;
+                            def.isEnemy = isEnemyProjectile;
+                            def.isStatic = false;
+                        } else {
+                            def.isEnemy = isEnemyProjectile;
+                            // Ensure the spawned entity uses the requested
+                            // behavior type, not the CSV's static type.
+                            def.type = spawnType;
+                            // Thrown axe must be dynamic (CSV marks Axe as
+                            // static).
+                            if (spawnType ==
+                                Mario::EntityType::AXE_PROJECTILE) {
+                                def.isStatic = false;
+                                def.doesCollide = true;
+                            }
+                        }
+                        auto spawned = Mario::EntityFactory::SpawnEntity(
+                            def, spawnX, spawnY, spawnDir, false,
+                            app.GetCurrentLevelName());
+                        if (spawned) {
+                            float speed = 4.0f;
+                            spawned->GetState().SetVelX(spawnDir == 1 ? speed
+                                                                      : -speed);
+                            // Thrown axe: give an upward arc like NES hammers.
+                            if (spawnType ==
+                                Mario::EntityType::AXE_PROJECTILE) {
+                                spawned->GetState().SetFallHeight(
+                                    GameConfig::JUMP_LOW_VELOCITY);
+                            }
+                            app.AddEntityToGame(spawned);
+                        }
                     }
                 }
             }
-        }
 
-        // Keep fireball at consistent speed
-        if (entity->GetDef().type == Mario::EntityType::FIRE) {
-            float spd = std::abs(entity->GetState().GetVelX());
-            if (spd < 4.0f) spd = 5.0f;
-            entity->GetState().SetVelX(
-                entity->GetState().GetDirection() == 1 ? spd : -spd);
-        }
+            // Keep fireball at consistent speed
+            if (entity->GetDef().type == Mario::EntityType::FIRE) {
+                float spd = std::abs(entity->GetState().GetVelX());
+                if (spd < 4.0f) spd = 5.0f;
+                entity->GetState().SetVelX(
+                    entity->GetState().GetDirection() == 1 ? spd : -spd);
+            }
 
-        entity->GetState().Tick();
+            entity->GetState().Tick();
 
-        if (entity->GetState().DoesCollide() &&
-            !entity->GetState().IsStatic()) {
-            app.GetCollisionManager().CheckEntityBlockCollision(*entity,
-                                                                *level);
+            if (entity->GetState().DoesCollide() &&
+                !entity->GetState().IsStatic()) {
+                app.GetCollisionManager().CheckEntityBlockCollision(
+                    *entity, *level, &newEntities);
+            }
         }
 
         entity->UpdateView(app.GetCamera().GetOffset());
+    }
+
+    if (!newEntities.empty()) {
+        for (auto& entity : newEntities) {
+            app.AddEntityToGame(entity);
+        }
     }
 
     // -- Collision checks --
@@ -170,7 +220,9 @@ void PlayingSceneHandler::Update(App& app) {
     CheckPipeCollision(app);
 
     // -- Camera + level blocks --
-    app.GetCamera().Update(player->GetWorldX(), level->GetWidthPixels());
+    app.GetCamera().Update(player->GetWorldX(), level->GetWidthPixels(),
+                           app.GetCurrentLevelName(),
+                           app.GetLevelCompleteCtrl().IsActive());
     level->UpdateBlocks(app.GetCamera().GetOffset());
 
     // -- Brick-debris particles --
@@ -188,26 +240,18 @@ void PlayingSceneHandler::Update(App& app) {
             app.PlayCurrentBGM();  // switch to hurry-up theme
         }
         if (app.GetGameState().IsTimeUp()) {
-            app.GetGameState().LoseLife();
-            ps.SetDead(true);
+            ps.StartDeathAnimation();
         }
     }
 
     // -- Pit-fall check --
     if (app.GetCollisionManager().CheckPitFall(*player)) {
-        app.GetGameState().LoseLife();
-        ps.SetDead(true);
-        ps.SetControllable(false);
+        ps.StartDeathAnimation();
     }
 
     // -- Death transition --
     if (ps.IsDead()) {
-        app.GetDeathTimer() = app.GetTimer() + 80;
         app.TransitionTo(App::State::DEATH);
-        Mario::AudioManager::GetInstance().PlayBGM(
-            Mario::BGMName::LostALifeTheme);
-        LOG_INFO("Player died - entering DEATH state (Lives: {})",
-                 app.GetGameState().GetLives());
     }
 
     // -- Cleanup dead entities --
@@ -287,9 +331,7 @@ void PlayingSceneHandler::SpawnBrickDebris(App& app) const {
                 def, bx + p.dx * bs, by + p.dy * bs, 0, false,
                 app.GetCurrentLevelName());
             if (debris) {
-                auto* pb =
-                    dynamic_cast<Mario::ParticleDebris*>(debris->GetBehavior());
-                if (pb) pb->SetInitialVelocity(p.vx, p.vy);
+                debris->GetBehavior()->OnSpawned(p.vx, p.vy);
                 app.AddEntityToGame(debris);
             }
         }
@@ -297,11 +339,7 @@ void PlayingSceneHandler::SpawnBrickDebris(App& app) const {
 }
 
 void PlayingSceneHandler::OnRender(App& app) {
-    const std::string& lvl = app.GetCurrentLevelName();
-    bool underground = app.GetGameState().IsUnderground() ||
-                       lvl.find("u") != std::string::npos || lvl == "1-2" ||
-                       lvl == "8-4";
-    app.ApplyBackground(underground);
+    app.ApplyBackground();
     app.GetRenderer().Update();
     app.GetUIManager().Update(Mario::UIManager::State::PLAYING);
 }
@@ -318,8 +356,7 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
     Mario::AABB playerBox = ps.GetHitbox();
     const std::string& lvl = app.GetCurrentLevelName();
 
-    for (const auto& block : app.GetLevel()->GetAllBlocks()) {
-        if (!block->IsGoal()) continue;
+    for (const auto& block : app.GetLevel()->GetGoalBlocks()) {
         if (!playerBox.Intersects(block->GetAABB())) continue;
 
         LOG_INFO("Flagpole reached at block ({}, {})", block->GetGridX(),
@@ -329,7 +366,7 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
             lvl == "8-4" ? Mario::BGMName::CastleCompleteTheme
                          : Mario::BGMName::LevelCompleteTheme);
         app.GetLevelCompleteCtrl().StartFlagpole(*player, app.GetFlagEntity(),
-                                                 block.get());
+                                                 block);
         app.GetGameState().StopTime();
         app.TransitionTo(App::State::FLAGPOLE);
         return;
@@ -342,13 +379,12 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
     // explicit X-range check as a safety net.
     const Block* topmostGoal = nullptr;
     float topmostY = std::numeric_limits<float>::max();
-    for (const auto& block : app.GetLevel()->GetAllBlocks()) {
-        if (!block->IsGoal()) continue;
+    for (const auto& block : app.GetLevel()->GetGoalBlocks()) {
         Mario::AABB bBox = block->GetAABB();
         if (playerBox.right > bBox.left && playerBox.left < bBox.right) {
             if (block->GetWorldY() < topmostY) {
                 topmostY = block->GetWorldY();
-                topmostGoal = block.get();
+                topmostGoal = block;
             }
         }
     }
@@ -392,19 +428,25 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
 
     Mario::PlayerState& ps = player->GetState();
 
-    // Full-body AABB (C# GetRecPosition), expanded 1px downward so a player
-    // standing exactly on a block top edge still registers as intersecting.
+    // Full-body AABB (C# GetRecPosition), expanded 2px on all sides so that
+    // even after CollisionManager snaps Mario out of blocks in PHASE 4,
+    // he still registers as intersecting adjacent pipe blocks.
     const float TS = static_cast<float>(Mario::GameConfig::TILE_SIZE);
-    Mario::AABB playerBox = Mario::AABB::FromPosSize(
-        ps.GetX(), ps.GetY(),
-        TS, static_cast<float>(ps.GetHeight()) + 1.0f);
+    Mario::AABB playerBox =
+        Mario::AABB::FromPosSize(ps.GetX() - 2.0f, ps.GetY() - 2.0f, TS + 4.0f,
+                                 static_cast<float>(ps.GetHeight()) + 4.0f);
 
     bool pipeDown1 = false, pipeDown2 = false;
     bool pipeRight1 = false, pipeRight2 = false;
     float pipeDX = 0.0f, pipeDY = 0.0f;
     float pipeRX = 0.0f, pipeRY = 0.0f;
 
-    for (const auto& block : app.GetLevel()->GetAllBlocks()) {
+    // Only search blocks in the player's immediate vicinity (±1 tile).
+    // Avoids scanning the entire level (3520 blocks) for just 2–4 pipe tiles.
+    std::vector<Block*> nearBlocks;
+    app.GetLevel()->QueryBlocksInRange(playerBox.left - TS,
+                                       playerBox.right + TS, nearBlocks);
+    for (const auto* block : nearBlocks) {
         Mario::AABB bBox = block->GetAABB();
         if (!playerBox.Intersects(bBox)) continue;
         int id = block->GetBlockID();
@@ -529,17 +571,15 @@ void PlayingSceneHandler::CheckAxeCollision(App& app) const {
 // ============================================================================
 void PlayingSceneHandler::CheckPlayerEntityCollision(App& app) const {
     auto& player = app.GetPlayer();
-    if (!player || player->GetState().IsDead() ||
-        player->GetState().IsInvincible())
-        return;
+    if (!player || player->GetState().IsDead()) return;
     app.GetCollisionManager().CheckPlayerEntityCollision(
         *player, app.GetEntities(), app.GetCamera(), app.GetGameState(),
         app.GetUIManager());
 }
 
 void PlayingSceneHandler::CheckEntityEntityCollision(App& app) const {
-    app.GetCollisionManager().CheckEntityEntityCollision(app.GetEntities(),
-                                                         app.GetGameState());
+    app.GetCollisionManager().CheckEntityEntityCollision(
+        app.GetEntities(), app.GetGameState(), app.GetCamera().GetOffset());
 }
 
 void PlayingSceneHandler::CleanupDeadEntities(App& app) const {

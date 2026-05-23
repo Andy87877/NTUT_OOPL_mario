@@ -10,6 +10,8 @@
 
 #include <memory>
 
+#include "Mario/EntityDef.hpp"  // EntityType
+
 namespace Mario {
 
 // Forward declaration
@@ -62,6 +64,25 @@ class IEntityBehavior {
     virtual const char* GetName() const = 0;
 
     /**
+     * Whether this behavior must be updated even when off-screen.
+     * Default: false. Override to return true for short-lived particles
+     * (ParticleDebris) so they always advance and clean up correctly.
+     * Eliminates the string-find hack in PlayingSceneHandler.
+     */
+    virtual bool AlwaysUpdate() const { return false; }
+
+    /**
+     * Called exactly once immediately after the entity is spawned into the
+     * world by SpawnBrickDebris (or any factory that needs to pass initial
+     * velocity). Default is a no-op; ParticleDebris overrides to store vx/vy.
+     * Eliminates the dynamic_cast<ParticleDebris*> in PlayingSceneHandler.
+     */
+    virtual void OnSpawned(float vx, float vy) {
+        (void)vx;
+        (void)vy;
+    }
+
+    /**
      * Handle a fireball hit on this entity.
      * Default behavior: return false → entity will be deleted by caller.
      * Override (e.g., BowserBehavior) to use HP system: return true to
@@ -86,8 +107,14 @@ class IEntityBehavior {
      * @return true if there is a spawn request (outType/outX/outY/outDir set),
      *         false if nothing to spawn.
      */
-    virtual bool ConsumeSpawnRequest(int& outType, float& outX, float& outY,
-                                     int& outDir) {
+    /**
+     * Query and consume a pending entity spawn request.
+     * BowserBehavior / AxeKoopaBehavior use this to signal projectile spawns.
+     * Uses EntityType directly (type-safe — no raw int cast at the call site).
+     * Default: no spawn pending.
+     */
+    virtual bool ConsumeSpawnRequest(EntityType& outType, float& outX,
+                                     float& outY, int& outDir) {
         (void)outType;
         (void)outX;
         (void)outY;

@@ -88,8 +88,22 @@ class App {
     //       App no longer owns game-logic decisions.
 
     /**
-     * Set OpenGL background clear color for the current level context.
-     * Called by ISceneHandler::OnRender() implementations.
+     * Returns true when the current level uses a dark (underground/castle)
+     * background.  Combines the runtime pipe-warp underground flag from
+     * GameStateManager with Level::IsUnderground() (name-based detection).
+     * Scene handlers should call this rather than duplicating the check.
+     */
+    bool IsUnderground() const;
+
+    /**
+     * Set OpenGL background clear color from the current level context.
+     * Convenience overload — calls ApplyBackground(IsUnderground()).
+     * Scene handlers should prefer this form.
+     */
+    void ApplyBackground();
+
+    /**
+     * Set OpenGL background clear color for the given context.
      * @param isUnderground  true = black (castle/underground), false = sky blue
      */
     void ApplyBackground(bool isUnderground);

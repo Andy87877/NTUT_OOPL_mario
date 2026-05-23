@@ -30,6 +30,15 @@ class ParticleDebris : public IEntityBehavior {
 
     const char* GetName() const override { return "ParticleDebris"; }
 
+    /** Always update regardless of viewport — debris must finish its arc. */
+    bool AlwaysUpdate() const override { return true; }
+
+    /**
+     * Called by SpawnBrickDebris right after creation to set the launch
+     * velocity. Replaces the old dynamic_cast<ParticleDebris*> pattern.
+     */
+    void OnSpawned(float vx, float vy) override { SetInitialVelocity(vx, vy); }
+
     // Set initial custom velocity right after creation
     void SetInitialVelocity(float vx, float vy) {
         m_InitialVelX = vx;

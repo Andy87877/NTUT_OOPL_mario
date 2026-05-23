@@ -7,6 +7,7 @@
 #ifndef MARIO_CAMERA_HPP
 #define MARIO_CAMERA_HPP
 
+#include <string>
 #include "Mario/GameConfig.hpp"
 
 namespace Mario {
@@ -24,8 +25,10 @@ public:
      * Camera scrolls when player passes center of viewport.
      * @param playerWorldX Player's world X position
      * @param levelWidthPixels Total level width in pixels
+     * @param levelName Name of the current active level
+     * @param isLevelCompleteActive Whether the level complete cutscene is active
      */
-    void Update(float playerWorldX, float levelWidthPixels);
+    void Update(float playerWorldX, float levelWidthPixels, const std::string& levelName = "", bool isLevelCompleteActive = false);
 
     /**
      * Reset camera to initial position.

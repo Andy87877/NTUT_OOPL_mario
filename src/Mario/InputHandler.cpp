@@ -9,12 +9,14 @@
 #include "Mario/InputHandler.hpp"
 
 #include "Mario/AudioManager.hpp"
+#include "Mario/Level.hpp"
+#include "Mario/Collider.hpp"
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
 
 namespace Mario {
 
-void InputHandler::HandleInput(PlayerState& state, float speed) {
+void InputHandler::HandleInput(PlayerState& state, float speed, Level& level) {
     if (!state.IsControllable() || state.IsDead()) {
         state.SetMovingRight(false);
         state.SetMovingLeft(false);
@@ -51,27 +53,47 @@ void InputHandler::HandleInput(PlayerState& state, float speed) {
     m_Crouch = Util::Input::IsKeyPressed(Util::Keycode::DOWN) ||
                Util::Input::IsKeyPressed(Util::Keycode::S);
     if (state.GetState() > 0) {  // Only big/fire mario can crouch
-        bool wasCrouching = state.IsCrouching();
+        bool blockAbove = false;
+        if (!m_Crouch && state.IsCrouching()) {
+            // Standing up would increase height to 90px (2 tiles).
+            // Check if there is a solid block in the upper 45px space.
+            // Currently, top is at state.GetY(). The upper 45px space is [state.GetY() - TILE_SIZE, state.GetY()].
+            float checkY = state.GetY() - GameConfig::TILE_SIZE;
+            AABB upperHalf = AABB::FromPosSize(state.GetX(), checkY, 
+                                               static_cast<float>(GameConfig::TILE_SIZE), 
+                                               static_cast<float>(GameConfig::TILE_SIZE));
+            
+            int tileX = static_cast<int>(upperHalf.left) / GameConfig::TILE_SIZE;
+            int tileY = static_cast<int>(upperHalf.top) / GameConfig::TILE_SIZE;
+
+            for (int gy = tileY; gy <= tileY + 1 && !blockAbove; gy++) {
+                for (int gx = tileX - 1; gx <= tileX + 2 && !blockAbove; gx++) {
+                    Block* blk = level.GetBlockAt(gx, gy);
+                    if (blk && blk->IsSolid() && blk->GetAABB().Intersects(upperHalf)) {
+                        blockAbove = true;
+                    }
+                }
+            }
+
+            // Check moving platforms
+            for (auto* plat : level.GetMovingPlatforms()) {
+                if (plat && plat->IsSolid() && plat->GetAABB().Intersects(upperHalf)) {
+                    blockAbove = true;
+                    break;
+                }
+            }
+        }
+
+        if (blockAbove) {
+            m_Crouch = true;
+        }
+
         state.SetCrouching(m_Crouch);
 
         // Block horizontal movement while crouching (grounded only)
         if (m_Crouch && state.IsGrounded()) {
             state.SetMovingRight(false);
             state.SetMovingLeft(false);
-        }
-
-        // Adjust Y position when crouch state changes (to keep feet in same
-        // place) When crouching: height decrease by TILE_SIZE, so move down by
-        // TILE_SIZE/2 When standing: height increase by TILE_SIZE, so move up
-        // by TILE_SIZE/2
-        if (wasCrouching != m_Crouch && state.GetState() > 0) {
-            if (m_Crouch) {
-                // Entering crouch: height decreases, move down
-                state.SetY(state.GetY() + GameConfig::TILE_SIZE / 2.0f);
-            } else {
-                // Exiting crouch: height increases, move up
-                state.SetY(state.GetY() - GameConfig::TILE_SIZE / 2.0f);
-            }
         }
     } else {
         state.SetCrouching(false);

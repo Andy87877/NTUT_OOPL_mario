@@ -8,9 +8,11 @@
 #ifndef MARIO_ENTITY_STATE_HPP
 #define MARIO_ENTITY_STATE_HPP
 
+#include <memory>
 #include <string>
 
 #include "Mario/Collider.hpp"
+#include "Mario/EnemyDeathAnimation.hpp"
 #include "Mario/GameConfig.hpp"
 
 namespace Mario {
@@ -21,7 +23,7 @@ namespace Mario {
  */
 class EntityState {
    public:
-    EntityState() = default;
+    EntityState();
 
     void Init(const std::string& name, float worldX, float worldY,
               int direction, bool isEnemy, bool isPowerUp, bool isCoin,
@@ -58,9 +60,12 @@ class EntityState {
     bool DoesCollide() const { return m_DoesCollide; }
     bool IsBounce() const { return m_IsBounce; }
     bool IsFromBlock() const { return m_FromBlock; }
-    bool IsDeathActive() const { return m_DeathActive; }
+    bool IsDeathActive() const {
+        return m_DeathAnimation && m_DeathAnimation->IsActive();
+    }
     bool IsAnimated() const { return m_IsAnimated; }
-    bool IsDead() const { return !m_Active || m_DeathActive || m_Squashed; }
+    bool IsDead() const { return !m_Active || IsDeathActive(); }
+    bool IsInShellMode() const { return m_KoopaSquash && m_Squashed; }
     float GetWorldX() const { return m_PosX; }
     float GetWorldY() const { return m_PosY; }
     AABB GetCollider() const { return GetHitbox(); }
@@ -75,6 +80,7 @@ class EntityState {
     void SetGrounded(bool g) { m_IsGrounded = g; }
     void SetActive(bool a) { m_Active = a; }
     void SetDirection(int d) { m_Direction = d; }
+    void SetName(const std::string& name) { m_Name = name; }
     void SetFallHeight(double h) { m_FallHeight = h; }
     void SetSizeX(int sizeX) { m_SizeX = sizeX; }
     void SetSizeY(int sizeY) { m_SizeY = sizeY; }
@@ -94,7 +100,10 @@ class EntityState {
     // -- Actions --
     void FlipDirection();
     void Squish();
+    void TriggerDeath(EnemyDeathCause cause);
     void SetSquashed(bool val) { m_Squashed = val; }
+    void SetDeathAnimationStrategy(
+        std::unique_ptr<IEnemyDeathAnimation> strategy);
     void KickShell(float speed);
     void Delete();
     void Jump();
@@ -142,8 +151,7 @@ class EntityState {
 
     // Death/squish
     bool m_Squashed = false;
-    bool m_DeathActive = false;
-    int m_SquishCounter = 0;
+    std::unique_ptr<IEnemyDeathAnimation> m_DeathAnimation;
     int m_ActiveCounter = 0;
     bool m_Hidden = false;  // Set by PiranhaPlantBehavior to suppress rendering
 };

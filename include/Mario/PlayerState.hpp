@@ -8,10 +8,12 @@
 #ifndef MARIO_PLAYER_STATE_HPP
 #define MARIO_PLAYER_STATE_HPP
 
+#include <memory>
 #include <string>
 
 #include "Mario/Collider.hpp"
 #include "Mario/GameConfig.hpp"
+#include "Mario/PlayerDeathAnimation.hpp"
 
 namespace Mario {
 
@@ -60,7 +62,7 @@ class PlayerState {
     void SetMovingRight(bool v) { m_MovingRight = v; }
     void SetMovingLeft(bool v) { m_MovingLeft = v; }
     void SetJumping(bool v);
-    void SetCrouching(bool v) { m_Crouching = v; }
+    void SetCrouching(bool v);
     void SetRunning(bool v) { m_Running = v; }
 
     /**
@@ -107,6 +109,12 @@ class PlayerState {
     bool IsInvincible() const { return m_InvTimer > 0; }
     bool IsPoleSliding() const { return m_PoleSliding; }
     bool IsControllable() const { return m_Controllable; }
+    bool IsDeathAnimActive() const {
+        return m_DeathAnimation && m_DeathAnimation->IsActive();
+    }
+
+    void StartDeathAnimation();
+    void UpdateDeathAnimation();
 
     void SetGrounded(bool v) { m_Grounded = v; }
     void SetDead(bool v) { m_Dead = v; }
@@ -127,6 +135,14 @@ class PlayerState {
      * Start star invincibility.
      */
     void StartStar();
+
+    /**
+     * Cheat/debug helper: instantly switch to a power state by cyclic index.
+     * Handles Y-position adjustment when size changes (SMALL<->BIG boundary),
+     * resets invincibility, and sets the star timer when idx==3.
+     * @param idx  0=SMALL, 1=BIG, 2=FIRE, 3=STAR (BIG_STAR)
+     */
+    void ForceApplyPowerState(int idx);
 
     // -- Hitbox --
     int GetWidth() const;
@@ -158,6 +174,8 @@ class PlayerState {
     int GetInvTimer() const { return m_InvTimer; }
     int GetStarTimer() const { return m_StarTimer; }
     void SetInvTimer(int t) { m_InvTimer = t; }
+    PowerState GetMemoryState() const { return m_MemoryState; }
+    void SetMemoryState(PowerState s) { m_MemoryState = s; }
 
    private:
     // Position & velocity
@@ -198,6 +216,9 @@ class PlayerState {
     bool m_SpecialActive = false;
     int m_SpecialCounter = 0;
     int m_SpecialLength = 15;
+
+    // Death animation state
+    std::unique_ptr<IPlayerDeathAnimation> m_DeathAnimation;
 };
 
 }  // namespace Mario

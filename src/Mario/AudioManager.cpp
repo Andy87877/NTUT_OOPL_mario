@@ -214,4 +214,25 @@ std::string AudioPathResolver::GetSFXPath(const std::string& filename) {
     return std::string(RESOURCE_DIR) + SFX_SUBDIR + filename;
 }
 
+// ============================================================================
+// PlayBGMForLevel — selects and plays the correct BGM for a given level.
+// This is the single authoritative place that maps level names to BGM tracks,
+// so App and scene handlers never need level-name strings in audio logic.
+// ============================================================================
+void AudioManager::PlayBGMForLevel(const std::string& levelName,
+                                   int timeRemaining) {
+    bool hurry = timeRemaining <= 100 && timeRemaining > 0;
+    BGMName bgm;
+    if (levelName == "8-4" || levelName == "8-4_sub") {
+        bgm = hurry ? BGMName::CastleThemeHurryUp : BGMName::CastleTheme;
+    } else if (levelName == "1-1u" || levelName == "1-2" ||
+               levelName == "1-2uu" || levelName == "1-2_sub") {
+        bgm = hurry ? BGMName::UndergroundThemeHurryUp
+                    : BGMName::UndergroundTheme;
+    } else {
+        bgm = hurry ? BGMName::GroundThemeHurryUp : BGMName::GroundTheme;
+    }
+    PlayBGM(bgm);
+}
+
 }  // namespace Mario

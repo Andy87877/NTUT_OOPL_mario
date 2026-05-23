@@ -18,6 +18,7 @@
 #include "Mario/Behaviors/PiranhaPlantBehavior.hpp"
 #include "Mario/Behaviors/PodobooBehavior.hpp"
 #include "Mario/Behaviors/StaticEntityBehaviors.hpp"
+#include "Mario/EnemyDeathStyleFactory.hpp"
 #include "Mario/GameConfig.hpp"
 #include "Util/Logger.hpp"
 
@@ -27,6 +28,9 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
     const Level& level) {
     std::vector<std::shared_ptr<Entity>> entities;
     std::string levelName = level.GetLevelName();
+    bool hasBowser = false;
+    float bowserAnchorX = -1.0f;
+    float bowserAnchorY = -1.0f;
 
     for (const auto& sp : level.GetSpawnPoints()) {
         // Handle Flag entity - should only appear in 1-1
@@ -51,11 +55,6 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
             continue;
         }
 
-        // Skip UnderCoin and other non-entity spawn points
-        if (sp.entityName == "UnderCoin") {
-            continue;
-        }
-
         // Look up entity definition from EntityList.csv
         const EntityDef& def = level.GetEntityDefByName(sp.entityName);
         if (def.name.empty()) {
@@ -73,6 +72,22 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
             LOG_DEBUG("Spawned {} at worldX={}, worldY={}", sp.entityName,
                       sp.worldX, sp.worldY);
             entities.push_back(entity);
+
+            if (levelName == "8-4") {
+                if (sp.entityName == "Bowser") {
+                    hasBowser = true;
+                }
+                if (sp.entityName == "Axe" && bowserAnchorX < 0.0f) {
+                    bowserAnchorX = sp.worldX - static_cast<float>(
+                                                    GameConfig::TILE_SIZE * 7);
+                    bowserAnchorY = sp.worldY;
+                }
+                if (sp.entityName == "Princess" && bowserAnchorX < 0.0f) {
+                    bowserAnchorX = sp.worldX - static_cast<float>(
+                                                    GameConfig::TILE_SIZE * 7);
+                    bowserAnchorY = sp.worldY;
+                }
+            }
         }
     }
 
@@ -96,6 +111,29 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
             }
         } else {
             LOG_WARN("Podoboo entity definition not found in EntityList.csv");
+        }
+
+        if (!hasBowser) {
+            const EntityDef& bowserDef = level.GetEntityDefByName("Bowser");
+            if (!bowserDef.name.empty()) {
+                if (bowserAnchorX < 0.0f) {
+                    bowserAnchorX =
+                        level.GetPlayerSpawnX() +
+                        static_cast<float>(GameConfig::TILE_SIZE * 24);
+                    bowserAnchorY = level.GetPlayerSpawnY();
+                }
+
+                auto fallbackBowser =
+                    SpawnEntity(bowserDef, bowserAnchorX, bowserAnchorY, 0,
+                                false, levelName);
+                if (fallbackBowser) {
+                    LOG_WARN(
+                        "8-4 fallback: Bowser spawner missing, inserted Bowser "
+                        "at ({}, {}).",
+                        bowserAnchorX, bowserAnchorY);
+                    entities.push_back(fallbackBowser);
+                }
+            }
         }
     }
 
@@ -125,6 +163,9 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             behavior = std::make_unique<KoopaBehavior>(
                 KoopaBehavior::KoopaType::TROOPA);
             break;
+        case EntityType::PARAKOOPA:
+            behavior = std::make_unique<ParaKoopaBehavior>();
+            break;
         case EntityType::KOOPA_SHELL:
             behavior = std::make_unique<KoopaBehavior>(
                 KoopaBehavior::KoopaType::SHELL);
@@ -137,17 +178,31 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             break;
         case EntityType::FIRE:
             behavior = std::make_unique<FireballBehavior>(
-                FireballBehavior::FireballType::PLAYER);
+                def.isEnemy ? FireballBehavior::FireballType::BOWSER
+                            : FireballBehavior::FireballType::PLAYER);
             break;
         case EntityType::PRINCESS:
             behavior = std::make_unique<PrincessBehavior>();
             break;
         case EntityType::MUSHROOM:
+            behavior = std::make_unique<ItemBehavior>(
+                ItemBehavior::ItemType::MUSHROOM);
+            break;
         case EntityType::FIRE_FLOWER:
+            behavior = std::make_unique<ItemBehavior>(
+                ItemBehavior::ItemType::FIRE_FLOWER);
+            break;
         case EntityType::STAR:
+            behavior =
+                std::make_unique<ItemBehavior>(ItemBehavior::ItemType::STAR);
+            break;
         case EntityType::ONE_UP:
+            behavior =
+                std::make_unique<ItemBehavior>(ItemBehavior::ItemType::ONE_UP);
+            break;
         case EntityType::COIN:
-            behavior = std::make_unique<ItemBehavior>();
+            behavior =
+                std::make_unique<ItemBehavior>(ItemBehavior::ItemType::COIN);
             break;
         case EntityType::PARTICLE_DEBRIS:
             behavior = std::make_unique<ParticleDebris>();
@@ -159,7 +214,9 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             behavior = std::make_unique<AxeBehavior>();
             break;
         case EntityType::AXE_PROJECTILE:
-            behavior = std::make_unique<AxeBehavior>();
+            // Thrown axe projectile: gravity + velocity applied by EntityState
+            // Tick(); DefaultEntityBehavior is sufficient.
+            behavior = std::make_unique<DefaultEntityBehavior>();
             break;
         case EntityType::PIRANHA_PLANT:
             behavior = std::make_unique<PiranhaPlantBehavior>();
@@ -176,6 +233,10 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
     if (behavior) {
         entity->SetBehavior(std::move(behavior));
     }
+
+    // Inject death style via dedicated factory to keep responsibilities clean.
+    entity->GetState().SetDeathAnimationStrategy(
+        EnemyDeathStyleFactory::CreateFor(def.type));
 
     return entity;
 }

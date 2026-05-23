@@ -58,11 +58,7 @@ void PipeWarpSceneHandler::Update(App& app) {
 }
 
 void PipeWarpSceneHandler::OnRender(App& app) {
-    const std::string& lvl = app.GetCurrentLevelName();
-    bool underground = app.GetGameState().IsUnderground() ||
-                       lvl.find("u") != std::string::npos || lvl == "1-2" ||
-                       lvl == "8-4";
-    app.ApplyBackground(underground);
+    app.ApplyBackground();
     app.GetRenderer().Update();
     app.GetUIManager().Update(Mario::UIManager::State::PLAYING);
 }

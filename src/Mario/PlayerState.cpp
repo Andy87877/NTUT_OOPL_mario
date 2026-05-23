@@ -15,7 +15,8 @@
 
 namespace Mario {
 
-PlayerState::PlayerState() = default;
+PlayerState::PlayerState()
+    : m_DeathAnimation(std::make_unique<ClassicPlayerDeathAnimation>()) {}
 
 void PlayerState::Init(float worldX, float worldY, int startState) {
     m_PosX = worldX;
@@ -39,6 +40,7 @@ void PlayerState::Init(float worldX, float worldY, int startState) {
     m_StarTimer = 0;
     m_SpecialActive = false;
     m_MemoryState = PowerState::SMALL;
+    m_DeathAnimation = std::make_unique<ClassicPlayerDeathAnimation>();
 }
 
 void PlayerState::Tick() {
@@ -158,24 +160,44 @@ float PlayerState::ApplyGravity() {
 
 void PlayerState::SetPowerState(PowerState ps) { m_PowerState = ps; }
 
+void PlayerState::SetCrouching(bool v) {
+    if (m_Crouching == v) return;
+
+    if (m_PowerState == PowerState::BIG || m_PowerState == PowerState::FIRE ||
+        m_PowerState == PowerState::BIG_STAR) {
+        if (v) {
+            m_PosY += GameConfig::TILE_SIZE;
+        } else {
+            m_PosY -= GameConfig::TILE_SIZE;
+        }
+    }
+    m_Crouching = v;
+}
+
 void PlayerState::TakeDamage() {
     if (m_InvTimer > 0 || m_StarTimer > 0) return;  // Already invincible
     if (m_Dead) return;
 
     if (m_PowerState == PowerState::SMALL ||
         m_PowerState == PowerState::SMALL_STAR) {
-        m_Dead = true;
-        m_Controllable = false;
+        StartDeathAnimation();
     } else {
-        // Big/Fire -> Small with invincibility frames
-        m_PowerState = PowerState::SMALL;
+        // Play classic warp/shrink sound
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
+
+        // Invincibility frames
         m_InvTimer = 60;  // ~1.2 seconds of invincibility
 
-        // When shrinking from big to small, adjust Y downwards
-        // (big=90px height, small=45px height, so move down by 45px to stay on
-        // ground)
-        if (!m_Crouching) {
-            SetY(GetY() + GameConfig::TILE_SIZE);
+        if (m_PowerState == PowerState::FIRE) {
+            m_PowerState = PowerState::BIG;
+        } else if (m_PowerState == PowerState::BIG) {
+            m_PowerState = PowerState::SMALL;
+            // When shrinking from big to small, adjust Y downwards
+            // (big=90px height, small=45px height, so move down by 45px to stay
+            // on ground)
+            if (!m_Crouching) {
+                SetY(GetY() + GameConfig::TILE_SIZE);
+            }
         }
     }
 }
@@ -192,13 +214,59 @@ void PlayerState::StartStar() {
     m_StarTimer = 500;  // ~10 seconds
 }
 
+// ============================================================================
+// ForceApplyPowerState — cheat/debug helper for the ESC power-cycle menu.
+// All size-change Y adjustments, star timer setup, and invincibility reset
+// live here so no scene handler needs to know the internal rules.
+// idx: 0=SMALL, 1=BIG, 2=FIRE, 3=STAR(BIG_STAR)
+// ============================================================================
+void PlayerState::ForceApplyPowerState(int idx) {
+    // Determine current and target size categories.
+    bool wasBig =
+        (m_PowerState == PowerState::BIG || m_PowerState == PowerState::FIRE ||
+         m_PowerState == PowerState::BIG_STAR);
+    bool willBeBig = (idx >= 1);  // BIG / FIRE / STAR are all 2-tile tall
+
+    // Adjust vertical position to keep Mario's feet on the ground.
+    if (!wasBig && willBeBig) {
+        m_PosY -= static_cast<float>(GameConfig::TILE_SIZE);  // growing up
+    } else if (wasBig && !willBeBig) {
+        m_PosY += static_cast<float>(GameConfig::TILE_SIZE);  // shrinking down
+    }
+
+    // Cancel any pending damage-invincibility; the cheat is instant.
+    m_InvTimer = 0;
+    m_StarTimer = 0;
+
+    switch (idx) {
+        case 0:
+            m_PowerState = PowerState::SMALL;
+            break;
+        case 1:
+            m_PowerState = PowerState::BIG;
+            break;
+        case 2:
+            m_PowerState = PowerState::FIRE;
+            break;
+        case 3:
+            m_PowerState = PowerState::BIG_STAR;
+            m_MemoryState = PowerState::FIRE;  // Return to Fire after star ends
+            m_StarTimer = 500;
+            break;
+        default:
+            break;
+    }
+}
+
 int PlayerState::GetWidth() const { return GameConfig::TILE_SIZE; }
 
 int PlayerState::GetHeight() const {
     if (m_PowerState == PowerState::BIG || m_PowerState == PowerState::FIRE ||
         m_PowerState == PowerState::BIG_STAR) {
-        return GameConfig::TILE_SIZE *
-               2;  // Crouch is visual-only; hitbox height never changes
+        if (m_Crouching) {
+            return GameConfig::TILE_SIZE;
+        }
+        return GameConfig::TILE_SIZE * 2;
     }
     return GameConfig::TILE_SIZE;
 }
@@ -230,6 +298,29 @@ void PlayerState::SetFireShooting(bool v) {
         m_SpecialCounter = 0;
         Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::FireBall);
     }
+}
+
+void PlayerState::StartDeathAnimation() {
+    if (m_DeathAnimation && m_DeathAnimation->IsActive()) return;
+
+    m_Dead = true;
+    m_Controllable = false;
+    m_VelX = 0.0f;
+    m_VelY = 0.0;
+
+    if (!m_DeathAnimation) {
+        m_DeathAnimation = std::make_unique<ClassicPlayerDeathAnimation>();
+    }
+    m_DeathAnimation->Start();
+}
+
+void PlayerState::UpdateDeathAnimation() {
+    if (!m_DeathAnimation || !m_DeathAnimation->IsActive()) return;
+
+    m_VelX = 0.0f;
+    m_VelY = 0.0;
+    m_DeathAnimation->Tick(GameConfig::GRAVITY, GameConfig::TICK_INTERVAL,
+                           GameConfig::JUMP_VELOCITY, m_PosY);
 }
 
 }  // namespace Mario

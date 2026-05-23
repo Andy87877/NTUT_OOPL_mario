@@ -51,8 +51,9 @@ void LevelCompleteController::StartFlagpole(Player& player,
     float poleX = m_goal_block_x - GameConfig::TILE_SIZE * 0.4f;
     player.GetState().SetX(poleX);
 
-    // We do NOT override Mario's Y position (C# lines 1249: Mario.ChangePosition(X + offset, Y))
-    // This allows Mario to slide down from where he contacted the flagpole.
+    // We do NOT override Mario's Y position (C# lines 1249:
+    // Mario.ChangePosition(X + offset, Y)) This allows Mario to slide down from
+    // where he contacted the flagpole.
 
     player.GetState().SetVelX(0.0f);
     player.GetState().SetVelY(0.0f);
@@ -84,6 +85,11 @@ void LevelCompleteController::StartAxeSequence(
 
     player.GetState().SetControllable(false);
     player.GetState().SetVelX(0.0f);
+    player.GetState().SetVelY(0.0);
+    player.GetState().SetMovingRight(false);
+    player.GetState().SetMovingLeft(false);
+    player.GetState().SetPoleSliding(false);
+    player.SetVisible(true);
 
     LOG_INFO("8-4 Axe sequence started.");
 }
@@ -108,9 +114,9 @@ void LevelCompleteController::StartPipeWarp(Player& player,
 
     // Drop ZIndex so Mario renders BEHIND the pipe tiles.
     // Since solid blocks are at GameConfig::Z_BLOCK, we drop player Z-index
-    // below that, but above background (-10.0f) to remain in front of background.
-    // The player object is recreated when the next level loads, so no
-    // explicit ZIndex restore is needed.
+    // below that, but above background (-10.0f) to remain in front of
+    // background. The player object is recreated when the next level loads, so
+    // no explicit ZIndex restore is needed.
     player.SetZIndex(GameConfig::Z_BLOCK - 1.0f);
 
     if (direction == "Down") {
@@ -216,9 +222,9 @@ void LevelCompleteController::UpdatePoleSlide(Player& player) {
         if (flagPassedMario && ps.IsFacingRight()) {
             // Shift Mario right to the other side of the pole
             ps.SetX(ps.GetX() + GameConfig::TILE_SIZE * 0.6f);
-            ps.SetFacingRight(false); // Flip facing left
+            ps.SetFacingRight(false);  // Flip facing left
             m_Phase = EndingPhase::POLE_WALK;
-            m_tick_count = 0; // Reset tick count for the 20-tick delay
+            m_tick_count = 0;  // Reset tick count for the 20-tick delay
             LOG_INFO("Flagpole slide complete - Transitioning to POLE_WALK");
         }
     }
@@ -406,6 +412,7 @@ void LevelCompleteController::UpdateAxeSequence(Player& player, Level& level) {
 
         case EndingPhase::WALK_TO_PRINCESS: {
             PlayerState& ps = player.GetState();
+            // Let gravity act so Mario drops down to the lower floor naturally
             ps.SetMovingRight(true);
             ps.SetFacingRight(true);
             ps.SetX(ps.GetX() +

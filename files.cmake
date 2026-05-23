@@ -14,11 +14,14 @@ set(SRC_FILES
 
     # Player (MVC)
     Mario/PlayerState.cpp
+    Mario/PlayerDeathAnimation.cpp
     Mario/Player.cpp
     Mario/InputHandler.cpp
 
     # Entity (MVC)
     Mario/EntityState.cpp
+    Mario/EnemyDeathAnimation.cpp
+    Mario/EnemyDeathStyleFactory.cpp
     Mario/Entity.cpp
     Mario/EntityFactory.cpp
 
@@ -34,8 +37,14 @@ set(SRC_FILES
     Mario/Behaviors/PodobooBehavior.cpp
     Mario/Behaviors/ParticleDebris.cpp
 
-    # Collision
+    # Collision (OOP subsystem)
+    # CollisionManager is a thin facade; logic lives in Collision/ handlers.
     Mario/CollisionManager.cpp
+    Mario/Collision/BlockContactResolver.cpp
+    Mario/Collision/PlayerBlockHandler.cpp
+    Mario/Collision/PlayerEntityHandler.cpp
+    Mario/Collision/EntityBlockHandler.cpp
+    Mario/Collision/EntityEntityHandler.cpp
 
     # Level Completion (Phase 5)
     Mario/LevelCompleteController.cpp
@@ -80,11 +89,14 @@ set(INCLUDE_FILES
 
     # Player (MVC)
     Mario/PlayerState.hpp
+    Mario/PlayerDeathAnimation.hpp
     Mario/Player.hpp
     Mario/InputHandler.hpp
 
     # Entity (MVC)
     Mario/EntityState.hpp
+    Mario/EnemyDeathAnimation.hpp
+    Mario/EnemyDeathStyleFactory.hpp
     Mario/Entity.hpp
     Mario/EntityFactory.hpp
 

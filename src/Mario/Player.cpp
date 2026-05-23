@@ -48,18 +48,24 @@ void Player::UpdateView(float cameraOffset) {
 
     // Build the sprite path from current state following C# logic:
     // sprite_name = "Mario" + prefix + state + frame
-    std::string prefix = m_State.GetAnimPrefix();
-    int frame = m_State.GetAnimFrame();
-
-    // Map power state to C# state number
-    int spriteState = static_cast<int>(m_State.GetPowerState());
-
-    // Calculate star state loop (0, 1, 2, 3), changes every 10 frames
+    std::string prefix;
+    int frame;
+    int spriteState;
     int starState = 0;
-    if (m_State.GetPowerState() == PowerState::SMALL_STAR ||
-        m_State.GetPowerState() == PowerState::BIG_STAR) {
-        // Match C# star mode animation logic (flashing colors)
-        starState = (m_State.GetStarTimer() / 10) % 4;
+
+    if (m_State.IsDeathAnimActive()) {
+        prefix = "Jump";
+        frame = 0;
+        spriteState = 0;
+    } else {
+        prefix = m_State.GetAnimPrefix();
+        frame = m_State.GetAnimFrame();
+        spriteState = static_cast<int>(m_State.GetPowerState());
+        if (m_State.GetPowerState() == PowerState::SMALL_STAR ||
+            m_State.GetPowerState() == PowerState::BIG_STAR) {
+            // Match C# star mode animation logic (flashing colors)
+            starState = (m_State.GetStarTimer() / 10) % 4;
+        }
     }
 
     // Get the sprite path
@@ -77,23 +83,17 @@ void Player::UpdateView(float cameraOffset) {
         // If loading fails, keep the previous sprite
     }
 
-    // Convert world coordinates to PTSD screen coordinates
-    // World: (0,0) top-left, Y increases downward
-    // PTSD:  (0,0) screen center, Y increases upward
-    float levelHalfH = GameConfig::LEVEL_HEIGHT_PX / 2.0f;
-
-    // Player world position is top-left of the player sprite
-    // PTSD needs center of the sprite
+    // Convert world coordinates to PTSD screen coordinates using unified helpers
     float playerWidth = static_cast<float>(m_State.GetWidth());
     float playerHeight = static_cast<float>(m_State.GetHeight());
 
-    // Globally round the cameraOffset and align edges to integers
+    // Globally round the cameraOffset and world coordinates for perfect integer pixel alignment
     float roundedOffset = std::round(cameraOffset);
-    float leftScreenX = std::round(m_State.GetX()) - roundedOffset - GameConfig::WINDOW_WIDTH / 2.0f;
-    float screenX = leftScreenX + playerWidth / 2.0f;
+    float worldCX = std::round(m_State.GetX()) + playerWidth / 2.0f;
+    float worldCY = std::round(m_State.GetY()) + playerHeight / 2.0f;
 
-    float bottomScreenY = levelHalfH - (std::round(m_State.GetY()) + playerHeight) + GameConfig::RENDER_Y_OFFSET;
-    float screenY = bottomScreenY + playerHeight / 2.0f;
+    float screenX = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
+    float screenY = GameConfig::WorldToPTSDY(worldCY);
 
     m_Transform.translation = {screenX, screenY};
 
@@ -101,7 +101,9 @@ void Player::UpdateView(float cameraOffset) {
     float absScaleX = GameConfig::DRAW_SCALE;
     m_Transform.scale.y = GameConfig::DRAW_SCALE;
 
-    if (m_State.IsFacingRight()) {
+    if (m_State.IsDeathAnimActive()) {
+        m_Transform.scale.x = absScaleX;
+    } else if (m_State.IsFacingRight()) {
         m_Transform.scale.x = absScaleX;
     } else {
         m_Transform.scale.x = -absScaleX;

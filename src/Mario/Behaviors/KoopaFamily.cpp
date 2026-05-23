@@ -70,11 +70,13 @@ void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
     m_ThrowTimer++;
 
     if (m_ThrowTimer >= AXE_THROW_INTERVAL) {
-        if (m_AxeSpawnCallback) {
-            float axeX = state.GetX() + state.GetWidth() / 2.0f;
-            float axeY = state.GetY() + state.GetHeight();
-            m_AxeSpawnCallback(axeX, axeY);
-        }
+        // Set pending spawn — consumed by PlayingSceneHandler via
+        // ConsumeSpawnRequest(), same pattern as BowserBehavior.
+        m_AxePending = true;
+        m_AxeX = state.GetX() + state.GetWidth() * 0.5f;
+        // Throw upward: spawn 1 tile above AxeKoopa's top edge
+        m_AxeY = state.GetY() - GameConfig::TILE_SIZE;
+        m_AxeDir = state.GetDirection();
         m_ThrowTimer = 0;
     }
 
@@ -125,45 +127,110 @@ std::unique_ptr<IEntityBehavior> AxeKoopaBehavior::Clone() const {
     return std::make_unique<AxeKoopaBehavior>(*this);
 }
 
+bool AxeKoopaBehavior::ConsumeSpawnRequest(EntityType& outType, float& outX,
+                                           float& outY, int& outDir) {
+    if (!m_AxePending) return false;
+    m_AxePending = false;
+    outType = EntityType::AXE_PROJECTILE;
+    outX = m_AxeX;
+    outY = m_AxeY;
+    outDir = m_AxeDir;
+    return true;
+}
+
 // ============================================================================
 // ParaKoopaBehavior
 // ============================================================================
 
 void ParaKoopaBehavior::Update(EntityState& state,
                                [[maybe_unused]] const Level& level,
-                               [[maybe_unused]] const Player& player,
-                               int gameTimer) {
-    if (m_OriginalY == 0.0f && m_FloatPhase == 0.0f) {
-        m_OriginalY = state.GetWorldY();
-    }
-
-    if (m_IsFlying) {
+                               const Player& player, int gameTimer) {
+    if (m_Mode != Mode::SHELL && state.IsInShellMode()) {
+        m_Mode = Mode::SHELL;
+        state.SetCollidable(true);
+        state.SetGrounded(false);
         state.SetVelY(0.0f);
         state.SetFallHeight(0.0f);
-        state.SetGrounded(false);
-
-        m_FloatPhase += FLOAT_FREQUENCY * 0.016f;
-        if (m_FloatPhase > 2.0f * 3.14159f) m_FloatPhase -= 2.0f * 3.14159f;
-
-        float newY = m_OriginalY + FLOAT_AMPLITUDE * std::sin(m_FloatPhase);
-        state.SetWorldY(newY);
     }
-    // Grounded: App handles gravity / block collision entirely
+
+    if (!m_AnchorInitialized) {
+        m_AnchorY = state.GetWorldY();
+        m_AnchorInitialized = true;
+    }
+
+    if (m_Mode == Mode::FLYING) {
+        // Flying ParaKoopa should be a pure vertical patrol enemy.
+        // Keep it out of generic gravity/block-collision side effects.
+        state.SetCollidable(false);
+        state.SetGrounded(true);
+        state.SetVelX(0.0f);
+        state.SetVelY(0.0f);
+        state.SetFallHeight(0.0f);
+
+        float newY = state.GetWorldY() + PATROL_SPEED * m_VerticalDir;
+        float upperBound = m_AnchorY - PATROL_RANGE;
+        float lowerBound = m_AnchorY + PATROL_RANGE;
+
+        if (newY <= upperBound) {
+            newY = upperBound;
+            m_VerticalDir = 1;
+        } else if (newY >= lowerBound) {
+            newY = lowerBound;
+            m_VerticalDir = -1;
+        }
+
+        state.SetWorldY(newY);
+    } else if (m_Mode == Mode::WALKING) {
+        // Walking Koopa: no vertical patrol, normal gravity + block collision.
+        state.SetCollidable(true);
+        if (std::abs(state.GetVelX()) < 0.05f) {
+            float walkSpeed =
+                GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
+            state.SetVelX(state.GetDirection() == 0 ? -walkSpeed : walkSpeed);
+        }
+    } else {
+        // Shell mode: preserve shell movement, no patrol forcing.
+        state.SetCollidable(true);
+    }
 
     if (gameTimer % 10 == 0) state.AdvanceAnimationFrame();
 }
 
-bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state,
-                                          [[maybe_unused]] Player& player,
+bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state, Player& player,
                                           bool isFromAbove) {
-    if (isFromAbove && m_IsFlying) {
-        m_IsFlying = false;
-        m_FloatPhase = 0.0f;
+    if (!isFromAbove) {
+        return false;
+    }
+
+    if (m_Mode == Mode::FLYING) {
+        // 1st stomp: winged koopa -> normal walking koopa.
+        m_Mode = Mode::WALKING;
+        state.SetName("KoopaTroopa");
+        state.SetSquashed(false);
+        state.SetCollidable(true);
         state.SetVelY(0.0f);
-        state.SetFallHeight(0.0);
+        state.SetFallHeight(0.0f);
+        state.SetGrounded(false);
+        float walkSpeed =
+            GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
+        state.SetVelX(state.GetDirection() == 0 ? -walkSpeed : walkSpeed);
         return true;
     }
-    if (isFromAbove && !m_IsFlying) return true;
+
+    if (m_Mode == Mode::WALKING) {
+        // 2nd stomp: walking koopa -> shell, starts stationary.
+        m_Mode = Mode::SHELL;
+        state.SetName("KoopaTroopaShell");
+        state.SetSquashed(true);
+        state.SetCollidable(true);
+        state.SetVelY(0.0f);
+        state.SetFallHeight(0.0f);
+        state.SetGrounded(false);
+        state.SetVelX(0.0f);
+        return true;
+    }
+
+    if (m_Mode == Mode::SHELL) return true;
     return false;
 }
 

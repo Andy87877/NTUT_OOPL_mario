@@ -19,7 +19,8 @@ void FlagpoleSceneHandler::Update(App& app) {
     bool stillRunning = app.GetLevelCompleteCtrl().Update(
         *player, *level, app.GetCamera().GetOffset());
 
-    app.GetCamera().Update(player->GetWorldX(), level->GetWidthPixels());
+    app.GetCamera().Update(player->GetWorldX(), level->GetWidthPixels(),
+                           app.GetCurrentLevelName(), true);
     level->UpdateBlocks(app.GetCamera().GetOffset());
 
     auto& flag = app.GetFlagEntity();
@@ -34,11 +35,7 @@ void FlagpoleSceneHandler::Update(App& app) {
 }
 
 void FlagpoleSceneHandler::OnRender(App& app) {
-    const std::string& lvl = app.GetCurrentLevelName();
-    bool underground = app.GetGameState().IsUnderground() ||
-                       lvl.find("u") != std::string::npos || lvl == "1-2" ||
-                       lvl == "8-4";
-    app.ApplyBackground(underground);
+    app.ApplyBackground();
     app.GetRenderer().Update();
     app.GetUIManager().Update(Mario::UIManager::State::PLAYING);
 }

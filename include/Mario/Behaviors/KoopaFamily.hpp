@@ -12,7 +12,6 @@
 #ifndef MARIO_KOOPA_FAMILY_HPP
 #define MARIO_KOOPA_FAMILY_HPP
 
-#include <functional>
 #include <memory>
 
 #include "Mario/Behaviors/IEntityBehavior.hpp"
@@ -54,26 +53,21 @@ class KoopaBehavior : public IEntityBehavior {
 // AxeKoopaBehavior — walking Koopa that throws axes periodically
 // ============================================================================
 /**
- * Patrol + periodic axe-throw attack via a spawn callback.
+ * Patrol + periodic axe-throw attack via ConsumeSpawnRequest pattern.
  * Immune to stomp (like Bowser). Only defeated by axe trap.
  * @inheritance IEntityBehavior <- AxeKoopaBehavior
  */
 class AxeKoopaBehavior : public IEntityBehavior {
    public:
-    using AxeSpawnCallback = std::function<void(float x, float y)>;
-
     AxeKoopaBehavior() = default;
     ~AxeKoopaBehavior() override = default;
-
-    /** Attach the axe-spawn callback from App. */
-    void SetAxeSpawnCallback(AxeSpawnCallback callback) {
-        m_AxeSpawnCallback = std::move(callback);
-    }
 
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
                            bool isFromAbove) override;
+    bool ConsumeSpawnRequest(EntityType& outType, float& outX, float& outY,
+                             int& outDir) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "AxeKoopaBehavior"; }
 
@@ -82,18 +76,27 @@ class AxeKoopaBehavior : public IEntityBehavior {
     static constexpr int AXE_THROW_INTERVAL = 150;  // ~2.5 s at 60 FPS
 
     int m_ThrowTimer = 0;
-    AxeSpawnCallback m_AxeSpawnCallback;
+    bool m_AxePending = false;
+    float m_AxeX = 0.0f;
+    float m_AxeY = 0.0f;
+    int m_AxeDir = 0;
 };
 
 // ============================================================================
-// ParaKoopaBehavior — flying Koopa with sine-wave oscillation
+// ParaKoopaBehavior — flying Koopa with vertical patrol
 // ============================================================================
 /**
- * Floats vertically via sine wave; loses wings and falls when stomped.
+ * Patrols vertically (up/down); loses wings and falls when stomped.
  * @inheritance IEntityBehavior <- ParaKoopaBehavior
  */
 class ParaKoopaBehavior : public IEntityBehavior {
    public:
+    enum class Mode {
+        FLYING,
+        WALKING,
+        SHELL,
+    };
+
     ParaKoopaBehavior() = default;
     ~ParaKoopaBehavior() override = default;
 
@@ -105,12 +108,13 @@ class ParaKoopaBehavior : public IEntityBehavior {
     const char* GetName() const override { return "ParaKoopaBehavior"; }
 
    private:
-    static constexpr float FLOAT_AMPLITUDE = 1.5f;  // Oscillation distance (px)
-    static constexpr float FLOAT_FREQUENCY = 2.0f;  // Oscillation rate (rad/s)
+    static constexpr float PATROL_RANGE = 45.0f;  // +/- 1 tile around anchor Y
+    static constexpr float PATROL_SPEED = 1.15f;  // px/frame
 
-    float m_FloatPhase = 0.0f;
-    float m_OriginalY = 0.0f;
-    bool m_IsFlying = true;
+    float m_AnchorY = 0.0f;
+    bool m_AnchorInitialized = false;
+    int m_VerticalDir = -1;  // -1 up, +1 down
+    Mode m_Mode = Mode::FLYING;
 };
 
 }  // namespace Mario

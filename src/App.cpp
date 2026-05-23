@@ -62,6 +62,13 @@ void App::TransitionTo(State next) {
     if (m_CurrentHandler) m_CurrentHandler->OnExit(*this);
     m_CurrentState = next;
     m_CurrentHandler = CreateSceneHandler(next);
+    if (next == State::TITLE) {
+        m_Player = nullptr;
+        m_Level = nullptr;
+        m_Entities.clear();
+        m_Renderer = Util::Renderer();
+        m_Camera.Reset();
+    }
     if (m_CurrentHandler) {
         m_CurrentHandler->OnEnter(*this);
         LOG_DEBUG("State -> {}", m_CurrentHandler->GetName());
@@ -149,16 +156,15 @@ void App::LoadLevel(const std::string& levelName) {
     //   GameConfig::Z_BLOCK      = solid tiles (-5.0f)
     //   1.0f = entities / enemies (in front of tiles)
     //   2.0f = player (always in front of everything except UI)
-    // During pipe warp entry the player is dropped to GameConfig::Z_BLOCK - 1.0f (-6.0f) so it sinks behind
-    // the pipe tiles, giving the correct "enter pipe" visual.
+    // During pipe warp entry the player is dropped to GameConfig::Z_BLOCK
+    // - 1.0f (-6.0f) so it sinks behind the pipe tiles, giving the correct
+    // "enter pipe" visual.
     m_Renderer = Util::Renderer();
     for (const auto& block : m_Level->GetAllBlocks()) {
         m_Renderer.AddChild(block);
     }
-    m_Player->SetZIndex(2.0f);
     m_Renderer.AddChild(m_Player);
     for (const auto& entity : m_Entities) {
-        entity->SetZIndex(1.0f);
         m_Renderer.AddChild(entity);
     }
 
@@ -172,13 +178,9 @@ void App::LoadLevel(const std::string& levelName) {
         entity->SetVisible(false);
     }
 
-    // Set OpenGL clear color for the level type (underground = black, surface =
-    // sky blue). Delegated to ApplyBackground() to avoid duplicating the color
-    // mapping here.
-    bool isUnderground = m_GameState.IsUnderground() ||
-                         levelName.find("u") != std::string::npos ||
-                         levelName == "1-2" || levelName == "8-4";
-    ApplyBackground(isUnderground);
+    // Level knows its own background type; GameStateManager tracks the runtime
+    // pipe-warp underground flag. App::IsUnderground() merges both.
+    ApplyBackground();
 
     LOG_INFO("Level {} loaded: {} blocks, {} entities, player at ({}, {})",
              levelName, m_Level->GetAllBlocks().size(), m_Entities.size(),
@@ -186,31 +188,13 @@ void App::LoadLevel(const std::string& levelName) {
 }
 
 void App::PlayCurrentBGM() {
-    int time = m_GameState.GetTimeRemaining();
-    bool hurry = time <= 100 && time > 0;
-    std::string lvl = m_CurrentLevelName;
-
-    Mario::BGMName bgm = Mario::BGMName::GroundTheme;
-    if (lvl == "8-4" || lvl == "8-4_sub") {
-        bgm = hurry ? Mario::BGMName::CastleThemeHurryUp
-                    : Mario::BGMName::CastleTheme;
-    } else if (lvl == "1-1u" || lvl == "1-2" || lvl == "1-2uu" ||
-               lvl == "1-2_sub") {
-        bgm = hurry ? Mario::BGMName::UndergroundThemeHurryUp
-                    : Mario::BGMName::UndergroundTheme;
-    } else {
-        bgm = hurry ? Mario::BGMName::GroundThemeHurryUp
-                    : Mario::BGMName::GroundTheme;
-    }
-    Mario::AudioManager::GetInstance().PlayBGM(bgm);
+    // BGM selection logic lives in AudioManager — App is just the coordinator.
+    Mario::AudioManager::GetInstance().PlayBGMForLevel(
+        m_CurrentLevelName, m_GameState.GetTimeRemaining());
 }
 
 void App::AddEntityToGame(std::shared_ptr<Mario::Entity> entity) {
-    // Register with the renderer so it is drawn, then track it in the entity
-    // list so it receives Update/Tick calls.  This is the correct path for any
-    // entity spawned AFTER LoadLevel() (brick debris, fireballs, etc.).
     if (!entity) return;
-    entity->SetZIndex(1.0f);
     m_Renderer.AddChild(entity);
     m_Entities.push_back(entity);
 }
@@ -232,11 +216,22 @@ void App::StartLevel() {
 }
 
 // ============================================================================
-// ApplyBackground — helper for ISceneHandler::OnRender() implementations.
-// Concrete handlers call this to set the correct OpenGL clear color before
-// flushing the renderer.  Centralises the level-type → color mapping so no
-// handler needs to include <GL/glew.h> or duplicate this logic.
+// IsUnderground — combines Level name detection + runtime pipe-warp flag.
+// Single authoritative query; scene handlers should use this instead of
+// duplicating the level-name check.
 // ============================================================================
+bool App::IsUnderground() const {
+    if (m_GameState.IsUnderground()) return true;
+    if (m_Level) return m_Level->IsUnderground();
+    return false;
+}
+
+// ============================================================================
+// ApplyBackground — sets the OpenGL clear colour for the current frame.
+// The no-arg overload is the preferred form for scene handlers.
+// ============================================================================
+void App::ApplyBackground() { ApplyBackground(IsUnderground()); }
+
 void App::ApplyBackground(bool isUnderground) {
     if (isUnderground) {
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // Castle / dungeon: black
@@ -249,8 +244,8 @@ void App::ApplyBackground(bool isUnderground) {
 void App::AdvanceToNextLevel() {
     std::string nextLevel = m_GameState.AdvanceLevel();
     if (m_GameState.IsGameWon()) {
-        LOG_INFO("Game Complete! Returning to title.");
-        TransitionTo(State::TITLE);
+        LOG_INFO("Game Complete! Entering victory screen.");
+        TransitionTo(State::GAME_WON);
         return;
     }
     LOG_INFO("Advancing to level {}", nextLevel);
