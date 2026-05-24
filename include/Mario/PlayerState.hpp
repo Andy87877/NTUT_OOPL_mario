@@ -99,6 +99,12 @@ class PlayerState {
 
     bool IsGrounded() const { return m_Grounded; }
     bool IsCrouching() const { return m_Crouching; }
+    /** True when Mario is in a 2-tile-tall state (Big, Fire, or Big_Star). */
+    bool IsBigOrFire() const {
+        return m_PowerState == PowerState::BIG ||
+               m_PowerState == PowerState::FIRE ||
+               m_PowerState == PowerState::BIG_STAR;
+    }
     bool IsMoving() const { return m_MovingRight || m_MovingLeft; }
     bool IsJumping() const { return !m_Grounded; }
     bool IsFacingRight() const { return m_FacingRight; }

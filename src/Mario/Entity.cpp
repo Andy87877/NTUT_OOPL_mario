@@ -122,14 +122,11 @@ void Entity::UpdateView(float cameraOffset) {
     float entityWidth = static_cast<float>(m_State.GetWidth());
     float entityHeight = static_cast<float>(m_State.GetHeight());
 
-    // Globally round the cameraOffset and world coordinates for perfect integer
-    // pixel alignment
-    float roundedOffset = std::round(cameraOffset);
-    float worldCX = std::round(m_State.GetX()) + entityWidth / 2.0f;
-    float worldCY = std::round(m_State.GetY()) + entityHeight / 2.0f;
-
-    float screenX = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
-    float screenY = GameConfig::WorldToPTSDY(worldCY);
+    // TopLeftToPTSD* handles centering + pixel alignment internally
+    float screenX = GameConfig::TopLeftToPTSDX(
+        std::round(m_State.GetX()), entityWidth, std::round(cameraOffset));
+    float screenY =
+        GameConfig::TopLeftToPTSDY(std::round(m_State.GetY()), entityHeight);
 
     m_Transform.translation = {screenX, screenY};
 

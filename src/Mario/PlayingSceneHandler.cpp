@@ -100,23 +100,25 @@ void PlayingSceneHandler::Update(App& app) {
     float leftBound = cameraOffset - 200.0f;
     float rightBound = cameraOffset + GameConfig::WINDOW_WIDTH + 200.0f;
 
-    // Deactivate the off-screen spawner permanently once Bowser spawns (is active and within the viewport update window)
-    bool bowserActive = false;
+    // Single-pass: detect in-viewport Bowser AND silence the fire spawner in
+    // the same loop, avoiding the previous two separate full-entity traversals.
+    bool bowserInViewport = false;
     for (auto& entity : app.GetEntities()) {
-        if (entity && entity->GetDef().type == EntityType::BOWSER &&
+        if (!entity) continue;
+        if (entity->GetDef().type == EntityType::BOWSER &&
             entity->GetState().IsActive()) {
-            float entityX = entity->GetWorldX();
-            float entityWidth = static_cast<float>(entity->GetState().GetWidth());
-            if (entityX + entityWidth >= leftBound && entityX <= rightBound) {
-                bowserActive = true;
+            float ex = entity->GetWorldX();
+            float ew = static_cast<float>(entity->GetState().GetWidth());
+            if (ex + ew >= leftBound && ex <= rightBound) {
+                bowserInViewport = true;
                 break;
             }
         }
     }
-
-    if (bowserActive) {
+    if (bowserInViewport) {
         for (auto& entity : app.GetEntities()) {
-            if (entity && entity->GetDef().type == EntityType::CASTLE_FIRE_SPAWNER) {
+            if (entity &&
+                entity->GetDef().type == EntityType::CASTLE_FIRE_SPAWNER) {
                 entity->GetState().Delete();
             }
         }
@@ -143,104 +145,56 @@ void PlayingSceneHandler::Update(App& app) {
                 behavior->Update(entity->GetState(), *level, *player,
                                  app.GetTimer());
 
-                // Process pending spawn requests from this entity's behavior
+                // Process pending spawn requests from this entity's behavior.
+                // EntityFactory::MakeProjectileDef owns all EntityDef
+                // construction — no inline config here.
                 EntityType spawnType = EntityType::UNKNOWN;
                 float spawnX = 0.0f, spawnY = 0.0f;
                 int spawnDir = 1;
                 while (behavior->ConsumeSpawnRequest(spawnType, spawnX, spawnY,
                                                      spawnDir)) {
-                    std::string spawnName;
                     bool isEnemyProjectile =
-                        entity->GetDef().type ==
-                            Mario::EntityType::BOWSER ||
-                        entity->GetDef().type ==
-                            Mario::EntityType::AXE_KOOPA ||
+                        entity->GetDef().type == Mario::EntityType::BOWSER ||
+                        entity->GetDef().type == Mario::EntityType::AXE_KOOPA ||
                         entity->GetDef().type ==
                             Mario::EntityType::CASTLE_FIRE_SPAWNER;
 
-                    if (spawnType == Mario::EntityType::FIRE)
-                        spawnName = isEnemyProjectile ? "Bowser_fire" : "Fire";
-                    else if (spawnType == Mario::EntityType::AXE_PROJECTILE)
-                        spawnName = "Axe_throw";
+                    Mario::EntityDef def =
+                        Mario::EntityFactory::MakeProjectileDef(
+                            spawnType, isEnemyProjectile, *level);
+                    if (def.name.empty()) continue;
 
-                    if (!spawnName.empty()) {
-                        Mario::EntityDef def =
-                            level->GetEntityDefByName(spawnName);
-                        if (def.name.empty()) {
-                            def.id = -1;
-                            def.name = spawnName;
-                            def.type = spawnType;
-                            if (spawnName == "Axe_throw") {
-                                def.isAnimated = false;
-                                def.animFrames = 0;
-                            } else {
-                                def.isAnimated = true;
-                                if (spawnName == "Bowser_fire") {
-                                    def.animFrames = 2;
-                                    def.animBuffer = 6; // slightly slower animation for Bowser fire
-                                } else {
-                                    def.animFrames = 4;
-                                    def.animBuffer = 3;
-                                }
-                            }
-                            def.doesCollide = true;
-                            def.isEnemy = isEnemyProjectile;
-                            def.isStatic = false;
-                        } else {
-                            def.isEnemy = isEnemyProjectile;
-                            // Ensure the spawned entity uses the requested
-                            // behavior type, not the CSV's static type.
-                            def.type = spawnType;
-                            // Thrown axe must be dynamic (CSV marks Axe as
-                            // static).
-                            if (spawnType ==
-                                Mario::EntityType::AXE_PROJECTILE) {
-                                def.isStatic = false;
-                                def.doesCollide = true;
-                            }
+                    auto spawned = Mario::EntityFactory::SpawnEntity(
+                        def, spawnX, spawnY, spawnDir, false,
+                        app.GetCurrentLevelName());
+                    if (!spawned) continue;
+
+                    if (spawnType == Mario::EntityType::FIRE) {
+                        float speed = isEnemyProjectile ? 3.0f : 4.0f;
+                        if (isEnemyProjectile) {
+                            spawned->GetState().SetGravity(false);
                         }
-                        auto spawned = Mario::EntityFactory::SpawnEntity(
-                            def, spawnX, spawnY, spawnDir, false,
-                            app.GetCurrentLevelName());
-                        if (spawned) {
-                            float speed = 4.0f;
-                             if (spawnName == "Bowser_fire") {
-                                 speed = 3.0f; // Bowser's fire is faster and more PTSD-inducing!
-                                 spawned->GetState().SetGravity(false);
-                             }
-                            spawned->GetState().SetVelX(spawnDir == 1 ? speed
-                                                                      : -speed);
-                            // Thrown axe: give a mathematically targeted upward arc
-                            if (spawnType ==
-                                Mario::EntityType::AXE_PROJECTILE) {
-                                float dx = std::abs(player->GetWorldX() - spawnX);
-                                
-                                // Base launch height on distance (higher launch for longer distances)
-                                float launchVelY = 8.0f + (dx / 100.0f) * 1.5f;
-                                launchVelY = std::max(8.0f, std::min(15.0f, launchVelY));
-                                
-                                // Mathematically calculate horizontal speed so it lands directly on Mario
-                                // Flight time in frames is roughly proportional to launchVelY * 7.5
-                                float flightTimeFrames = launchVelY * 7.5f;
-                                float throwSpeed = dx / flightTimeFrames;
-                                throwSpeed = std::max(1.5f, std::min(6.5f, throwSpeed));
-                                
-                                spawned->GetState().SetVelX(spawnDir == 1 ? throwSpeed : -throwSpeed);
-                                spawned->GetState().SetFallHeight(launchVelY);
-                            }
-                            newEntities.push_back(spawned);
-                        }
+                        spawned->GetState().SetVelX(spawnDir == 1 ? speed
+                                                                  : -speed);
+                    } else if (spawnType == Mario::EntityType::AXE_PROJECTILE) {
+                        // Parabolic arc targeted at Mario's current position
+                        float dx = std::abs(player->GetWorldX() - spawnX);
+                        float launchVelY = std::max(
+                            8.0f, std::min(15.0f, 8.0f + (dx / 100.0f) * 1.5f));
+                        float flightTime = launchVelY * 7.5f;
+                        float throwSpeed =
+                            std::max(1.5f, std::min(6.5f, dx / flightTime));
+                        spawned->GetState().SetVelX(
+                            spawnDir == 1 ? throwSpeed : -throwSpeed);
+                        spawned->GetState().SetFallHeight(launchVelY);
                     }
+
+                    newEntities.push_back(spawned);
                 }
             }
 
-            // Keep player fireball at consistent speed
-            if (entity->GetDef().type == Mario::EntityType::FIRE && !entity->GetState().IsEnemy()) {
-                float spd = std::abs(entity->GetState().GetVelX());
-                if (spd < 4.0f) spd = 5.0f;
-                entity->GetState().SetVelX(
-                    entity->GetState().GetDirection() == 1 ? spd : -spd);
-            }
+            // Fireball speed enforcement is now handled inside
+            // FireballBehavior::Update — no clamp needed here.
 
             entity->GetState().Tick();
 

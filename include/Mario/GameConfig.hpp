@@ -127,7 +127,32 @@ struct GameConfig {
     }
 
     /**
-     * Convert standard screen pixel X coordinates to PTSD screen X coordinates (centered).
+     * Convert a world-space rect (top-left position + dimensions) to PTSD
+     * screen coordinates.  Eliminates the repeated "+ width/2" pattern that
+     * was scattered across Player.cpp, Entity.cpp, Block.cpp, and
+     * MovingPlatform.cpp.
+     *
+     * @param leftX      World X of the rect's left edge
+     * @param width      Width of the object in world pixels
+     * @param camOffset  Current camera offset
+     * @return PTSD screen X for the object's centre
+     */
+    static float TopLeftToPTSDX(float leftX, float width, float camOffset) {
+        return WorldToPTSDX(leftX + width * 0.5f, camOffset);
+    }
+
+    /**
+     * @param topY   World Y of the rect's top edge
+     * @param height Height of the object in world pixels
+     * @return PTSD screen Y for the object's centre
+     */
+    static float TopLeftToPTSDY(float topY, float height) {
+        return WorldToPTSDY(topY + height * 0.5f);
+    }
+
+    /**
+     * Convert standard screen pixel X coordinates to PTSD screen X coordinates
+     * (centered).
      * @param screenX Standard screen X position (origin top-left)
      * @return PTSD screen X position
      */
@@ -136,8 +161,10 @@ struct GameConfig {
     }
 
     /**
-     * Convert standard screen pixel Y coordinates to PTSD screen Y coordinates (centered).
-     * @param screenY Standard screen Y position (origin top-left, Y increases downward)
+     * Convert standard screen pixel Y coordinates to PTSD screen Y coordinates
+     * (centered).
+     * @param screenY Standard screen Y position (origin top-left, Y increases
+     * downward)
      * @return PTSD screen Y position
      */
     static float ScreenYToPTSD(float screenY) {

@@ -83,16 +83,23 @@ void Player::UpdateView(float cameraOffset) {
         // If loading fails, keep the previous sprite
     }
 
-    // Convert world coordinates to PTSD screen coordinates using unified helpers
+    // Convert world coordinates to PTSD screen coordinates
     float playerWidth = static_cast<float>(m_State.GetWidth());
     float playerHeight = static_cast<float>(m_State.GetHeight());
-
-    // Globally round the cameraOffset and world coordinates for perfect integer pixel alignment
     float roundedOffset = std::round(cameraOffset);
-    float worldCX = std::round(m_State.GetX()) + playerWidth / 2.0f;
-    float worldCY = std::round(m_State.GetY()) + playerHeight / 2.0f;
 
-    float screenX = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
+    // X: standard top-left → PTSD centre helper
+    float screenX = GameConfig::TopLeftToPTSDX(std::round(m_State.GetX()),
+                                               playerWidth, roundedOffset);
+
+    // Y: crouch fix — anchor sprite bottom to hitbox bottom so the sprite
+    // never sinks into the floor when Big/Fire Mario crouches.
+    // The crouch sprite canvas is always 2-tile tall; the hitbox is 1 tile.
+    float spriteHeight = (m_State.IsBigOrFire())
+                             ? static_cast<float>(GameConfig::TILE_SIZE * 2)
+                             : playerHeight;
+    float hitboxBottom = std::round(m_State.GetY()) + playerHeight;
+    float worldCY = hitboxBottom - spriteHeight / 2.0f;
     float screenY = GameConfig::WorldToPTSDY(worldCY);
 
     m_Transform.translation = {screenX, screenY};

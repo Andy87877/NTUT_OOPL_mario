@@ -18,21 +18,6 @@
 
 namespace Mario {
 
-// Convert grid (col, row) to PTSD screen coordinates
-// Grid origin: top-left, Y increases downward
-// PTSD origin: screen center, Y increases upward
-static void GridToScreen(int gridX, int gridY, float cameraOffset,
-                         float& screenX, float& screenY) {
-    // Convert grid coordinates to world center coordinates of the block
-    float worldCX = static_cast<float>(gridX * GameConfig::TILE_SIZE) + GameConfig::TILE_SIZE / 2.0f;
-    float worldCY = static_cast<float>(gridY * GameConfig::TILE_SIZE) + GameConfig::TILE_SIZE / 2.0f;
-
-    // Globally round the cameraOffset to avoid subpixel gaps between adjacent blocks
-    float roundedOffset = std::round(cameraOffset);
-    screenX = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
-    screenY = GameConfig::WorldToPTSDY(worldCY);
-}
-
 Block::Block(int blockID, int gridX, int gridY, const BlockDef& def,
              const std::string& levelName)
     : m_BlockID(blockID),
@@ -48,8 +33,11 @@ Block::Block(int blockID, int gridX, int gridY, const BlockDef& def,
     }
 
     // Set initial screen position (camera offset = 0)
-    float sx, sy;
-    GridToScreen(gridX, gridY, 0.0f, sx, sy);
+    float worldLeft = static_cast<float>(gridX * GameConfig::TILE_SIZE);
+    float worldTop = static_cast<float>(gridY * GameConfig::TILE_SIZE);
+    float sx =
+        GameConfig::TopLeftToPTSDX(worldLeft, GameConfig::TILE_SIZE, 0.0f);
+    float sy = GameConfig::TopLeftToPTSDY(worldTop, GameConfig::TILE_SIZE);
     m_Transform.translation = {sx, sy};
     // Initialize scale factor based on GameConfig
     // Apply additional scaling for 8-4 castle sprites (original sprites are
@@ -132,8 +120,10 @@ void Block::SetupSprite() {
 }
 
 // Static cache helper to avoid duplicate disk loads for identical blocks
-static std::shared_ptr<Util::Image> GetOrLoadBlockSprite(const std::string& path) {
-    static std::unordered_map<std::string, std::shared_ptr<Util::Image>> s_BlockSpriteCache;
+static std::shared_ptr<Util::Image> GetOrLoadBlockSprite(
+    const std::string& path) {
+    static std::unordered_map<std::string, std::shared_ptr<Util::Image>>
+        s_BlockSpriteCache;
     if (path.empty()) return nullptr;
     auto it = s_BlockSpriteCache.find(path);
     if (it != s_BlockSpriteCache.end()) {
@@ -216,7 +206,8 @@ void Block::Update(float cameraOffset) {
             return;
         }
 
-        // Use physics world coordinates for screen position, aligning edges to integers
+        // Use physics world coordinates for screen position, aligning edges to
+        // integers
         float roundedOffset = std::round(cameraOffset);
         float worldCX = std::round(m_WorldX) + GameConfig::TILE_SIZE / 2.0f;
         float worldCY = std::round(m_WorldY) + GameConfig::TILE_SIZE / 2.0f;
@@ -230,8 +221,12 @@ void Block::Update(float cameraOffset) {
 
     // --- Standard grid-based positioning ---
     // Convert grid position to screen position with camera offset
-    float sx, sy;
-    GridToScreen(m_GridX, m_GridY, cameraOffset, sx, sy);
+    float worldLeft = static_cast<float>(m_GridX * GameConfig::TILE_SIZE);
+    float worldTop = static_cast<float>(m_GridY * GameConfig::TILE_SIZE);
+    float roundedOffset = std::round(cameraOffset);
+    float sx = GameConfig::TopLeftToPTSDX(worldLeft, GameConfig::TILE_SIZE,
+                                          roundedOffset);
+    float sy = GameConfig::TopLeftToPTSDY(worldTop, GameConfig::TILE_SIZE);
 
     // Apply bounce effect (upward in screen = positive Y)
     sy += m_BounceHeight;

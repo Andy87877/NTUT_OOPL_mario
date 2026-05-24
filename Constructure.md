@@ -1,7 +1,6 @@
 ﻿# Super Mario Bros. — PTSD C++ OOP 架構設計 (Constructure)
 
-> **Last synced:** 2026-05-24  
-> **版本:** Final + OOP Refactor Complete  
+> **Last synced:** 2026-05-24 (Patch: coordinate system unification)
 > **關卡:** 1-1 (Ground) → 1-2 (Underground) → 8-4 (Castle + Boss)
 
 本專案將 C# 版本的 God Class (`Form1.cs`) 徹底解耦，轉換為符合現代 C++ 標準的  
@@ -95,6 +94,7 @@ classDiagram
         +UpdateView(cameraOffset)
         +GetState() PlayerState&
         +SetVisible(bool)
+        note: sprite anchor = hitbox-bottom so crouch\nsprite never sinks below floor
     }
 
     class UIImage {
@@ -469,6 +469,7 @@ classDiagram
         +BuildAnimationKey() string
         +TakeDamage() / IsInvincible()
         +ForceApplyPowerState(idx)
+        +IsBigOrFire() bool
     }
 
     class Player {
@@ -571,7 +572,7 @@ classDiagram
 | `Mario/Camera.hpp` | `Camera` | None | 橫向捲動 offset；8-4 Boss 鎖屏；world to screen 轉換 |
 | `Mario/PhysicsEngine.hpp` | `PhysicsEngine` | None (static) | ApplyGravity() + GetJumpHeight() |
 | `Mario/SpritePathResolver.hpp` | `SpritePathResolver` | None (static) | Sprite 路徑解析 Block/Player/Entity（unordered_map 靜態表） |
-| `Mario/EntityDef.hpp` | `EntityDef`, `BlockDef`, `EntityType` | None (data) | CSV 資料結構；EntityType 列舉 |
+| `Mario/EntityDef.hpp` | `EntityDef`, `BlockDef`, `EntityType` | None (data) | CSV 資料結構；EntityType 列舉；`renderTargetWidth` 渲染縮放欄位（EntityFactory 設定，OCP） |
 | `Mario/Block.hpp` | `Block` | `Util::GameObject` | 磚塊：碰撞/動畫/hit/bounce/break；靜態跨實例 Sprite Cache |
 | `Mario/MovingPlatform.hpp` | `MovingPlatform` | `Block` | 移動平台（1-2 垂直 / 8-4 水平） |
 | `Mario/Level.hpp` | `Level` | None | CSV 解析；Block 2D 格；SpawnPoint；`GetGoalBlocks()` 快取；`QueryBlocksInRange(out)` 零分配版；`IsUnderground()` 名稱判斷 |
@@ -579,7 +580,7 @@ classDiagram
 | `Mario/EnemyDeathAnimation.hpp` | `IEnemyDeathAnimation`, `GoombaSquishDeathAnimation`, `KoopaRetreatDeathAnimation`, `FireballFlipDeathAnimation`, `ClassicEnemyDeathAnimation`, `EnemyDeathRuntime`, `EnemyDeathCause` | `IEnemyDeathAnimation <- {GoombaSquish, KoopaRetreat, FireballFlip, Classic}` | 敵人死亡動畫多策略（踩踏/龜殼/火球/通用） |
 | `Mario/EnemyDeathStyleFactory.hpp` | `EnemyDeathStyleFactory` | None (Factory) | 依 EntityType 注入對應敵人死亡策略 |
 | `Mario/Entity.hpp` | `Entity` | `Util::GameObject` | Entity View：渲染 + Strategy 行為；Z-index 自決策 |
-| `Mario/EntityFactory.hpp` | `EntityFactory` | None (Factory) | 唯一 Entity 建立入口 |
+| `Mario/EntityFactory.hpp` | `EntityFactory` | None (Factory) | 唯一 Entity 建立入口；`SpawnProjectile()` 集中處理 Fireball/Axe 投射物建立（PlayingSceneHandler SRP） |
 | `Mario/PlayerState.hpp` | `PlayerState`, `PowerState` | None (Model) | Player MVC Model：物理/狀態/動畫key/死亡策略 |
 | `Mario/PlayerDeathAnimation.hpp` | `IPlayerDeathAnimation`, `ClassicPlayerDeathAnimation` | `IPlayerDeathAnimation <- ClassicPlayerDeathAnimation` | 玩家死亡動畫策略（凍結/起跳/下墜） |
 | `Mario/Player.hpp` | `Player` | `Util::GameObject` | Player View：渲染 + m_Visible 守衛 |
@@ -596,7 +597,7 @@ classDiagram
 | `Mario/ISceneHandler.hpp` | `ISceneHandler` | None (interface) | State Pattern 純虛介面（10 個實作） |
 | `Mario/MenuSceneHandlers.hpp` | `TitleSceneHandler`, `DeathSceneHandler`, `GameOverSceneHandler`, `GameWonSceneHandler` | `ISceneHandler` | 選單/死亡/結束場景（合併） |
 | `Mario/LoadingSceneHandler.hpp` | `LoadingSceneHandler` | `ISceneHandler` | 加載畫面（顯示 WORLD X-X + LIVES） |
-| `Mario/PlayingSceneHandler.hpp` | `PlayingSceneHandler` | `ISceneHandler` | 主遊戲迴圈（17-phase） |
+| `Mario/PlayingSceneHandler.hpp` | `PlayingSceneHandler` | `ISceneHandler` | 主遊戲迴圈（17-phase）；`m_DebrisQueryBuffer` 零分配磚塊查詢緩衝 |
 | `Mario/FlagpoleSceneHandler.hpp` | `FlagpoleSceneHandler` | `ISceneHandler` | 旗杆滑動序列 |
 | `Mario/PipeWarpSceneHandler.hpp` | `PipeWarpSceneHandler` | `ISceneHandler` | 水管傳送過場 |
 | `Mario/AxeSequenceSceneHandler.hpp` | `AxeSequenceSceneHandler` | `ISceneHandler` | 8-4 Bowser 擊敗序列 |
@@ -637,15 +638,15 @@ classDiagram
 | `Mario/Block.cpp` | ~200 | 靜態 s_BlockSpriteCache；像素對齊渲染 (Bug #12, #23) |
 | `Mario/MovingPlatform.cpp` | ~80 | WorldToScreen 使用統一轉換 helper (Bug #24) |
 | `Mario/Level.cpp` | ~300 | CSV 解析；旗幟 X 修正 (Bug #3)；出生點落入實例化 (Bug #13)；城堡門 (Bug #14) |
-| `Mario/PlayerState.cpp` | ~260 | 死亡策略；蹲下高度動態調整 (Bug #20)；階梯式退化 (Bug #25)；`ForceApplyPowerState(idx)` 作弊器 — 含 Y 位置調整、`m_StarTimer` 設置 |
+| `Mario/PlayerState.cpp` | ~265 | 死亡策略；蹲下高度動態調整 (Bug #20)；階梯式退化 (Bug #25)；`ForceApplyPowerState(idx)` 作弊器；`IsBigOrFire()` DRY helper (2026-05-24) |
 | `Mario/PlayerDeathAnimation.cpp` | ~60 | ClassicPlayerDeathAnimation 策略實作 |
-| `Mario/Player.cpp` | ~180 | 死亡精靈鎖定 (Bug #19)；閃爍 PTSD 基類直呼叫 (Bug #5)；像素對齊 (Bug #12) |
+| `Mario/Player.cpp` | ~185 | 死亡精靈鎖定 (Bug #19)；閃爍 PTSD 基類直呼叫 (Bug #5)；像素對齊 (Bug #12)；**crouch sprite anchored to hitbox bottom, fixes floor sinking** (2026-05-24) |
 | `Mario/InputHandler.cpp` | ~80 | 全寬 uncrouch guard (Bug #20) |
 | `Mario/EntityState.cpp` | ~160 | 死亡策略整合 |
 | `Mario/EnemyDeathAnimation.cpp` | ~80 | 四種死亡策略實作 |
 | `Mario/EnemyDeathStyleFactory.cpp` | ~40 | 依 EntityType 選策略 |
 | `Mario/Entity.cpp` | ~150 | 靜態 s_EntitySpriteCache；Z-index 自決策（PiranhaPlant, COIN）(Bug #18, #29) |
-| `Mario/EntityFactory.cpp` | ~200 | AXE->AxeBehavior (Bug #8)；COIN/STAR/FIRE_FLOWER/ONE_UP ItemType 精確注入 (Bug #28) |
+| `Mario/EntityFactory.cpp` | ~260 | AXE->AxeBehavior (Bug #8)；COIN/STAR/FIRE_FLOWER/ONE_UP ItemType 精確注入 (Bug #28)；**`MakeProjectileDef()` centralises all projectile EntityDef construction** (2026-05-24) |
 | `Mario/CollisionManager.cpp` | ~65 | **Facade only** — 5 個 CheckXxx 方法各自委派給對應 Handler；全部邏輯已移至 Collision/ 子系統 |
 | `Mario/Collision/BlockContactResolver.cpp` | ~50 | 靜態 Down/Up/Right/Left 解析方法；BodyRect helper（原 file-scope static 函數） |
 | `Mario/Collision/PlayerBlockHandler.cpp` | ~180 | 三步驟管線 + ProcessSingleBlock（取代原 lambda）+ TriggerBlockHit（原私有方法）|
@@ -725,10 +726,16 @@ classDiagram
 
 | 函數 | 公式 | 用途 |
 |------|------|------|
-| `WorldToPTSDX(worldX, camOffset)` | `worldX - camOffset - WINDOW_WIDTH/2` | 世界 X → PTSD 螢幕 X |
-| `WorldToPTSDY(worldY)` | `WINDOW_HEIGHT/2 - worldY - TILE_SIZE/2` | 世界 Y → PTSD 螢幕 Y |
+| `WorldToPTSDX(worldX, camOffset)` | `worldX - camOffset - WINDOW_WIDTH/2` | 世界中心 X → PTSD 螢幕 X |
+| `WorldToPTSDY(worldY)` | `WINDOW_HEIGHT/2 - worldY - TILE_SIZE/2` | 世界中心 Y → PTSD 螢幕 Y |
+| `TopLeftToPTSDX(left, w, cam)` | `WorldToPTSDX(left + w*0.5, cam)` | 左邊 + 寬度 → PTSD X（統一入口，避免散落 +w/2）|
+| `TopLeftToPTSDY(top, h)` | `WorldToPTSDY(top + h*0.5)` | 上邊 + 高度 → PTSD Y（同上）|
 | `ScreenXToPTSD(screenX)` | `screenX - WINDOW_WIDTH/2` | 螢幕 X → PTSD X |
 | `ScreenYToPTSD(screenY)` | `WINDOW_HEIGHT/2 - screenY` | 螢幕 Y → PTSD Y |
+
+> **規範：** 所有渲染物件（Player, Entity, Block, MovingPlatform）必須透過
+> `TopLeftToPTSDX/Y` 計算螢幕位置，禁止在 callsite 手動寫 `+width/2`。
+> 唯一例外是 Player 的 Y 軸（蹲下 crouch 需特殊底部對齊邏輯）。
 
 ### 2.5 Python 工具腳本
 
@@ -831,11 +838,20 @@ Controller -> InputHandler               (讀鍵盤 -> 寫 PlayerState)
 唯一的 Entity 建立路徑（SRP 原則）：
 
 ```cpp
-EntityFactory::SpawnFromLevel(entityDef, x, y, dir, fromBlock, levelName)
-  -> new Entity(def, x, y, ...)
-  -> switch(entityType) -> make_unique<XxxBehavior>()
-  -> entity.SetBehavior(behavior)
-  -> return shared_ptr<Entity>
+// 一般 Entity 建立
+EntityFactory::SpawnEntity(def, x, y, dir, fromBlock, levelName)
+  // 1. 複製 def → 根據 EntityType / levelName 設定 renderTargetWidth
+  // 2. new Entity(localDef, x, y, ...)  [Entity 不再持有 levelName 做縮放判斷]
+  // 3. switch(entityType) -> make_unique<XxxBehavior>()
+  // 4. entity.SetBehavior(behavior)
+  // 5. return shared_ptr<Entity>
+
+// 投射物 EntityDef 建立（取代 PlayingSceneHandler 80-line inline 段）
+// 所有 Fireball / Axe 投射物的 EntityDef config 集中在此，符合 OCP：
+// 新增投射物類型 = 只改這一個 switch，不動 PlayingSceneHandler
+EntityFactory::MakeProjectileDef(spawnType, isEnemy, level)
+  // → 查 EntityList.csv → 補 fallback def → 回傳完整設定的 EntityDef
+  // 初速度 / Axe 拋物線計算仍在 PlayingSceneHandler（與玩家位置有關）
 ```
 
 ---
@@ -982,6 +998,7 @@ GAME_WON --(RETURN)--> TITLE -> NewGame()
 | ARCHITECTURE+ | ✅ DONE | EventSystem\<T\> / CollisionContext DTO / AudioType 枚舉獨立 / ServiceLocator 加入 |
 | OOP REFACTOR | ✅ DONE | `AlwaysUpdate()` + `OnSpawned()` 消除 string-find hack + dynamic_cast；`ConsumeSpawnRequest(EntityType&)` 型別安全；`GetGoalBlocks()` 快取；`QueryBlocksInRange(out)` 零分配；`AddEntityToGame` 統一實體生命週期 |
 | CROUCH FIX | ✅ DONE | `CollisionManager` grounded 路徑：VelX==0（蹲下）時仍由中心比較推出重疊；修復 `SetCrouching(true)` posY shift 造成卡在方塊的問題 |
+| OCP REFACTOR | ✅ DONE | `EntityDef::renderTargetWidth`：EntityFactory 設定縮放覆蓋，Entity.cpp 不再比較 level-name 字串；`EntityFactory::SpawnProjectile()` 取代 PlayingSceneHandler 80-line inline 投射物建立；`SpawnBrickDebris` 改用 `QueryBlocksInRange(m_DebrisQueryBuffer)` 零分配 |
 
 ---
 

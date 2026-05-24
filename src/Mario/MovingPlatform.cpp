@@ -10,20 +10,6 @@
 namespace Mario {
 
 // ---------------------------------------------------------------------------
-// File-local helper: convert live world coords to PTSD screen coords.
-// Mirrors the GridToScreen formula in Block.cpp but uses float world coords.
-// ---------------------------------------------------------------------------
-static void WorldToScreen(float worldX, float worldY, float cameraOffset,
-                          float& sx, float& sy) {
-    float roundedOffset = std::round(cameraOffset);
-    float worldCX = std::round(worldX) + GameConfig::TILE_SIZE / 2.0f;
-    float worldCY = std::round(worldY) + GameConfig::TILE_SIZE / 2.0f;
-
-    sx = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
-    sy = GameConfig::WorldToPTSDY(worldCY);
-}
-
-// ---------------------------------------------------------------------------
 // Constructor
 // ---------------------------------------------------------------------------
 MovingPlatform::MovingPlatform(int blockID, int gridX, int gridY,
@@ -97,8 +83,11 @@ void MovingPlatform::Update(float cameraOffset) {
     Block::Update(cameraOffset);
 
     // Override the screen translation with the live floating position
-    float sx, sy;
-    WorldToScreen(m_LiveWorldX, m_LiveWorldY, cameraOffset, sx, sy);
+    float roundedOffset = std::round(cameraOffset);
+    float sx = GameConfig::TopLeftToPTSDX(std::round(m_LiveWorldX),
+                                          GameConfig::TILE_SIZE, roundedOffset);
+    float sy = GameConfig::TopLeftToPTSDY(std::round(m_LiveWorldY),
+                                          GameConfig::TILE_SIZE);
     m_Transform.translation = {sx, sy};
 }
 

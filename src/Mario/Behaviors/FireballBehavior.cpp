@@ -5,6 +5,8 @@
  */
 #include "Mario/Behaviors/FireballBehavior.hpp"
 
+#include <cmath>
+
 #include "Mario/Collider.hpp"
 #include "Mario/EntityState.hpp"
 #include "Mario/Level.hpp"
@@ -15,10 +17,13 @@
 namespace Mario {
 
 FireballBehavior::FireballBehavior(FireballType type)
-    : m_Type(type), m_LifetimeFrames(type == FireballType::BOWSER ? 800 : 240) {}
+    : m_Type(type),
+      m_LifetimeFrames(type == FireballType::BOWSER ? 800 : 240) {}
 
-void FireballBehavior::Update(EntityState& state, [[maybe_unused]] const Level& level,
-                              [[maybe_unused]] const Player& player, [[maybe_unused]] int gameTimer) {
+void FireballBehavior::Update(EntityState& state,
+                              [[maybe_unused]] const Level& level,
+                              [[maybe_unused]] const Player& player,
+                              [[maybe_unused]] int gameTimer) {
     // Check lifetime
     m_LifetimeFrames--;
     if (m_LifetimeFrames <= 0) {
@@ -29,6 +34,17 @@ void FireballBehavior::Update(EntityState& state, [[maybe_unused]] const Level& 
     // NOTE: Basic physics (gravity + velocity) are handled by
     // EntityState::Tick() DO NOT apply them here or they'll be applied twice!
     // FireballBehavior only handles special fireball logic (bounce, etc.)
+
+    // Player fireball: enforce minimum horizontal speed so it never stalls
+    // after a bounce (replaces the per-frame clamp that was in
+    // PlayingSceneHandler).
+    if (m_Type == FireballType::PLAYER) {
+        constexpr float MIN_SPEED = 5.0f;
+        float spd = std::abs(state.GetVelX());
+        if (spd < MIN_SPEED) {
+            state.SetVelX(state.GetDirection() == 1 ? MIN_SPEED : -MIN_SPEED);
+        }
+    }
 
     // Ground bounding is managed by App::CheckEntityBlockCollision.
     // If App.cpp set us as grounded, we bounce! (Only for player fireballs,
@@ -48,7 +64,8 @@ void FireballBehavior::Update(EntityState& state, [[maybe_unused]] const Level& 
     }
 }
 
-bool FireballBehavior::OnPlayerCollision(EntityState& state, [[maybe_unused]] Player& player,
+bool FireballBehavior::OnPlayerCollision(EntityState& state,
+                                         [[maybe_unused]] Player& player,
                                          [[maybe_unused]] bool isFromAbove) {
     // Player fireball: doesn't collide with player, only with enemies
     // This method is not called for player fireball hitting player

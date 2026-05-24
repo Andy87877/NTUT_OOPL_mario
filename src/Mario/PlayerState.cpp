@@ -163,13 +163,8 @@ void PlayerState::SetPowerState(PowerState ps) { m_PowerState = ps; }
 void PlayerState::SetCrouching(bool v) {
     if (m_Crouching == v) return;
 
-    if (m_PowerState == PowerState::BIG || m_PowerState == PowerState::FIRE ||
-        m_PowerState == PowerState::BIG_STAR) {
-        if (v) {
-            m_PosY += GameConfig::TILE_SIZE;
-        } else {
-            m_PosY -= GameConfig::TILE_SIZE;
-        }
+    if (IsBigOrFire()) {
+        m_PosY += v ? GameConfig::TILE_SIZE : -GameConfig::TILE_SIZE;
     }
     m_Crouching = v;
 }
@@ -261,12 +256,8 @@ void PlayerState::ForceApplyPowerState(int idx) {
 int PlayerState::GetWidth() const { return GameConfig::TILE_SIZE; }
 
 int PlayerState::GetHeight() const {
-    if (m_PowerState == PowerState::BIG || m_PowerState == PowerState::FIRE ||
-        m_PowerState == PowerState::BIG_STAR) {
-        if (m_Crouching) {
-            return GameConfig::TILE_SIZE;
-        }
-        return GameConfig::TILE_SIZE * 2;
+    if (IsBigOrFire()) {
+        return m_Crouching ? GameConfig::TILE_SIZE : GameConfig::TILE_SIZE * 2;
     }
     return GameConfig::TILE_SIZE;
 }

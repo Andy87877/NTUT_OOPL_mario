@@ -147,7 +147,9 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
 
         auto spawner = SpawnEntity(spawnerDef, 0.0f, 0.0f, 0, false, levelName);
         if (spawner) {
-            LOG_INFO("8-4 Castle: Automatically spawned off-screen CastleFireSpawner.");
+            LOG_INFO(
+                "8-4 Castle: Automatically spawned off-screen "
+                "CastleFireSpawner.");
             entities.push_back(spawner);
         }
     }
@@ -257,6 +259,65 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
         EnemyDeathStyleFactory::CreateFor(def.type));
 
     return entity;
+}
+
+// ============================================================================
+// MakeProjectileDef
+// Builds a fully-configured EntityDef for a runtime projectile.
+// All inline EntityDef construction that was in PlayingSceneHandler lives here,
+// so adding/changing a projectile type only requires editing this method.
+// ============================================================================
+EntityDef EntityFactory::MakeProjectileDef(EntityType spawnType, bool isEnemy,
+                                           const Level& level) {
+    // Map EntityType -> canonical lookup name used in EntityList.csv
+    std::string lookupName;
+    switch (spawnType) {
+        case EntityType::FIRE:
+            lookupName = isEnemy ? "Bowser_fire" : "Fire";
+            break;
+        case EntityType::AXE_PROJECTILE:
+            lookupName = "Axe_throw";
+            break;
+        default:
+            return EntityDef{};  // Unknown type — return empty def
+    }
+
+    // Try to find a matching CSV definition first
+    EntityDef def = level.GetEntityDefByName(lookupName);
+
+    if (def.name.empty()) {
+        // CSV entry missing — build a minimal fallback definition
+        def.id = -1;
+        def.name = lookupName;
+        def.type = spawnType;
+        def.doesCollide = true;
+        def.isStatic = false;
+        def.isEnemy = isEnemy;
+
+        switch (spawnType) {
+            case EntityType::FIRE:
+                def.isAnimated = true;
+                def.animFrames = isEnemy ? 2 : 4;
+                def.animBuffer = isEnemy ? 6 : 3;
+                break;
+            case EntityType::AXE_PROJECTILE:
+                def.isAnimated = false;
+                def.animFrames = 0;
+                break;
+            default:
+                break;
+        }
+    } else {
+        // Patch fields that differ at runtime from the static CSV values
+        def.isEnemy = isEnemy;
+        def.type = spawnType;
+        if (spawnType == EntityType::AXE_PROJECTILE) {
+            def.isStatic = false;
+            def.doesCollide = true;
+        }
+    }
+
+    return def;
 }
 
 }  // namespace Mario

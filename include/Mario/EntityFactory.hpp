@@ -43,6 +43,21 @@ class EntityFactory {
     static std::shared_ptr<Entity> SpawnEntity(
         const EntityDef& def, float worldX, float worldY, int direction = 1,
         bool fromBlock = false, const std::string& levelName = "1-1");
+
+    /**
+     * Build a fully-configured EntityDef for a runtime-spawned projectile.
+     *
+     * Centralises all the inline EntityDef construction that was previously
+     * scattered across PlayingSceneHandler so adding a new projectile type
+     * only requires changing this one factory method.
+     *
+     * @param spawnType  EntityType::FIRE or EntityType::AXE_PROJECTILE
+     * @param isEnemy    true = enemy projectile (Bowser fire / AxeKoopa axe)
+     * @param level      Used to look up an existing CSV definition first
+     * @return           Populated EntityDef; name is empty on unknown type
+     */
+    static EntityDef MakeProjectileDef(EntityType spawnType, bool isEnemy,
+                                       const Level& level);
 };
 
 }  // namespace Mario

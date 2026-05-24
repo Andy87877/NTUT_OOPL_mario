@@ -255,10 +255,10 @@ void PlayerBlockHandler::TriggerBlockHit(
     }
 
     // Convert world-space block centre to PTSD screen coordinates.
-    float blockCX = block.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
-    float blockCY = block.GetWorldY();
-    float ptsdX = GameConfig::WorldToPTSDX(blockCX, camera.GetOffset());
-    float ptsdY = GameConfig::WorldToPTSDY(blockCY);
+    float ptsdX = GameConfig::TopLeftToPTSDX(
+        block.GetWorldX(), GameConfig::TILE_SIZE, camera.GetOffset());
+    float ptsdY =
+        GameConfig::TopLeftToPTSDY(block.GetWorldY(), GameConfig::TILE_SIZE);
 
     if (spawnEntity == "CoinGet") {
         gameState.AddCoin();

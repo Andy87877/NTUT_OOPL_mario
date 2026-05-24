@@ -63,12 +63,13 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
     AABB playerBox = ps.GetHitbox();
     AABB entityBox = es.GetHitbox();
 
-    // Helper: floating text at the entity's world position.
+    // Helper: floating text at the entity's world centre.
     auto addScore = [&](int score) {
-        float wx = es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
-        float wy = es.GetWorldY();
-        float ptsdX = GameConfig::WorldToPTSDX(wx, camera.GetOffset());
-        float ptsdY = GameConfig::WorldToPTSDY(wy);
+        float ptsdX = GameConfig::TopLeftToPTSDX(
+            es.GetWorldX(), static_cast<float>(es.GetWidth()),
+            camera.GetOffset());
+        float ptsdY = GameConfig::TopLeftToPTSDY(
+            es.GetWorldY(), static_cast<float>(es.GetHeight()));
         uiManager.AddFloatingText(ptsdX, ptsdY, "+" + std::to_string(score),
                                   60);
         gameState.AddScore(score);
@@ -76,7 +77,8 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
 
     // --- Star power: instant kill ------------------------------------------
     if (ps.GetStarTimer() > 0) {
-        // Bowser fire is invincible and immune to Star power - it still damages Mario and disappears!
+        // Bowser fire is invincible and immune to Star power - it still damages
+        // Mario and disappears!
         if (entity.GetDef().type == EntityType::FIRE && es.IsEnemy()) {
             ps.TakeDamage();
             auto* behavior = entity.GetBehavior();
@@ -214,10 +216,10 @@ void PlayerEntityHandler::HandleItemCollision(Player& player, Entity& entity,
     PlayerState& ps = player.GetState();
     EntityState& es = entity.GetState();
 
-    float wx = es.GetWorldX() + GameConfig::TILE_SIZE * 0.5f;
-    float wy = es.GetWorldY();
-    float ptsdX = GameConfig::WorldToPTSDX(wx, camera.GetOffset());
-    float ptsdY = GameConfig::WorldToPTSDY(wy);
+    float ptsdX = GameConfig::TopLeftToPTSDX(
+        es.GetWorldX(), static_cast<float>(es.GetWidth()), camera.GetOffset());
+    float ptsdY = GameConfig::TopLeftToPTSDY(
+        es.GetWorldY(), static_cast<float>(es.GetHeight()));
 
     if (es.IsPowerUp()) {
         int puState = es.GetPowerUpState();
