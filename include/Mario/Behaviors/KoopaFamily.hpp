@@ -73,7 +73,7 @@ class AxeKoopaBehavior : public IEntityBehavior {
 
    private:
     static constexpr float WALK_SPEED = 0.5f;
-    static constexpr int AXE_THROW_INTERVAL = 150;  // ~2.5 s at 60 FPS
+    static constexpr int AXE_THROW_INTERVAL = 80;  // ~1.3 s at 60 FPS
 
     int m_ThrowTimer = 0;
     bool m_AxePending = false;

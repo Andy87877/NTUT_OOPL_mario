@@ -72,6 +72,8 @@ void Entity::UpdateView(float cameraOffset) {
                         float targetWidth = 32.0f;
                         if (m_State.GetName() == "Bowser") {
                             targetWidth = 64.0f;
+                        } else if (m_State.GetName() == "Bowser_fire") {
+                            targetWidth = 48.0f;
                         } else if (m_State.GetName() == "PiranhaPlant") {
                             // 2-tile-wide pipe: collision box = 2 * TILE_SIZE
                             targetWidth =
@@ -149,6 +151,8 @@ void Entity::UpdateView(float cameraOffset) {
 
             if (m_State.GetName() == "Bowser") {
                 targetWidth = 64.0f;  // 2x tile width for Bowser
+            } else if (m_State.GetName() == "Bowser_fire") {
+                targetWidth = 48.0f;  // 1.5x larger than default 32px
             } else if (m_State.GetName() == "PiranhaPlant") {
                 // targetWidth drives the scale formula:
                 //   screen_width = DRAW_SCALE * targetWidth
@@ -185,6 +189,24 @@ void Entity::UpdateView(float cameraOffset) {
         m_Transform.scale.x = absScaleX;
     }
     m_Transform.scale.y = absScaleY;
+
+    // Procedural animation for coins to simulate rotation (since they fall back
+    // to a single static image file on disk e.g. UnderCoin.png or Coin.png)
+    if (m_State.IsCoin() && !m_State.IsHidden() && m_State.IsActive()) {
+        int frame = m_State.GetAnimFrame();
+        // Cycle of 4 animation frames:
+        // frame 0: full width (1.0)
+        // frame 1: medium width (0.6)
+        // frame 2: thin line width (0.15)
+        // frame 3: medium width (0.6)
+        float scaleXModifier = 1.0f;
+        if (frame == 1 || frame == 3) {
+            scaleXModifier = 0.6f;
+        } else if (frame == 2) {
+            scaleXModifier = 0.15f;
+        }
+        m_Transform.scale.x *= scaleXModifier;
+    }
 }
 
 std::string Entity::BuildSpritePath() const {

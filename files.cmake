@@ -33,6 +33,7 @@ set(SRC_FILES
     Mario/Behaviors/ItemBehavior.cpp
     Mario/Behaviors/FireballBehavior.cpp
     Mario/Behaviors/BowserBehavior.cpp
+    Mario/Behaviors/CastleFireSpawnerBehavior.cpp
     Mario/Behaviors/PiranhaPlantBehavior.cpp
     Mario/Behaviors/PodobooBehavior.cpp
     Mario/Behaviors/ParticleDebris.cpp
@@ -109,6 +110,7 @@ set(INCLUDE_FILES
     Mario/Behaviors/ItemBehavior.hpp
     Mario/Behaviors/FireballBehavior.hpp
     Mario/Behaviors/BowserBehavior.hpp
+    Mario/Behaviors/CastleFireSpawnerBehavior.hpp
     Mario/Behaviors/PiranhaPlantBehavior.hpp
     Mario/Behaviors/PodobooBehavior.hpp
     Mario/Behaviors/ParticleDebris.hpp

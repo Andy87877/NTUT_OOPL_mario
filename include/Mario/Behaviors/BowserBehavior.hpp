@@ -9,6 +9,8 @@
 
 #include "Mario/Behaviors/IEntityBehavior.hpp"
 
+#include <vector>
+
 namespace Mario {
 
 // Forward declaration
@@ -33,6 +35,13 @@ class BowserBehavior : public IEntityBehavior {
         JUMP_ATTACK,  // Jumping at player
         DAMAGED,      // Just took damage, flashing
         DEFEATED,     // Defeated, falling into lava
+    };
+
+    struct SpawnRequest {
+        EntityType type;
+        float x;
+        float y;
+        int dir;
     };
 
     BowserBehavior();
@@ -62,8 +71,8 @@ class BowserBehavior : public IEntityBehavior {
     bool OnFireballHit(EntityState& state) override;
 
     /**
-     * Consume a pending Bowser fireball spawn request.
-     * Set by UpdateFireAttackPhase() when it's time to shoot.
+     * Consume a pending Bowser fireball or axe spawn request.
+     * Set by Update AI when it's time to shoot/throw.
      */
     bool ConsumeSpawnRequest(EntityType& outType, float& outX, float& outY,
                              int& outDir) override;
@@ -74,6 +83,8 @@ class BowserBehavior : public IEntityBehavior {
     std::unique_ptr<IEntityBehavior> Clone() const override;
 
     const char* GetName() const override { return "BowserBehavior"; }
+
+    bool AlwaysUpdate() const override { return true; }
 
     /**
      * Check if Bowser is defeated.
@@ -93,16 +104,23 @@ class BowserBehavior : public IEntityBehavior {
     int m_DamageFlashCounter = 0;  // Flashing effect after damage
     int m_PatrolDirection = 1;     // 1 = right, -1 = left
 
-    // Pending fireball spawn request (set by UpdateFireAttackPhase)
-    bool m_FireballPending = false;
-    float m_FireballX = 0.0f;
-    float m_FireballY = 0.0f;
-    int m_FireballDir = 0;  // direction toward player
+    // Queued spawn requests (fireballs, axes, etc.)
+    std::vector<SpawnRequest> m_PendingSpawns;
+
+    int m_AxeThrowTimer = 0;
+    static constexpr int AXE_THROW_INTERVAL = 24;     // Throws an axe every 24 frames!
+
+    int m_FireballTimer = 0;
+    static constexpr int FIREBALL_INTERVAL = 72;      // Spits a fireball every 72 frames (1.2x slower)!
 
     static constexpr int PATROL_PHASE_LENGTH = 180;   // 3 seconds at 60fps
     static constexpr int FIRE_ATTACK_LENGTH = 120;    // 2 seconds
     static constexpr int ATTACK_INTERVAL = 40;        // Frames between attacks
     static constexpr int DAMAGE_FLASH_DURATION = 60;  // Frames to flash
+
+    // Bridge range constraints for 8-4 Boss Room
+    float m_BridgeLeft = -1.0f;
+    float m_BridgeRight = -1.0f;
 
     // Helper methods
     void UpdatePatrol(EntityState& state, const Level& level,

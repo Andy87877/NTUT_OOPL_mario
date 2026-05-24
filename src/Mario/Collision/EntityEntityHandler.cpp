@@ -49,6 +49,7 @@ void EntityEntityHandler::Resolve(
             // --- Fireball vs Enemy -------------------------------------------
             if (entities[i]->GetDef().type == EntityType::FIRE &&
                 !e1.IsEnemy() && e2.IsEnemy()) {
+                if (entities[j]->GetDef().type == EntityType::FIRE) continue; // Bowser fire is immune to player fireballs
                 bool handled = entities[j]->GetBehavior() &&
                                entities[j]->GetBehavior()->OnFireballHit(e2);
                 e1.Delete();  // always remove fireball on contact
@@ -59,6 +60,7 @@ void EntityEntityHandler::Resolve(
                 }
             } else if (entities[j]->GetDef().type == EntityType::FIRE &&
                        !e2.IsEnemy() && e1.IsEnemy()) {
+                if (entities[i]->GetDef().type == EntityType::FIRE) continue; // Bowser fire is immune to player fireballs
                 bool handled = entities[i]->GetBehavior() &&
                                entities[i]->GetBehavior()->OnFireballHit(e1);
                 e2.Delete();  // always remove fireball on contact
@@ -71,13 +73,15 @@ void EntityEntityHandler::Resolve(
 
             // --- Moving Koopa Shell vs Enemy ---------------------------------
             if (IsMovingShell(entities[i], e1) && e2.IsEnemy()) {
-                if (entities[j]->GetDef().type != EntityType::KOOPA_SHELL) {
+                if (entities[j]->GetDef().type != EntityType::KOOPA_SHELL &&
+                    entities[j]->GetDef().type != EntityType::FIRE) {
                     e2.TriggerDeath(EnemyDeathCause::SHELL_HIT);
                     AudioManager::GetInstance().PlaySFX(SFXName::Kick);
                     gameState.AddScore(e2.GetScoreWorth());
                 }
             } else if (IsMovingShell(entities[j], e2) && e1.IsEnemy()) {
-                if (entities[i]->GetDef().type != EntityType::KOOPA_SHELL) {
+                if (entities[i]->GetDef().type != EntityType::KOOPA_SHELL &&
+                    entities[i]->GetDef().type != EntityType::FIRE) {
                     e1.TriggerDeath(EnemyDeathCause::SHELL_HIT);
                     AudioManager::GetInstance().PlaySFX(SFXName::Kick);
                     gameState.AddScore(e1.GetScoreWorth());

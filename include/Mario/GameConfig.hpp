@@ -61,7 +61,7 @@ struct GameConfig {
 
     // -- Entity --
     static constexpr float ENEMY_SPEED_DIVISOR = 3.0f;
-    static constexpr float ITEM_SPEED_DIVISOR = 1.0f;
+    static constexpr float ITEM_SPEED_DIVISOR = 2.0f;
     static constexpr float SHELL_SPEED_MULTIPLIER = 1.5f;
 
     // Fireball configuration

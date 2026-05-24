@@ -21,18 +21,12 @@ void ItemBehavior::Update(EntityState& state, [[maybe_unused]] const Level& leve
                           [[maybe_unused]] const Player& player, [[maybe_unused]] int gameTimer) {
     // Coins don't move - just animate in place
     if (m_Type == ItemType::COIN) {
-        if (state.IsAnimated()) {
-            state.AdvanceAnimationFrame();
-        }
         return;
     }
 
     // Power-ups that bounce when spawned
     if (state.IsStatic()) {
         // Static items (in blocks) don't move until spawned
-        if (state.IsAnimated()) {
-            state.AdvanceAnimationFrame();
-        }
         return;
     }
 
@@ -44,14 +38,6 @@ void ItemBehavior::Update(EntityState& state, [[maybe_unused]] const Level& leve
         if (m_Type == ItemType::STAR) {
             state.SetGrounded(false);   // Jump up
             state.SetFallHeight(20.0);  // Star jump height
-        }
-    }
-
-    // Animation
-    if (state.IsAnimated()) {
-        m_MoveFrameCounter++;
-        if (m_MoveFrameCounter % 8 == 0) {
-            state.AdvanceAnimationFrame();
         }
     }
 }

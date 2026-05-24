@@ -53,6 +53,8 @@ class FireballBehavior : public IEntityBehavior {
 
     const char* GetName() const override { return "FireballBehavior"; }
 
+    bool AlwaysUpdate() const override { return true; }
+
     /**
      * Get remaining lifetime in frames.
      */

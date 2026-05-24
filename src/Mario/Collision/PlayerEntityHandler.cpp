@@ -76,6 +76,15 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
 
     // --- Star power: instant kill ------------------------------------------
     if (ps.GetStarTimer() > 0) {
+        // Bowser fire is invincible and immune to Star power - it still damages Mario and disappears!
+        if (entity.GetDef().type == EntityType::FIRE && es.IsEnemy()) {
+            ps.TakeDamage();
+            auto* behavior = entity.GetBehavior();
+            if (behavior) behavior->OnPlayerCollision(es, player, false);
+            if (es.IsActive()) es.Delete();
+            return;
+        }
+
         es.TriggerDeath(EnemyDeathCause::STAR_HIT);
         AudioManager::GetInstance().PlaySFX(SFXName::Kick);
         addScore(es.GetScoreWorth());

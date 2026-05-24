@@ -35,6 +35,7 @@ enum class EntityType {
     AXE_PROJECTILE,
     PIRANHA_PLANT,
     PODOBOO,  // Lava Bubble — jumps from lava, immortal
+    CASTLE_FIRE_SPAWNER,
     UNKNOWN
 };
 

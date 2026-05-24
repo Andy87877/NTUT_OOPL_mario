@@ -15,7 +15,7 @@
 namespace Mario {
 
 FireballBehavior::FireballBehavior(FireballType type)
-    : m_Type(type), m_LifetimeFrames(240) {}
+    : m_Type(type), m_LifetimeFrames(type == FireballType::BOWSER ? 800 : 240) {}
 
 void FireballBehavior::Update(EntityState& state, [[maybe_unused]] const Level& level,
                               [[maybe_unused]] const Player& player, [[maybe_unused]] int gameTimer) {
@@ -31,8 +31,9 @@ void FireballBehavior::Update(EntityState& state, [[maybe_unused]] const Level& 
     // FireballBehavior only handles special fireball logic (bounce, etc.)
 
     // Ground bounding is managed by App::CheckEntityBlockCollision.
-    // If App.cpp set us as grounded, we bounce!
-    if (state.IsGrounded()) {
+    // If App.cpp set us as grounded, we bounce! (Only for player fireballs,
+    // Bowser fireballs ignore gravity and fly straight horizontally).
+    if (m_Type == FireballType::PLAYER && state.IsGrounded()) {
         // Bounce logic (bounce forever like C# reference)
         state.SetGrounded(false);  // jump up
         state.SetFallHeight(GameConfig::JUMP_LOW_VELOCITY);

@@ -8,6 +8,7 @@
 #include "Mario/EntityFactory.hpp"
 
 #include "Mario/Behaviors/BowserBehavior.hpp"
+#include "Mario/Behaviors/CastleFireSpawnerBehavior.hpp"
 #include "Mario/Behaviors/DefaultEntityBehavior.hpp"
 #include "Mario/Behaviors/EnemyBehavior.hpp"
 #include "Mario/Behaviors/FireballBehavior.hpp"
@@ -135,6 +136,20 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
                 }
             }
         }
+
+        // Automatically spawn off-screen CastleFireSpawner at the start of 8-4
+        EntityDef spawnerDef;
+        spawnerDef.id = -1;
+        spawnerDef.name = "CastleFireSpawner";
+        spawnerDef.type = EntityType::CASTLE_FIRE_SPAWNER;
+        spawnerDef.isStatic = true;
+        spawnerDef.doesCollide = false;
+
+        auto spawner = SpawnEntity(spawnerDef, 0.0f, 0.0f, 0, false, levelName);
+        if (spawner) {
+            LOG_INFO("8-4 Castle: Automatically spawned off-screen CastleFireSpawner.");
+            entities.push_back(spawner);
+        }
     }
 
     LOG_DEBUG("EntityFactory: Spawned {} entities from level", entities.size());
@@ -175,6 +190,9 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             break;
         case EntityType::BOWSER:
             behavior = std::make_unique<BowserBehavior>();
+            break;
+        case EntityType::CASTLE_FIRE_SPAWNER:
+            behavior = std::make_unique<CastleFireSpawnerBehavior>();
             break;
         case EntityType::FIRE:
             behavior = std::make_unique<FireballBehavior>(
