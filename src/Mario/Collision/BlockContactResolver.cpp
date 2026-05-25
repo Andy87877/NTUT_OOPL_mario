@@ -7,7 +7,9 @@
  */
 #include "Mario/Collision/BlockContactResolver.hpp"
 
-#include "Mario/GameConfig.hpp"
+#include "Mario/Core/GameConfig.hpp"
+#include "Mario/Level/Level.hpp"
+#include "Mario/Level/Block.hpp"
 
 namespace Mario {
 
@@ -23,8 +25,9 @@ AABB BlockContactResolver::BodyRect(const PlayerState& state) {
 void BlockContactResolver::ResolveDown(PlayerState& state, const AABB& bb,
                                        bool& movingDown) {
     AABB body = BodyRect(state);
-    const float threshold = static_cast<float>(GameConfig::TILE_SIZE) *
-                            GameConfig::INTERSECT_STRICTNESS;
+    // Velocity-adaptive threshold: grows with vertical speed to prevent clipping through the floor when falling fast
+    const float threshold = std::max(static_cast<float>(GameConfig::TILE_SIZE) * GameConfig::INTERSECT_STRICTNESS,
+                                     static_cast<float>(std::abs(state.GetVelY()) + 2.0f));
     if (body.bottom > bb.top && body.bottom < bb.top + threshold &&
         movingDown) {
         state.SetY(bb.top - static_cast<float>(state.GetHeight()));
@@ -39,8 +42,9 @@ void BlockContactResolver::ResolveDown(PlayerState& state, const AABB& bb,
 void BlockContactResolver::ResolveUp(PlayerState& state, const AABB& bb,
                                      bool& movingUp) {
     AABB body = BodyRect(state);
-    const float threshold = static_cast<float>(GameConfig::TILE_SIZE) *
-                            GameConfig::INTERSECT_STRICTNESS;
+    // Velocity-adaptive threshold: grows with vertical speed to prevent passing through block ceilings when jumping fast
+    const float threshold = std::max(static_cast<float>(GameConfig::TILE_SIZE) * GameConfig::INTERSECT_STRICTNESS,
+                                     static_cast<float>(std::abs(state.GetVelY()) + 2.0f));
     if (body.top < bb.bottom && body.top > bb.bottom - threshold && movingUp) {
         state.SetY(bb.bottom);
         state.SetFallHeight(0.0);
@@ -53,8 +57,9 @@ void BlockContactResolver::ResolveUp(PlayerState& state, const AABB& bb,
 void BlockContactResolver::ResolveRight(PlayerState& state, const AABB& bb,
                                         bool& movingRight) {
     AABB body = BodyRect(state);
-    const float threshold = static_cast<float>(GameConfig::TILE_SIZE) *
-                            GameConfig::INTERSECT_STRICTNESS;
+    // Velocity-adaptive threshold: grows with horizontal speed to prevent clipping into walls when moving fast
+    const float threshold = std::max(static_cast<float>(GameConfig::TILE_SIZE) * GameConfig::INTERSECT_STRICTNESS,
+                                     static_cast<float>(std::abs(state.GetVelX()) + 2.0f));
     if (body.right > bb.left && body.right < bb.left + threshold &&
         movingRight) {
         state.SetX(bb.left - static_cast<float>(GameConfig::TILE_SIZE));
@@ -67,14 +72,43 @@ void BlockContactResolver::ResolveRight(PlayerState& state, const AABB& bb,
 void BlockContactResolver::ResolveLeft(PlayerState& state, const AABB& bb,
                                        bool& movingLeft) {
     AABB body = BodyRect(state);
-    const float threshold = static_cast<float>(GameConfig::TILE_SIZE) *
-                            GameConfig::INTERSECT_STRICTNESS;
+    // Velocity-adaptive threshold: grows with horizontal speed to prevent clipping into walls when moving fast
+    const float threshold = std::max(static_cast<float>(GameConfig::TILE_SIZE) * GameConfig::INTERSECT_STRICTNESS,
+                                     static_cast<float>(std::abs(state.GetVelX()) + 2.0f));
     if (body.left < bb.right && body.left > bb.right - threshold &&
         movingLeft) {
         state.SetX(bb.right);
         state.SetVelX(0.0f);
         movingLeft = false;
     }
+}
+
+bool BlockContactResolver::IsPlayerOnStaticBlock(const PlayerState& state, Level& level) {
+    AABB body = BodyRect(state);
+    AABB fallDetect = {body.left, body.top + 1.0f, body.right, body.bottom + 1.0f};
+
+    int tileX = static_cast<int>(body.left) / GameConfig::TILE_SIZE;
+    int tileY = static_cast<int>(body.top) / GameConfig::TILE_SIZE;
+
+    for (int gy = tileY; gy <= tileY + 3; gy++) {
+        for (int gx = tileX - 1; gx <= tileX + 2; gx++) {
+            Block* blk = level.GetBlockAt(gx, gy);
+            if (blk && blk->IsSolid() && blk->GetAABB().Intersects(fallDetect)) {
+                // Check if this block is a moving platform
+                bool isMovingPlat = false;
+                for (auto* otherPlat : level.GetMovingPlatforms()) {
+                    if (blk == otherPlat) {
+                        isMovingPlat = true;
+                        break;
+                    }
+                }
+                if (!isMovingPlat) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 }  // namespace Mario

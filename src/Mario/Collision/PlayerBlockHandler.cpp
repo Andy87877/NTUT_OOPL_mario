@@ -7,13 +7,14 @@
  */
 #include "Mario/Collision/PlayerBlockHandler.hpp"
 
-#include "Mario/AudioManager.hpp"
-#include "Mario/Camera.hpp"
+#include "Mario/Services/AudioManager.hpp"
+#include "Mario/Core/Camera.hpp"
 #include "Mario/Collision/BlockContactResolver.hpp"
-#include "Mario/GameConfig.hpp"
-#include "Mario/GameStateManager.hpp"
-#include "Mario/PhysicsEngine.hpp"
-#include "Mario/UIManager.hpp"
+#include "Mario/Core/GameConfig.hpp"
+#include "Mario/Level/GameStateManager.hpp"
+#include "Mario/Core/PhysicsEngine.hpp"
+#include "Mario/UI/UIManager.hpp"
+#include "Mario/Level/Block.hpp"
 
 namespace Mario {
 
@@ -70,9 +71,15 @@ void PlayerBlockHandler::StepFallDetect(PlayerState& state, Level& level) {
             }
         }
     }
+    // Moving platforms: use a wider strip (3px) to tolerate the sub-pixel
+    // gap that carry logic can introduce when the platform rises. Without
+    // this tolerance the player briefly loses grounded status and the Jump
+    // sprite flashes for one frame.
+    AABB platDetect = {body.left, body.top + 1.0f, body.right,
+                       body.bottom + 3.0f};
     for (auto* plat : level.GetMovingPlatforms()) {
         if (!groundFound && plat && plat->IsSolid() &&
-            plat->GetAABB().Intersects(fallDetect)) {
+            plat->GetAABB().Intersects(platDetect)) {
             groundFound = true;
         }
     }
@@ -109,8 +116,12 @@ void PlayerBlockHandler::StepCeilingTrigger(
             if (!blk || !blk->IsSolid()) continue;
 
             AABB bb = blk->GetAABB();
-            // C#: Top < b.Bottom && Top > b.Bottom - size*0.75 && intersects
-            if (hb.top < bb.bottom && hb.top > bb.bottom - TS * STR &&
+            // Velocity-adaptive threshold: scales up at high speeds (e.g. max jump speed 27.59px/frame)
+            // to prevent Mario from passing through the block in a single frame, while preserving
+            // the exact 0.75 strictness ratio for slow overlap contacts.
+            float threshold = std::max(TS * STR, static_cast<float>(std::abs(state.GetVelY()) + 2.0f));
+            // C#: Top < b.Bottom && Top > b.Bottom - threshold && intersects
+            if (hb.top < bb.bottom && hb.top > bb.bottom - threshold &&
                 hb.Intersects(bb)) {
                 state.SetY(bb.bottom);
                 state.SetFallHeight(0.0);
@@ -143,14 +154,14 @@ void PlayerBlockHandler::StepBodyResolution(PlayerState& state, Level& level,
         for (int gx = tileX - 1; gx <= tileX + 2; gx++) {
             Block* blk = level.GetBlockAt(gx, gy);
             if (blk && blk->IsSolid()) {
-                ProcessSingleBlock(state, blk->GetAABB(), movingDown, movingUp,
+                ProcessSingleBlock(state, blk, movingDown, movingUp,
                                    movingRight, movingLeft);
             }
         }
     }
     for (auto* plat : level.GetMovingPlatforms()) {
         if (plat && plat->IsSolid()) {
-            ProcessSingleBlock(state, plat->GetAABB(), movingDown, movingUp,
+            ProcessSingleBlock(state, plat, movingDown, movingUp,
                                movingRight, movingLeft);
         }
     }
@@ -158,7 +169,7 @@ void PlayerBlockHandler::StepBodyResolution(PlayerState& state, Level& level,
 
 // ============================================================================
 // ProcessSingleBlock
-// Applies the C# per-block resolution order for one AABB.
+// Applies the C# per-block resolution order for one Block.
 //
 // Airborne : DOWN → RIGHT → LEFT → DOWN (2nd) → UP → LEFT (2nd)
 // Grounded : RIGHT or LEFT (or center-based push-out when VelX == 0)
@@ -168,11 +179,23 @@ void PlayerBlockHandler::StepBodyResolution(PlayerState& state, Level& level,
 // which resets the direction per block so one block's result cannot block
 // an unrelated snap on the next block.
 // ============================================================================
-void PlayerBlockHandler::ProcessSingleBlock(PlayerState& state, const AABB& bb,
+void PlayerBlockHandler::ProcessSingleBlock(PlayerState& state, Block* blk,
                                             bool& movingDown, bool& movingUp,
                                             bool movingRight, bool movingLeft) {
+    AABB bb = blk->GetAABB();
     AABB body = BlockContactResolver::BodyRect(state);
     if (!body.Intersects(bb)) return;
+
+    // OOP Extensibility check: vertical platforms can self-determine if they
+    // should be snapped vertically first.
+    if (blk->ShouldResolveVerticallyFirst(body)) {
+        state.SetY(bb.top - static_cast<float>(state.GetHeight()));
+        state.SetGrounded(true);
+        state.SetVelY(0.0);
+        state.SetFallHeight(0.0);
+        movingDown = false;
+        return;
+    }
 
     // Per-block copies — match C# "localMovingRight / localMovingLeft".
     bool localMovingRight = movingRight;

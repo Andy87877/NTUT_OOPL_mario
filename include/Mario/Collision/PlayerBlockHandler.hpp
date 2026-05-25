@@ -12,11 +12,12 @@
 #include <vector>
 
 #include "Mario/Collision/ICollisionHandler.hpp"
-#include "Mario/Level.hpp"
-#include "Mario/Player.hpp"
+#include "Mario/Level/Level.hpp"
+#include "Mario/Player/Player.hpp"
 
 namespace Mario {
 
+class Block;
 class Camera;
 class GameStateManager;
 class UIManager;
@@ -84,7 +85,7 @@ class PlayerBlockHandler : public ICollisionHandler {
      * movingRight / movingLeft: by value — each block gets a fresh copy,
      *                          matching C# "localMovingRight/localMovingLeft".
      */
-    void ProcessSingleBlock(PlayerState& state, const AABB& bb,
+    void ProcessSingleBlock(PlayerState& state, Block* blk,
                             bool& movingDown, bool& movingUp, bool movingRight,
                             bool movingLeft);
 

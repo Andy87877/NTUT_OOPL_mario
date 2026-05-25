@@ -6,14 +6,14 @@
  */
 #include "Mario/Collision/PlayerEntityHandler.hpp"
 
-#include "Mario/AudioManager.hpp"
+#include "Mario/Services/AudioManager.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
-#include "Mario/Camera.hpp"
-#include "Mario/EntityDef.hpp"
-#include "Mario/GameConfig.hpp"
-#include "Mario/GameStateManager.hpp"
-#include "Mario/PhysicsEngine.hpp"
-#include "Mario/UIManager.hpp"
+#include "Mario/Core/Camera.hpp"
+#include "Mario/Level/EntityDef.hpp"
+#include "Mario/Core/GameConfig.hpp"
+#include "Mario/Level/GameStateManager.hpp"
+#include "Mario/Core/PhysicsEngine.hpp"
+#include "Mario/UI/UIManager.hpp"
 
 namespace Mario {
 
@@ -126,6 +126,16 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
     bool isStomp = !ps.IsGrounded() && ps.GetFallHeight() <= 0.0;
 
     if (isStomp) {
+        // --- Stomp-immune enemies (Bowser, Podoboo, etc.) ------------------
+        // Query via virtual method — adding a new immune enemy only requires
+        // overriding IsImmuneToStomp(); no changes needed here (OCP).
+        auto* behavior = entity.GetBehavior();
+        if (behavior && behavior->IsImmuneToStomp()) {
+            // Mario cannot stomp them — contact damages Mario instead.
+            behavior->OnPlayerCollision(es, player, true);
+            return;
+        }
+
         bool handledByBehavior = false;
 
         if (entity.GetDef().type == EntityType::KOOPA_SHELL ||
@@ -155,8 +165,6 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
             } else if (es.IsKoopaSquash()) {
                 es.TriggerDeath(EnemyDeathCause::STOMP);
                 AudioManager::GetInstance().PlaySFX(SFXName::Squish);
-            } else if (entity.GetDef().type == EntityType::BOWSER) {
-                AudioManager::GetInstance().PlaySFX(SFXName::BowserDie);
             } else {
                 AudioManager::GetInstance().PlaySFX(SFXName::Squish);
             }

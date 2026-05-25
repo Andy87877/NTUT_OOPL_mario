@@ -15,14 +15,16 @@
 #include "App.hpp"
 
 // Scene handlers — included here so CreateSceneHandler() can instantiate them.
-#include "Mario/AxeSequenceSceneHandler.hpp"
-#include "Mario/ESCMenuSceneHandler.hpp"
-#include "Mario/FlagpoleSceneHandler.hpp"
-#include "Mario/LoadingSceneHandler.hpp"
-#include "Mario/MenuSceneHandlers.hpp"
-#include "Mario/PhysicsEngine.hpp"
-#include "Mario/PipeWarpSceneHandler.hpp"
-#include "Mario/PlayingSceneHandler.hpp"
+#include "Mario/Scenes/AxeSequenceSceneHandler.hpp"
+#include "Mario/Scenes/ESCMenuSceneHandler.hpp"
+#include "Mario/Scenes/FlagpoleSceneHandler.hpp"
+#include "Mario/Services/InputHandler.hpp"  // concrete keyboard controller (DIP)
+#include "Mario/Scenes/LoadingSceneHandler.hpp"
+#include "Mario/Scenes/MenuSceneHandlers.hpp"
+#include "Mario/Core/PhysicsEngine.hpp"
+#include "Mario/Scenes/PipeWarpSceneHandler.hpp"
+#include "Mario/Scenes/PlayingSceneHandler.hpp"
+#include "Mario/Services/ServiceLocator.hpp"
 #include "Util/Image.hpp"
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
@@ -36,7 +38,18 @@
 // ============================================================================
 void App::Start() {
     LOG_TRACE("Start");
+    // Concrete keyboard controller injected here (DIP: App.hpp only knows
+    // IInputHandler)
+    m_InputHandler = std::make_unique<Mario::InputHandler>();
     m_UIManager = std::make_unique<Mario::UIManager>(&m_GameState);
+
+    // Register IAudioService singleton with the ServiceLocator (DIP / Service
+    // Locator pattern)
+    auto audioService = std::shared_ptr<Mario::IAudioService>(
+        &Mario::AudioManager::GetInstance(), [](Mario::IAudioService*) {});
+    Mario::ServiceLocator::GetInstance().RegisterService<Mario::IAudioService>(
+        audioService);
+
     TransitionTo(State::TITLE);
     LOG_INFO("Game initialized - entering TITLE state");
 }

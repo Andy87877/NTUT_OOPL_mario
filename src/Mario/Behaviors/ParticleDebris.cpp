@@ -5,7 +5,7 @@
  */
 #include "Mario/Behaviors/ParticleDebris.hpp"
 
-#include "Mario/EntityState.hpp"
+#include "Mario/Level/EntityState.hpp"
 
 namespace Mario {
 

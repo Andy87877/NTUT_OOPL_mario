@@ -8,11 +8,11 @@
  */
 #include "Mario/CollisionManager.hpp"
 
-#include "Mario/Camera.hpp"
-#include "Mario/Entity.hpp"
-#include "Mario/GameConfig.hpp"
-#include "Mario/GameStateManager.hpp"
-#include "Mario/UIManager.hpp"
+#include "Mario/Core/Camera.hpp"
+#include "Mario/Level/Entity.hpp"
+#include "Mario/Core/GameConfig.hpp"
+#include "Mario/Level/GameStateManager.hpp"
+#include "Mario/UI/UIManager.hpp"
 
 namespace Mario {
 

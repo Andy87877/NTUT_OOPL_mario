@@ -3,27 +3,27 @@ set(SRC_FILES
     App.cpp
 
     # Core
-    Mario/Camera.cpp
-    Mario/PhysicsEngine.cpp
-    Mario/SpritePathResolver.cpp
-
-    # Level & Block
-    Mario/Block.cpp
-    Mario/MovingPlatform.cpp
-    Mario/Level.cpp
+    Mario/Core/Camera.cpp
+    Mario/Core/PhysicsEngine.cpp
+    Mario/Core/SpritePathResolver.cpp
 
     # Player (MVC)
-    Mario/PlayerState.cpp
-    Mario/PlayerDeathAnimation.cpp
-    Mario/Player.cpp
-    Mario/InputHandler.cpp
+    Mario/Player/PlayerState.cpp
+    Mario/Player/PlayerForm.cpp
+    Mario/Player/PlayerDeathAnimation.cpp
+    Mario/Player/Player.cpp
 
-    # Entity (MVC)
-    Mario/EntityState.cpp
-    Mario/EnemyDeathAnimation.cpp
-    Mario/EnemyDeathStyleFactory.cpp
-    Mario/Entity.cpp
-    Mario/EntityFactory.cpp
+    # Level & Block
+    Mario/Level/Level.cpp
+    Mario/Level/Block.cpp
+    Mario/Level/MovingPlatform.cpp
+    Mario/Level/EntityState.cpp
+    Mario/Level/EnemyDeathAnimation.cpp
+    Mario/Level/EnemyDeathStyleFactory.cpp
+    Mario/Level/Entity.cpp
+    Mario/Level/EntityFactory.cpp
+    Mario/Level/LevelCompleteController.cpp
+    Mario/Level/GameStateManager.cpp
 
     # Behaviors (Phase 4 - Strategy Pattern)
     Mario/Behaviors/DefaultEntityBehavior.cpp
@@ -39,7 +39,6 @@ set(SRC_FILES
     Mario/Behaviors/ParticleDebris.cpp
 
     # Collision (OOP subsystem)
-    # CollisionManager is a thin facade; logic lives in Collision/ handlers.
     Mario/CollisionManager.cpp
     Mario/Collision/BlockContactResolver.cpp
     Mario/Collision/PlayerBlockHandler.cpp
@@ -47,29 +46,24 @@ set(SRC_FILES
     Mario/Collision/EntityBlockHandler.cpp
     Mario/Collision/EntityEntityHandler.cpp
 
-    # Level Completion (Phase 5)
-    Mario/LevelCompleteController.cpp
-    Mario/GameStateManager.cpp
-
     # Scene Handlers (State Pattern)
-    Mario/MenuSceneHandlers.cpp
-    Mario/LoadingSceneHandler.cpp
-    Mario/PlayingSceneHandler.cpp
-    Mario/FlagpoleSceneHandler.cpp
-    Mario/PipeWarpSceneHandler.cpp
-    Mario/AxeSequenceSceneHandler.cpp
-    Mario/ESCMenuSceneHandler.cpp
+    Mario/Scenes/MenuSceneHandlers.cpp
+    Mario/Scenes/LoadingSceneHandler.cpp
+    Mario/Scenes/PlayingSceneHandler.cpp
+    Mario/Scenes/FlagpoleSceneHandler.cpp
+    Mario/Scenes/PipeWarpSceneHandler.cpp
+    Mario/Scenes/AxeSequenceSceneHandler.cpp
+    Mario/Scenes/ESCMenuSceneHandler.cpp
 
-    # Managers
-    # UIManager.cpp also contains CoinUI + FloatingText implementations
-    #   (they are private sub-components of UIManager; no external consumers)
-    Mario/UIManager.cpp
-    # AudioManager.cpp also contains AudioPathResolver implementation
-    #   (AudioPathResolver is an internal helper used only by AudioManager)
-    Mario/AudioManager.cpp
-    # SceneManager / GameTheater removed — superseded by App + ISceneHandler State Pattern
+    # UI & Panels
+    Mario/UI/UIManager.cpp
+    Mario/UI/CoinUI.cpp
+    Mario/UI/FloatingText.cpp
 
-    # Render
+    # Services (DIP & Services)
+    Mario/Services/InputHandler.cpp
+    Mario/Services/AudioPathResolver.cpp
+    Mario/Services/AudioManager.cpp
 )
 
 set(INCLUDE_FILES
@@ -77,29 +71,31 @@ set(INCLUDE_FILES
     App.hpp
 
     # Core
-    Mario/GameConfig.hpp
-    Mario/Collider.hpp
-    Mario/Camera.hpp
-    Mario/PhysicsEngine.hpp
-    Mario/SpritePathResolver.hpp
-
-    # Level & Block
-    Mario/EntityDef.hpp
-    Mario/Block.hpp
-    Mario/Level.hpp
+    Mario/Core/Collider.hpp
+    Mario/Core/CollisionContext.hpp
+    Mario/Core/Camera.hpp
+    Mario/Core/PhysicsEngine.hpp
+    Mario/Core/SpritePathResolver.hpp
+    Mario/Core/GameConfig.hpp
 
     # Player (MVC)
-    Mario/PlayerState.hpp
-    Mario/PlayerDeathAnimation.hpp
-    Mario/Player.hpp
-    Mario/InputHandler.hpp
+    Mario/Player/Player.hpp
+    Mario/Player/PlayerState.hpp
+    Mario/Player/PlayerForm.hpp
+    Mario/Player/PlayerDeathAnimation.hpp
 
-    # Entity (MVC)
-    Mario/EntityState.hpp
-    Mario/EnemyDeathAnimation.hpp
-    Mario/EnemyDeathStyleFactory.hpp
-    Mario/Entity.hpp
-    Mario/EntityFactory.hpp
+    # Level & Block
+    Mario/Level/Level.hpp
+    Mario/Level/Block.hpp
+    Mario/Level/MovingPlatform.hpp
+    Mario/Level/EntityDef.hpp
+    Mario/Level/Entity.hpp
+    Mario/Level/EntityFactory.hpp
+    Mario/Level/EntityState.hpp
+    Mario/Level/EnemyDeathAnimation.hpp
+    Mario/Level/EnemyDeathStyleFactory.hpp
+    Mario/Level/LevelCompleteController.hpp
+    Mario/Level/GameStateManager.hpp
 
     # Behaviors (Phase 4 - Strategy Pattern)
     Mario/Behaviors/IEntityBehavior.hpp
@@ -117,36 +113,39 @@ set(INCLUDE_FILES
 
     # Collision
     Mario/CollisionManager.hpp
+    Mario/Collision/ICollisionHandler.hpp
+    Mario/Collision/BlockContactResolver.hpp
+    Mario/Collision/PlayerBlockHandler.hpp
+    Mario/Collision/PlayerEntityHandler.hpp
+    Mario/Collision/EntityBlockHandler.hpp
+    Mario/Collision/EntityEntityHandler.hpp
 
-    # Level Completion (Phase 5)
-    Mario/LevelCompleteController.hpp
-    Mario/GameStateManager.hpp
+    # Scene Handlers (State Pattern)
+    Mario/Scenes/ISceneHandler.hpp
+    Mario/Scenes/MenuSceneHandlers.hpp
+    Mario/Scenes/LoadingSceneHandler.hpp
+    Mario/Scenes/PlayingSceneHandler.hpp
+    Mario/Scenes/FlagpoleSceneHandler.hpp
+    Mario/Scenes/PipeWarpSceneHandler.hpp
+    Mario/Scenes/AxeSequenceSceneHandler.hpp
+    Mario/Scenes/ESCMenuSceneHandler.hpp
 
-    # Scene Handlers (Phase 5)
-    Mario/ISceneHandler.hpp
-    Mario/MenuSceneHandlers.hpp
-    Mario/LoadingSceneHandler.hpp
-    Mario/PlayingSceneHandler.hpp
-    Mario/FlagpoleSceneHandler.hpp
-    Mario/PipeWarpSceneHandler.hpp
-    Mario/AxeSequenceSceneHandler.hpp
-    Mario/ESCMenuSceneHandler.hpp
+    # UI & Panels
+    Mario/UI/UIPanel.hpp
+    Mario/UI/UIManager.hpp
+    Mario/UI/UIWidgets.hpp
+    Mario/UI/CoinUI.hpp
+    Mario/UI/FloatingText.hpp
 
-    # Managers
-    # AudioManager.hpp contains all audio sub-system declarations:
-    #   BGMName/SFXName enums (was AudioType.hpp)
-    #   IAudioService interface (was IAudioService.hpp)
-    #   AudioPathResolver helper (was AudioPathResolver.hpp)
-    #   AudioManager singleton
-    Mario/AudioManager.hpp
-    # SceneManager.hpp / GameTheater.hpp removed — superseded by App + ISceneHandler State Pattern
-    Mario/UIManager.hpp
-
-    # UI components
-    # UIWidgets.hpp contains UIText + UIImage (merged — both exclusively used by HUD sub-system)
-    Mario/UIWidgets.hpp
-    Mario/FloatingText.hpp
-    Mario/CoinUI.hpp
+    # Services (DIP & Services)
+    Mario/Services/ServiceLocator.hpp
+    Mario/Services/EventSystem.hpp
+    Mario/Services/IInputHandler.hpp
+    Mario/Services/InputHandler.hpp
+    Mario/Services/IAudioService.hpp
+    Mario/Services/AudioType.hpp
+    Mario/Services/AudioPathResolver.hpp
+    Mario/Services/AudioManager.hpp
 )
 
 set(TEST_FILES

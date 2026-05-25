@@ -6,11 +6,11 @@
  */
 #include "Mario/Collision/EntityEntityHandler.hpp"
 
-#include "Mario/AudioManager.hpp"
+#include "Mario/Services/AudioManager.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
-#include "Mario/EntityDef.hpp"
-#include "Mario/GameConfig.hpp"
-#include "Mario/GameStateManager.hpp"
+#include "Mario/Level/EntityDef.hpp"
+#include "Mario/Core/GameConfig.hpp"
+#include "Mario/Level/GameStateManager.hpp"
 
 namespace Mario {
 

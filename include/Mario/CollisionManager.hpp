@@ -24,8 +24,8 @@
 #include "Mario/Collision/EntityEntityHandler.hpp"
 #include "Mario/Collision/PlayerBlockHandler.hpp"
 #include "Mario/Collision/PlayerEntityHandler.hpp"
-#include "Mario/Level.hpp"
-#include "Mario/Player.hpp"
+#include "Mario/Level/Level.hpp"
+#include "Mario/Player/Player.hpp"
 
 namespace Mario {
 

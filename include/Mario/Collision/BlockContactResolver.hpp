@@ -10,10 +10,12 @@
 #ifndef MARIO_COLLISION_BLOCK_CONTACT_RESOLVER_HPP
 #define MARIO_COLLISION_BLOCK_CONTACT_RESOLVER_HPP
 
-#include "Mario/Collider.hpp"
-#include "Mario/PlayerState.hpp"
+#include "Mario/Core/Collider.hpp"
+#include "Mario/Player/PlayerState.hpp"
 
 namespace Mario {
+
+class Level;
 
 /**
  * Provides static helpers that resolve player-AABB contact along each axis.
@@ -68,6 +70,11 @@ class BlockContactResolver {
      */
     static void ResolveLeft(PlayerState& state, const AABB& bb,
                             bool& movingLeft);
+
+    /**
+     * Check if the player is standing on any static solid block in the level.
+     */
+    static bool IsPlayerOnStaticBlock(const PlayerState& state, Level& level);
 };
 
 }  // namespace Mario

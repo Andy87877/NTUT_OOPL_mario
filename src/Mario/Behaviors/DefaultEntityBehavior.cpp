@@ -5,10 +5,10 @@
  */
 #include "Mario/Behaviors/DefaultEntityBehavior.hpp"
 
-#include "Mario/EntityState.hpp"
-#include "Mario/GameStateManager.hpp"
-#include "Mario/Level.hpp"
-#include "Mario/Player.hpp"
+#include "Mario/Level/EntityState.hpp"
+#include "Mario/Level/GameStateManager.hpp"
+#include "Mario/Level/Level.hpp"
+#include "Mario/Player/Player.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {

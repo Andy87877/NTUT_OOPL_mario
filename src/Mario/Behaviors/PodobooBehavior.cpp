@@ -7,9 +7,9 @@
  */
 #include "Mario/Behaviors/PodobooBehavior.hpp"
 
-#include "Mario/EntityState.hpp"
-#include "Mario/Player.hpp"
-#include "Mario/PlayerState.hpp"
+#include "Mario/Level/EntityState.hpp"
+#include "Mario/Player/Player.hpp"
+#include "Mario/Player/PlayerState.hpp"
 
 namespace Mario {
 

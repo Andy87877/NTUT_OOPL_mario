@@ -13,8 +13,8 @@
 #include <vector>
 
 #include "Mario/Collision/ICollisionHandler.hpp"
-#include "Mario/Entity.hpp"
-#include "Mario/Level.hpp"
+#include "Mario/Level/Entity.hpp"
+#include "Mario/Level/Level.hpp"
 
 namespace Mario {
 

@@ -7,9 +7,9 @@
 #ifndef MARIO_BOWSER_BEHAVIOR_HPP
 #define MARIO_BOWSER_BEHAVIOR_HPP
 
-#include "Mario/Behaviors/IEntityBehavior.hpp"
-
 #include <vector>
+
+#include "Mario/Behaviors/IEntityBehavior.hpp"
 
 namespace Mario {
 
@@ -87,6 +87,12 @@ class BowserBehavior : public IEntityBehavior {
     bool AlwaysUpdate() const override { return true; }
 
     /**
+     * Bowser cannot be stomped — contact always damages Mario.
+     * Star power still defeats him via the handler's star-kill path.
+     */
+    bool IsImmuneToStomp() const override { return true; }
+
+    /**
      * Check if Bowser is defeated.
      */
     bool IsDefeated() const { return m_Phase == BowserPhase::DEFEATED; }
@@ -108,10 +114,12 @@ class BowserBehavior : public IEntityBehavior {
     std::vector<SpawnRequest> m_PendingSpawns;
 
     int m_AxeThrowTimer = 0;
-    static constexpr int AXE_THROW_INTERVAL = 24;     // Throws an axe every 24 frames!
+    static constexpr int AXE_THROW_INTERVAL =
+        24;  // Throws an axe every 24 frames!
 
     int m_FireballTimer = 0;
-    static constexpr int FIREBALL_INTERVAL = 72;      // Spits a fireball every 72 frames (1.2x slower)!
+    static constexpr int FIREBALL_INTERVAL =
+        72;  // Spits a fireball every 72 frames (1.2x slower)!
 
     static constexpr int PATROL_PHASE_LENGTH = 180;   // 3 seconds at 60fps
     static constexpr int FIRE_ATTACK_LENGTH = 120;    // 2 seconds
@@ -130,6 +138,13 @@ class BowserBehavior : public IEntityBehavior {
                           const Player& player);
     void UpdateDamaged(EntityState& state);
     void UpdateDefeated(EntityState& state);
+
+    /**
+     * Check wall tiles in m_PatrolDirection and reverse if blocked.
+     * Also checks for ledge-edge and reverses. Eliminates the duplicated
+     * grid-scan loop that existed in both UpdatePatrol and UpdateJumpAttack.
+     */
+    void ResolveWallAndEdge(EntityState& state, const Level& level);
 };
 
 }  // namespace Mario

@@ -57,6 +57,12 @@ class PodobooBehavior : public IEntityBehavior {
      */
     bool OnFireballHit(EntityState& state) override;
 
+    /**
+     * Podoboo cannot be stomped — contact always damages Mario.
+     * Star power still defeats it via the handler's star-kill path.
+     */
+    bool IsImmuneToStomp() const override { return true; }
+
     std::unique_ptr<IEntityBehavior> Clone() const override;
 
     const char* GetName() const override { return "PodobooBehavior"; }

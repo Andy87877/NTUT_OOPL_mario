@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "Mario/Collision/ICollisionHandler.hpp"
-#include "Mario/Entity.hpp"
-#include "Mario/Player.hpp"
+#include "Mario/Level/Entity.hpp"
+#include "Mario/Player/Player.hpp"
 
 namespace Mario {
 

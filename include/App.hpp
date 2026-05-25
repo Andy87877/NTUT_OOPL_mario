@@ -24,19 +24,19 @@
 #include <string>
 #include <vector>
 
-#include "Mario/AudioManager.hpp"
-#include "Mario/Camera.hpp"
+#include "Mario/Services/AudioManager.hpp"
+#include "Mario/Core/Camera.hpp"
 #include "Mario/CollisionManager.hpp"
-#include "Mario/Entity.hpp"
-#include "Mario/EntityFactory.hpp"
-#include "Mario/GameConfig.hpp"
-#include "Mario/GameStateManager.hpp"
-#include "Mario/ISceneHandler.hpp"
-#include "Mario/InputHandler.hpp"
-#include "Mario/Level.hpp"
-#include "Mario/LevelCompleteController.hpp"
-#include "Mario/Player.hpp"
-#include "Mario/UIManager.hpp"
+#include "Mario/Level/Entity.hpp"
+#include "Mario/Level/EntityFactory.hpp"
+#include "Mario/Core/GameConfig.hpp"
+#include "Mario/Level/GameStateManager.hpp"
+#include "Mario/Services/IInputHandler.hpp"
+#include "Mario/Scenes/ISceneHandler.hpp"
+#include "Mario/Level/Level.hpp"
+#include "Mario/Level/LevelCompleteController.hpp"
+#include "Mario/Player/Player.hpp"
+#include "Mario/UI/UIManager.hpp"
 #include "Util/Renderer.hpp"
 #include "pch.hpp"  // IWYU pragma: export
 
@@ -129,7 +129,7 @@ class App {
     Mario::CollisionManager& GetCollisionManager() {
         return m_CollisionManager;
     }
-    Mario::InputHandler& GetInputHandler() { return m_InputHandler; }
+    Mario::IInputHandler& GetInputHandler() { return *m_InputHandler; }
     Mario::LevelCompleteController& GetLevelCompleteCtrl() {
         return m_LevelCompleteCtrl;
     }
@@ -167,8 +167,8 @@ class App {
     // -- Player --
     std::shared_ptr<Mario::Player> m_Player;
 
-    // -- Input (MVC Controller) --
-    Mario::InputHandler m_InputHandler;
+    // -- Input (MVC Controller) — owned via IInputHandler for DIP --
+    std::unique_ptr<Mario::IInputHandler> m_InputHandler;
 
     // -- Collision --
     Mario::CollisionManager m_CollisionManager;

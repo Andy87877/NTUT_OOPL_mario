@@ -6,12 +6,12 @@
  */
 #include "Mario/Behaviors/EnemyBehavior.hpp"
 
-#include "Mario/Collider.hpp"
-#include "Mario/EntityState.hpp"
-#include "Mario/Level.hpp"
-#include "Mario/PhysicsEngine.hpp"
-#include "Mario/Player.hpp"
-#include "Mario/PlayerState.hpp"
+#include "Mario/Core/Collider.hpp"
+#include "Mario/Level/EntityState.hpp"
+#include "Mario/Level/Level.hpp"
+#include "Mario/Core/PhysicsEngine.hpp"
+#include "Mario/Player/Player.hpp"
+#include "Mario/Player/PlayerState.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {

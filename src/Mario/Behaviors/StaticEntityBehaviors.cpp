@@ -8,10 +8,10 @@
  */
 #include "Mario/Behaviors/StaticEntityBehaviors.hpp"
 
-#include "Mario/AudioManager.hpp"
-#include "Mario/EntityState.hpp"
-#include "Mario/Level.hpp"
-#include "Mario/Player.hpp"
+#include "Mario/Services/AudioManager.hpp"
+#include "Mario/Level/EntityState.hpp"
+#include "Mario/Level/Level.hpp"
+#include "Mario/Player/Player.hpp"
 
 namespace Mario {
 

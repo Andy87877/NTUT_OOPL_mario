@@ -6,9 +6,9 @@
  */
 #include "Mario/Collision/EntityBlockHandler.hpp"
 
-#include "Mario/EntityDef.hpp"
-#include "Mario/EntityFactory.hpp"
-#include "Mario/GameConfig.hpp"
+#include "Mario/Level/EntityDef.hpp"
+#include "Mario/Level/EntityFactory.hpp"
+#include "Mario/Core/GameConfig.hpp"
 
 namespace Mario {
 

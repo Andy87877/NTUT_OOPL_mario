@@ -9,10 +9,10 @@
 
 #include <cmath>
 
-#include "Mario/EntityState.hpp"
-#include "Mario/GameConfig.hpp"
-#include "Mario/Player.hpp"
-#include "Mario/PlayerState.hpp"
+#include "Mario/Level/EntityState.hpp"
+#include "Mario/Core/GameConfig.hpp"
+#include "Mario/Player/Player.hpp"
+#include "Mario/Player/PlayerState.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {

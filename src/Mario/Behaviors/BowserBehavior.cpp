@@ -5,14 +5,14 @@
  */
 #include "Mario/Behaviors/BowserBehavior.hpp"
 
-#include "Mario/AudioManager.hpp"
-#include "Mario/Collider.hpp"
-#include "Mario/EntityFactory.hpp"
-#include "Mario/EntityState.hpp"
-#include "Mario/Level.hpp"
-#include "Mario/PhysicsEngine.hpp"
-#include "Mario/Player.hpp"
-#include "Mario/PlayerState.hpp"
+#include "Mario/Services/AudioManager.hpp"
+#include "Mario/Core/Collider.hpp"
+#include "Mario/Level/EntityFactory.hpp"
+#include "Mario/Level/EntityState.hpp"
+#include "Mario/Level/Level.hpp"
+#include "Mario/Core/PhysicsEngine.hpp"
+#include "Mario/Player/Player.hpp"
+#include "Mario/Player/PlayerState.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {
@@ -47,9 +47,11 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
         float left = 999999.0f;
         float right = -999999.0f;
         for (const auto& block : level.GetAllBlocks()) {
-            if (block && (block->GetName() == "Bridge" || block->GetName() == "BridgeBlock" || block->GetBlockID() == 818)) {
+            if (block && (block->GetName() == "Bridge" ||
+                          block->GetName() == "BridgeBlock" ||
+                          block->GetBlockID() == 818)) {
                 float bx = block->GetWorldX();
-                if (bx > 12000.0f) { // Bowser's bridge is only in Room 5
+                if (bx > 12000.0f) {  // Bowser's bridge is only in Room 5
                     if (bx < left) left = bx;
                     if (bx > right) right = bx;
                 }
@@ -70,8 +72,10 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
     float distanceToMario = std::abs(player.GetWorldX() - state.GetWorldX());
     if (isMarioShooting && distanceToMario < 350.0f && state.IsGrounded()) {
         state.SetGrounded(false);
-        state.SetFallHeight(GameConfig::JUMP_LOW_VELOCITY * 1.1f); // Quick evasive hop
-        m_AxeThrowTimer = AXE_THROW_INTERVAL; // Counter-attack with axe immediately!
+        state.SetFallHeight(GameConfig::JUMP_LOW_VELOCITY *
+                            1.1f);  // Quick evasive hop
+        m_AxeThrowTimer =
+            AXE_THROW_INTERVAL;  // Counter-attack with axe immediately!
         LOG_INFO("Bowser: Dodging incoming fireball with counter-attack!");
     }
 
@@ -80,10 +84,13 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
     if (m_AxeThrowTimer >= AXE_THROW_INTERVAL) {
         m_AxeThrowTimer = 0;
         // Spawn axe: slightly above Bowser's head
-        float axeX = state.GetWorldX() + (state.GetDirection() == 0 ? -10.0f : state.GetWidth() - 10.0f);
-        float axeY = state.GetWorldY() - 15.0f; // 15px above head
+        float axeX =
+            state.GetWorldX() +
+            (state.GetDirection() == 0 ? -10.0f : state.GetWidth() - 10.0f);
+        float axeY = state.GetWorldY() - 15.0f;  // 15px above head
         int axeDir = (player.GetWorldX() < state.GetWorldX()) ? 0 : 1;
-        m_PendingSpawns.push_back({EntityType::AXE_PROJECTILE, axeX, axeY, axeDir});
+        m_PendingSpawns.push_back(
+            {EntityType::AXE_PROJECTILE, axeX, axeY, axeDir});
     }
 
     // Fire spitting logic: active during patrol, fire attack, and jump phases
@@ -92,29 +99,39 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
         m_FireballTimer = 0;
         Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::EnemyFire);
 
-        // Determine direction toward player (always left 0 if player is to his left)
+        // Determine direction toward player (always left 0 if player is to his
+        // left)
         int fireballDir = (player.GetWorldX() < state.GetWorldX()) ? 0 : 1;
 
         float fireballX = 0.0f;
         if (fireballDir == 0) {
-            fireballX = state.GetWorldX() - static_cast<float>(GameConfig::TILE_SIZE);
+            fireballX =
+                state.GetWorldX() - static_cast<float>(GameConfig::TILE_SIZE);
         } else {
-            fireballX = state.GetWorldX() + static_cast<float>(state.GetWidth());
+            fireballX =
+                state.GetWorldX() + static_cast<float>(state.GetWidth());
         }
 
         // Intelligent Targeted Fire spits at height matching Mario
         float marioY = player.GetWorldY();
         float fireballY = state.GetWorldY();
-        
+
         if (marioY < state.GetWorldY() - GameConfig::TILE_SIZE * 0.5f) {
-            fireballY += 0.2f * GameConfig::TILE_SIZE; // High fire to intercept jumping Mario
-        } else if (marioY > state.GetWorldY() + GameConfig::TILE_SIZE * 0.5f || player.GetState().IsCrouching()) {
-            fireballY += 1.8f * GameConfig::TILE_SIZE; // Low fire to hit crouching or grounded Mario
+            fireballY +=
+                0.2f *
+                GameConfig::TILE_SIZE;  // High fire to intercept jumping Mario
+        } else if (marioY > state.GetWorldY() + GameConfig::TILE_SIZE * 0.5f ||
+                   player.GetState().IsCrouching()) {
+            fireballY +=
+                1.8f * GameConfig::TILE_SIZE;  // Low fire to hit crouching or
+                                               // grounded Mario
         } else {
-            fireballY += 1.0f * GameConfig::TILE_SIZE; // Medium fire to catch normal height Mario
+            fireballY += 1.0f * GameConfig::TILE_SIZE;  // Medium fire to catch
+                                                        // normal height Mario
         }
 
-        m_PendingSpawns.push_back({EntityType::FIRE, fireballX, fireballY, fireballDir});
+        m_PendingSpawns.push_back(
+            {EntityType::FIRE, fireballX, fireballY, fireballDir});
     }
 
     m_PhaseTimer++;
@@ -136,18 +153,21 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
     // Intelligent Blocking & Interception Algorithm
     float dist = std::abs(player.GetWorldX() - state.GetWorldX());
     bool playerTryingToPass = (player.GetWorldX() > state.GetWorldX());
-    bool playerJumpingHigh = (player.GetWorldY() < state.GetWorldY() - GameConfig::TILE_SIZE * 2.0f);
+    bool playerJumpingHigh =
+        (player.GetWorldY() < state.GetWorldY() - GameConfig::TILE_SIZE * 2.0f);
 
     if (dist < 220.0f && state.IsGrounded()) {
         if (playerJumpingHigh || playerTryingToPass) {
             // Jump high to physically block/intercept Mario!
             state.SetGrounded(false);
-            state.SetFallHeight(GameConfig::JUMP_HIGH_VELOCITY * 0.85f); // High blocking jump
-            
-            // If player is trying to pass to the right, face right and jump right to block!
+            state.SetFallHeight(GameConfig::JUMP_HIGH_VELOCITY *
+                                0.85f);  // High blocking jump
+
+            // If player is trying to pass to the right, face right and jump
+            // right to block!
             if (playerTryingToPass) {
                 m_PatrolDirection = 1;
-                state.SetVelX(5.0f); // Move fast to intercept
+                state.SetVelX(5.0f);  // Move fast to intercept
             } else {
                 m_PatrolDirection = -1;
                 state.SetVelX(-3.0f);
@@ -159,7 +179,8 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
     // Keep Bowser strictly constrained on the bridge Y boundaries
     if (m_BridgeLeft > 0.0f) {
         float minX = m_BridgeLeft + 10.0f;
-        float maxX = m_BridgeRight - static_cast<float>(state.GetWidth()) - 10.0f;
+        float maxX =
+            m_BridgeRight - static_cast<float>(state.GetWidth()) - 10.0f;
         if (state.GetX() < minX) {
             state.SetX(minX);
             m_PatrolDirection = 1;
@@ -194,80 +215,7 @@ void BowserBehavior::UpdatePatrol(EntityState& state, const Level& level,
     // Bowser moves slower than regular enemies, handled via VelX
     float moveSpeed = 3.0f;  // Slower than regular enemies
     state.SetVelX(moveSpeed * m_PatrolDirection);
-
-    // Check for walls to reverse patrol direction (using grid-based collision
-    // like Mario)
-    AABB bowserBox = state.GetCollider();
-    int topTile = static_cast<int>(bowserBox.top) / GameConfig::TILE_SIZE;
-    int bottomTile =
-        static_cast<int>(bowserBox.bottom - 1) / GameConfig::TILE_SIZE;
-
-    bool hitWall = false;
-
-    // Check collision in the direction of movement
-    if (m_PatrolDirection > 0) {
-        // Moving right: check right side of Bowser
-        int rightTile =
-            static_cast<int>(bowserBox.right) / GameConfig::TILE_SIZE;
-        for (int y = topTile; y <= bottomTile; y++) {
-            const Block* block = level.GetBlockAt(rightTile, y);
-            if (block && block->IsSolid()) {
-                AABB blockBox = block->GetAABB();
-                if (bowserBox.Intersects(blockBox)) {
-                    hitWall = true;
-                    break;
-                }
-            }
-        }
-    } else {
-        // Moving left: check left side of Bowser
-        int leftTile = static_cast<int>(bowserBox.left) / GameConfig::TILE_SIZE;
-        for (int y = topTile; y <= bottomTile; y++) {
-            const Block* block = level.GetBlockAt(leftTile, y);
-            if (block && block->IsSolid()) {
-                AABB blockBox = block->GetAABB();
-                if (bowserBox.Intersects(blockBox)) {
-                    hitWall = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (hitWall) {
-        m_PatrolDirection *= -1;  // Reverse direction
-    }
-
-    // Check ground
-    AABB footprint = state.GetCollider();
-    footprint.top = footprint.bottom;
-    footprint.bottom += GameConfig::GRAVITY_ACCELERATION;
-
-    bool isGrounded = false;
-    // Optimize: Check only blocks directly under Bowser's feet
-    for (float ox : {0.1f, 0.5f, 0.9f}) {
-        float checkX = bowserBox.left + (bowserBox.right - bowserBox.left) * ox;
-        float checkY = bowserBox.bottom + 2.0f;
-        const Block* b = level.GetBlockAtWorld(checkX, checkY);
-        if (b && b->IsSolid()) {
-            isGrounded = true;
-            break;
-        }
-    }
-
-    // Check for floor ahead to prevent walking off ledge
-    if (isGrounded) {
-        float edgeCheckX = (m_PatrolDirection > 0) ? bowserBox.right + 2.0f
-                                                   : bowserBox.left - 2.0f;
-        float edgeCheckY = bowserBox.bottom + 2.0f;
-        const Block* edgeBlock = level.GetBlockAtWorld(edgeCheckX, edgeCheckY);
-        if (!edgeBlock || !edgeBlock->IsSolid()) {
-            m_PatrolDirection *= -1;  // No floor ahead — reverse
-        }
-    }
-
-    state.SetGrounded(isGrounded);
-    state.SetDirection(m_PatrolDirection > 0 ? 1 : 0);
+    ResolveWallAndEdge(state, level);
 }
 
 void BowserBehavior::UpdateFireAttackPhase(const EntityState& state,
@@ -289,65 +237,7 @@ void BowserBehavior::UpdateJumpAttack(EntityState& state, const Level& level,
         state.SetGrounded(false);
         state.SetFallHeight(50.0f);  // High jump
     }
-
-    // Check walls and ground (using grid-based collision like Mario)
-    AABB bowserBox = state.GetCollider();
-    int topTile = static_cast<int>(bowserBox.top) / GameConfig::TILE_SIZE;
-    int bottomTile =
-        static_cast<int>(bowserBox.bottom - 1) / GameConfig::TILE_SIZE;
-
-    bool hitWall = false;
-
-    // Check collision in the direction of movement
-    if (m_PatrolDirection > 0) {
-        // Moving right: check right side of Bowser
-        int rightTile =
-            static_cast<int>(bowserBox.right) / GameConfig::TILE_SIZE;
-        for (int y = topTile; y <= bottomTile; y++) {
-            const Block* block = level.GetBlockAt(rightTile, y);
-            if (block && block->IsSolid()) {
-                AABB blockBox = block->GetAABB();
-                if (bowserBox.Intersects(blockBox)) {
-                    hitWall = true;
-                    break;
-                }
-            }
-        }
-    } else {
-        // Moving left: check left side of Bowser
-        int leftTile = static_cast<int>(bowserBox.left) / GameConfig::TILE_SIZE;
-        for (int y = topTile; y <= bottomTile; y++) {
-            const Block* block = level.GetBlockAt(leftTile, y);
-            if (block && block->IsSolid()) {
-                AABB blockBox = block->GetAABB();
-                if (bowserBox.Intersects(blockBox)) {
-                    hitWall = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (hitWall) {
-        m_PatrolDirection *= -1;
-    }
-
-    AABB footprint = state.GetCollider();
-    footprint.bottom += GameConfig::GRAVITY_ACCELERATION;
-
-    bool isGrounded = false;
-    for (float ox : {0.1f, 0.5f, 0.9f}) {
-        float checkX = bowserBox.left + (bowserBox.right - bowserBox.left) * ox;
-        float checkY = bowserBox.bottom + 2.0f;
-        const Block* b = level.GetBlockAtWorld(checkX, checkY);
-        if (b && b->IsSolid()) {
-            isGrounded = true;
-            break;
-        }
-    }
-
-    state.SetGrounded(isGrounded);
-    state.SetDirection(m_PatrolDirection > 0 ? 1 : 0);
+    ResolveWallAndEdge(state, level);
 }
 
 void BowserBehavior::UpdateDamaged([[maybe_unused]] EntityState& state) {
@@ -374,31 +264,62 @@ void BowserBehavior::UpdateDefeated(EntityState& state) {
     }
 }
 
-bool BowserBehavior::OnPlayerCollision(EntityState& state, Player& player,
-                                       bool isFromAbove) {
-    // Player fireball hit Bowser
-    if (m_HealthPoints > 0) {
-        m_HealthPoints--;
-        m_Phase = BowserPhase::DAMAGED;
-        m_DamageFlashCounter = 0;
+void BowserBehavior::ResolveWallAndEdge(EntityState& state,
+                                        const Level& level) {
+    AABB box = state.GetCollider();
+    int topTile = static_cast<int>(box.top) / GameConfig::TILE_SIZE;
+    int bottomTile = static_cast<int>(box.bottom - 1) / GameConfig::TILE_SIZE;
 
-        if (m_HealthPoints <= 0) {
-            m_Phase = BowserPhase::DEFEATED;
-            state.SetFallHeight(0.0);  // Start falling
+    // --- Wall check in direction of movement ---
+    bool hitWall = false;
+    int sideTile = (m_PatrolDirection > 0)
+                       ? static_cast<int>(box.right) / GameConfig::TILE_SIZE
+                       : static_cast<int>(box.left) / GameConfig::TILE_SIZE;
+    for (int y = topTile; y <= bottomTile; ++y) {
+        const Block* block = level.GetBlockAt(sideTile, y);
+        if (block && block->IsSolid() && box.Intersects(block->GetAABB())) {
+            hitWall = true;
+            break;
         }
+    }
+    if (hitWall) m_PatrolDirection *= -1;
 
-        return true;  // Collision processed
+    // --- Ground check (three sample points under feet) ---
+    bool isGrounded = false;
+    for (float ox : {0.1f, 0.5f, 0.9f}) {
+        float checkX = box.left + (box.right - box.left) * ox;
+        float checkY = box.bottom + 2.0f;
+        const Block* b = level.GetBlockAtWorld(checkX, checkY);
+        if (b && b->IsSolid()) {
+            isGrounded = true;
+            break;
+        }
     }
 
-    // Bowser body collision damages player
-    if (!isFromAbove &&
-        player.GetState().GetPowerState() != PowerState::BIG_STAR &&
-        player.GetState().GetPowerState() != PowerState::SMALL_STAR) {
-        // Damage player (handled at App level)
-        return true;
+    // --- Ledge-edge check: do not walk off the bridge ---
+    if (isGrounded) {
+        float edgeX =
+            (m_PatrolDirection > 0) ? box.right + 2.0f : box.left - 2.0f;
+        const Block* edgeBlock =
+            level.GetBlockAtWorld(edgeX, box.bottom + 2.0f);
+        if (!edgeBlock || !edgeBlock->IsSolid()) m_PatrolDirection *= -1;
     }
 
-    return false;
+    state.SetGrounded(isGrounded);
+    state.SetDirection(m_PatrolDirection > 0 ? 1 : 0);
+}
+
+bool BowserBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
+                                       Player& player,
+                                       [[maybe_unused]] bool isFromAbove) {
+    // Bowser's body is always lethal to Mario — immune to stomping.
+    // Star power never reaches here: the handler's star-kill path fires first.
+    // HP is only reduced by fireballs (OnFireballHit).
+    PlayerState& ps = player.GetState();
+    if (!ps.IsInvincible()) {
+        ps.TakeDamage();
+    }
+    return true;  // collision handled — caller must not process further
 }
 
 bool BowserBehavior::OnFireballHit(EntityState& state) {

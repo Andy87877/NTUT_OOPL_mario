@@ -5,10 +5,10 @@
  */
 #include "Mario/Behaviors/CastleFireSpawnerBehavior.hpp"
 
-#include "Mario/AudioManager.hpp"
-#include "Mario/EntityState.hpp"
-#include "Mario/GameConfig.hpp"
-#include "Mario/Player.hpp"
+#include "Mario/Services/AudioManager.hpp"
+#include "Mario/Level/EntityState.hpp"
+#include "Mario/Core/GameConfig.hpp"
+#include "Mario/Player/Player.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {
@@ -16,12 +16,12 @@ namespace Mario {
 CastleFireSpawnerBehavior::CastleFireSpawnerBehavior()
     : m_FireballTimer(0), m_AttackCounter(0) {}
 
-void CastleFireSpawnerBehavior::Update(EntityState& /*state*/, const Level& /*level*/,
+void CastleFireSpawnerBehavior::Update(EntityState& state, const Level& /*level*/,
                                        const Player& player, int /*gameTimer*/) {
     // Spawn fireballs continuously in 8-4 until Bowser is active/visible on screen (X >= 13000.0f)
     float playerX = player.GetWorldX();
     if (playerX >= 13000.0f) {
-        m_FireballTimer = 0;  // Stop off-screen spawner once Bowser takes over spitting fire
+        state.Delete();  // Clean up this spawner once Bowser takes over
         return;
     }
 

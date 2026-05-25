@@ -10,7 +10,7 @@
 
 #include <memory>
 
-#include "Mario/EntityDef.hpp"  // EntityType
+#include "Mario/Level/EntityDef.hpp"  // EntityType
 
 namespace Mario {
 
@@ -62,6 +62,16 @@ class IEntityBehavior {
      * @return Name of this behavior type (e.g., "GoombaBehavior")
      */
     virtual const char* GetName() const = 0;
+
+    /**
+     * Whether this entity is immune to player stomping from above.
+     * When true, stomping damages Mario instead of the entity.
+     * Star power bypasses this — the handler's star-kill path fires before
+     * the stomp path, so immune entities are still defeated by star.
+     * Default: false (normal enemies can be stomped).
+     * Bowser and Podoboo override to return true.
+     */
+    virtual bool IsImmuneToStomp() const { return false; }
 
     /**
      * Whether this behavior must be updated even when off-screen.
