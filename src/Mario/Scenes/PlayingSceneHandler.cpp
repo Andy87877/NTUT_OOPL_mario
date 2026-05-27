@@ -5,6 +5,9 @@
  * @inheritance ISceneHandler <- PlayingSceneHandler
  */
 #include "Mario/Scenes/PlayingSceneHandler.hpp"
+#include "Mario/Scenes/FlagpoleSceneHandler.hpp"
+#include "Mario/Scenes/PipeWarpSceneHandler.hpp"
+#include "Mario/Scenes/AxeSequenceSceneHandler.hpp"
 
 #include <cmath>
 #include <limits>
@@ -82,6 +85,13 @@ void PlayingSceneHandler::Update(App& app) {
 
     // -- Player state tick --
     ps.Tick();
+
+    // -- Star BGM transition check --
+    bool isStar = ps.IsStar();
+    if (isStar != m_WasStarActive) {
+        app.PlayCurrentBGM();
+        m_WasStarActive = isStar;
+    }
 
     // -- Fireball spawn --
     SpawnPlayerFireball(app);
@@ -166,7 +176,7 @@ void PlayingSceneHandler::Update(App& app) {
     // -- Camera + level blocks --
     app.GetCamera().Update(player->GetWorldX(), level->GetWidthPixels(),
                            app.GetCurrentLevelName(),
-                           app.GetLevelCompleteCtrl().IsActive());
+                           false);
     level->UpdateBlocks(app.GetCamera().GetOffset());
 
     // -- Brick-debris particles --
@@ -247,8 +257,7 @@ void PlayingSceneHandler::SpawnBrickDebris(App& app) const {
         float by = block->GetWorldY();
         float bs = static_cast<float>(Mario::GameConfig::TILE_SIZE);
 
-        // C# reference: debris entity name = blockName + "Break"
-        std::string debrisName = block->GetName() + "Break";
+        std::string debrisName = block->GetDebrisEntityName();
         const Mario::EntityDef& def = level->GetEntityDefByName(debrisName);
         if (def.id == -1) continue;  // No debris definition for this block type
 
@@ -286,7 +295,6 @@ void PlayingSceneHandler::OnRender(App& app) {
 void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
     auto& player = app.GetPlayer();
     if (!player || player->GetState().IsDead()) return;
-    if (app.GetLevelCompleteCtrl().IsActive()) return;
 
     Mario::PlayerState& ps = player->GetState();
     Mario::AABB playerBox = ps.GetHitbox();
@@ -301,10 +309,24 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
         Mario::AudioManager::GetInstance().PlayBGM(
             lvl == "8-4" ? Mario::BGMName::CastleCompleteTheme
                          : Mario::BGMName::LevelCompleteTheme);
-        app.GetLevelCompleteCtrl().StartFlagpole(*player, app.GetFlagEntity(),
-                                                 block);
         app.GetGameState().StopTime();
         app.TransitionTo(App::State::FLAGPOLE);
+        
+        // Initialize player state for flagpole slide
+        ps.SetControllable(false);
+        ps.SetPoleSliding(true);
+        float poleX = block->GetWorldX() - GameConfig::TILE_SIZE * 0.4f;
+        ps.SetX(poleX);
+        ps.SetVelX(0.0f);
+        ps.SetVelY(0.0f);
+
+        // Stop star power
+        if (ps.GetPowerState() == PowerState::SMALL_STAR ||
+            ps.GetPowerState() == PowerState::BIG_STAR) {
+            ps.SetPowerState(ps.GetPowerState() == PowerState::BIG_STAR
+                                 ? PowerState::BIG
+                                 : PowerState::SMALL);
+        }
         return;
     }
 
@@ -331,10 +353,24 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
         Mario::AudioManager::GetInstance().PlayBGM(
             lvl == "8-4" ? Mario::BGMName::CastleCompleteTheme
                          : Mario::BGMName::LevelCompleteTheme);
-        app.GetLevelCompleteCtrl().StartFlagpole(*player, app.GetFlagEntity(),
-                                                 topmostGoal);
         app.GetGameState().StopTime();
         app.TransitionTo(App::State::FLAGPOLE);
+
+        // Initialize player state for flagpole slide
+        ps.SetControllable(false);
+        ps.SetPoleSliding(true);
+        float poleX = topmostGoal->GetWorldX() - GameConfig::TILE_SIZE * 0.4f;
+        ps.SetX(poleX);
+        ps.SetVelX(0.0f);
+        ps.SetVelY(0.0f);
+
+        // Stop star power
+        if (ps.GetPowerState() == PowerState::SMALL_STAR ||
+            ps.GetPowerState() == PowerState::BIG_STAR) {
+            ps.SetPowerState(ps.GetPowerState() == PowerState::BIG_STAR
+                                 ? PowerState::BIG
+                                 : PowerState::SMALL);
+        }
     }
 }
 
@@ -360,7 +396,6 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
 void PlayingSceneHandler::CheckPipeCollision(App& app) const {
     auto& player = app.GetPlayer();
     if (!player || player->GetState().IsDead()) return;
-    if (app.GetLevelCompleteCtrl().IsActive()) return;
 
     Mario::PlayerState& ps = player->GetState();
 
@@ -414,8 +449,6 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
         float maxOffset = TS / 1.25f;  // = 36px at TILE_SIZE=45
         if (ps.GetX() > pipeDX && ps.GetX() < pipeDX + maxOffset) {
             LOG_INFO("Entering pipe DOWN at ({}, {})", pipeDX, pipeDY);
-            app.GetLevelCompleteCtrl().StartPipeWarp(*player, "Down", pipeDX,
-                                                     pipeDY);
             Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
             int time = app.GetGameState().GetTimeRemaining();
             Mario::AudioManager::GetInstance().PlayBGM(
@@ -425,6 +458,7 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
             if (app.GetGameState().GetLevelName() == "1-2") {
                 app.GetGameState().SetNextLevelOverride("8-4");
             }
+            app.GetGameState().SetWarpInfo("Down", pipeDX, pipeDY);
             app.TransitionTo(App::State::PIPE_WARP);
             return;
         }
@@ -437,8 +471,6 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
          Util::Input::IsKeyPressed(Util::Keycode::D))) {
         if (pipeRY + TS + 1.0f > ps.GetY()) {
             LOG_INFO("Entering pipe RIGHT at ({}, {})", pipeRX, pipeRY);
-            app.GetLevelCompleteCtrl().StartPipeWarp(*player, "Right", pipeRX,
-                                                     pipeRY);
             Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
             int time = app.GetGameState().GetTimeRemaining();
             Mario::AudioManager::GetInstance().PlayBGM(
@@ -448,6 +480,7 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
             if (app.GetGameState().GetLevelName() == "1-2") {
                 app.GetGameState().SetNextLevelOverride("8-4");
             }
+            app.GetGameState().SetWarpInfo("Right", pipeRX, pipeRY);
             app.TransitionTo(App::State::PIPE_WARP);
             return;
         }
@@ -460,11 +493,10 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
 void PlayingSceneHandler::CheckAxeCollision(App& app) const {
     auto& player = app.GetPlayer();
     if (!player || player->GetState().IsDead()) return;
-    if (app.GetLevelCompleteCtrl().IsActive()) return;
 
     Mario::AABB playerBox = player->GetState().GetHitbox();
     for (const auto& entity : app.GetEntities()) {
-        if (entity->GetState().GetName() != "Axe") continue;
+        if (entity && entity->GetDef().type != EntityType::AXE) continue;
         float axeX = entity->GetState().GetX();
         float axeY = entity->GetState().GetY();
         Mario::AABB extendedAxeBox{axeX - 5.0f, axeY, axeX + 55.0f,
@@ -477,7 +509,7 @@ void PlayingSceneHandler::CheckAxeCollision(App& app) const {
             // Princess is only spawned in the final boss room.
             bool hasPrincess = false;
             for (const auto& e : app.GetEntities()) {
-                if (e->GetState().GetName() == "Princess" &&
+                if (e && e->GetDef().type == EntityType::PRINCESS &&
                     e->GetState().IsActive()) {
                     hasPrincess = true;
                     break;
@@ -498,6 +530,11 @@ void PlayingSceneHandler::CheckAxeCollision(App& app) const {
                 LOG_INFO(
                     "Axe touched (fake boss room) - bridge collapses, game "
                     "continues.");
+                // Collapse the bridge blocks right now!
+                auto& level = app.GetLevel();
+                if (level) {
+                    level->CollapseBridge();
+                }
                 // Resume time and BGM so Mario can continue
                 app.GetGameState().StartTime();
                 app.PlayCurrentBGM();

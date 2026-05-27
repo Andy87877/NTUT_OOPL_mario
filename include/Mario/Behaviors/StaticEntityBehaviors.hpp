@@ -1,11 +1,10 @@
 /**
  * @file StaticEntityBehaviors.hpp
- * @brief Passive / static entity behaviors with no autonomous movement.
- *        Contains AxeBehavior (bridge-axe kill trigger) and PrincessBehavior
- *        (NPC goal marker). Both are used exclusively in 8-4 and have trivial
- *        implementations that do not justify separate files.
+ * @brief Passive / static / projectile behaviors with no autonomous AI logic.
+ *        Contains AxeBehavior, PrincessBehavior, and AxeProjectileBehavior.
  * @inheritance IEntityBehavior <- AxeBehavior
  *              IEntityBehavior <- PrincessBehavior
+ *              IEntityBehavior <- AxeProjectileBehavior
  */
 #ifndef MARIO_STATIC_ENTITY_BEHAVIORS_HPP
 #define MARIO_STATIC_ENTITY_BEHAVIORS_HPP
@@ -64,6 +63,30 @@ class PrincessBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "PrincessBehavior"; }
+};
+
+// ============================================================================
+// AxeProjectileBehavior — thrown axe projectile behavior
+// ============================================================================
+/**
+ * Thrown axe projectile behavior.
+ * Always behaves as an enemy projectile, damaging player on contact.
+ * @inheritance IEntityBehavior <- AxeProjectileBehavior
+ */
+class AxeProjectileBehavior : public IEntityBehavior {
+   public:
+    AxeProjectileBehavior() = default;
+    ~AxeProjectileBehavior() override = default;
+
+    void Update(EntityState& state, const Level& level, const Player& player,
+                int gameTimer) override;
+    bool OnPlayerCollision(EntityState& state, Player& player,
+                           bool isFromAbove) override;
+    std::unique_ptr<IEntityBehavior> Clone() const override;
+    const char* GetName() const override { return "AxeProjectileBehavior"; }
+
+    bool IsEnemyProjectile() const override { return true; }
+    bool IsImmuneToStomp() const override { return true; }
 };
 
 }  // namespace Mario

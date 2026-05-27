@@ -12,6 +12,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "Mario/Core/Collider.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
 #include "Mario/Level/EntityDef.hpp"
 #include "Mario/Level/EntityState.hpp"
@@ -85,6 +86,7 @@ class Entity : public Util::GameObject {
     // -- World position (for camera/collision) --
     float GetWorldX() const { return m_State.GetX(); }
     float GetWorldY() const { return m_State.GetY(); }
+    AABB GetHitbox() const;
 
    private:
     std::string BuildSpritePath() const;

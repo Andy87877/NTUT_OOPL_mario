@@ -4,7 +4,7 @@
  *        Converts grid coordinates to PTSD screen coordinates.
  *        PTSD: (0,0) = screen center, +X right, +Y up.
  *        Level: row 0 = top, row 15 = bottom, 16 rows x 32px = 512px.
- * @inheritance Util::GameObject -> Block
+ * @inheritance Util::GameObject -> Block -> [MovingPlatform, StoneBlock, BrickBlock, QuestionBlock, InvisibleBlock, GoalBlock, BackgroundBlock, BridgeBlock]
  */
 #include "Mario/Level/Block.hpp"
 #include "Mario/Player/PlayerState.hpp"
@@ -82,25 +82,12 @@ void Block::SetupSprite() {
                                                                   m_LevelName);
         }
 
-        // Verify file exists (without loading it yet)
-        std::ifstream test(m_SpritePath);
-        if (!test.good()) {
-            m_Broken = true;
-            SetVisible(false);
-            return;
-        }
-
         // For animated blocks, collect all frame paths (don't load yet)
         if (m_Def.animated) {
             for (int i = 0; i <= m_Def.animationFrames; ++i) {
                 std::string animPath = SpritePathResolver::GetBlockSpritePath(
                     m_Def.name, i, m_LevelName);
-                std::ifstream testAnim(animPath);
-                if (testAnim.good()) {
-                    m_AnimPaths.push_back(animPath);
-                } else {
-                    m_AnimPaths.push_back(m_SpritePath);  // fallback to base
-                }
+                m_AnimPaths.push_back(animPath);
             }
         }
 
@@ -108,10 +95,6 @@ void Block::SetupSprite() {
         if (!m_Def.hitSpriteName.empty()) {
             m_HitSpritePath = SpritePathResolver::GetBlockSpritePath(
                 m_Def.hitSpriteName, 0, m_LevelName);
-            std::ifstream test(m_HitSpritePath);
-            if (!test.good()) {
-                m_HitSpritePath.clear();
-            }
         }
 
         // Mark as ready but not yet loaded
@@ -264,6 +247,11 @@ void Block::Update(float cameraOffset) {
 }
 
 void Block::OnHit(int playerState) {
+    LoadSpriteOnDemand();
+    HandleOnHit(playerState);
+}
+
+void Block::HandleOnHit(int playerState) {
     // For standard breakable blocks (like bricks) that do not contain items:
     if (m_Def.breakable && !m_Def.isContainer) {
         if (playerState > 0) {
@@ -359,4 +347,77 @@ std::string Block::GetSpawnContents(int playerState) const {
     }
     return m_Def.contents;
 }
+
+void StoneBlock::HandleOnHit(int /*playerState*/) {
+    Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Bump);
+    if (m_Def.bounceBack) {
+        Bounce();
+    }
+}
+
+void BrickBlock::HandleOnHit(int playerState) {
+    if (playerState > 0) {
+        Break();
+    } else {
+        if (m_Def.bounceBack) {
+            Bounce();
+        }
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Bump);
+    }
+}
+
+void QuestionBlock::HandleOnHit(int /*playerState*/) {
+    if (m_IsHit) return;
+    m_HP--;
+    if (m_HP <= 0) {
+        m_IsHit = true;
+        if (m_HitSprite) {
+            SetDrawable(m_HitSprite);
+        }
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Bump);
+    }
+    if (m_Def.bounceBack) {
+        Bounce();
+    }
+}
+
+void InvisibleBlock::HandleOnHit(int /*playerState*/) {
+    if (m_IsHit) return;
+    SetVisible(true);
+    m_HP--;
+    if (m_HP <= 0) {
+        m_IsHit = true;
+        if (m_HitSprite) {
+            SetDrawable(m_HitSprite);
+        }
+        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Bump);
+    }
+    if (m_Def.bounceBack) {
+        Bounce();
+    }
+}
+
+void InvisibleBlock::LoadSpriteOnDemand() {
+    Block::LoadSpriteOnDemand();
+    if (!m_IsHit) {
+        SetVisible(false);
+    }
+}
+
+void GoalBlock::HandleOnHit(int /*playerState*/) {
+    // Goal blocks do not bounce or play bump sound
+}
+
+void BackgroundBlock::HandleOnHit(int /*playerState*/) {
+    // Background blocks do not bounce or play bump sound
+}
+
+bool BackgroundBlock::IsCastleDoor() const {
+    return m_Def.name == "Castle5" || m_Def.name == "CastleDoor";
+}
+
+void BridgeBlock::HandleOnHit(int /*playerState*/) {
+    // Bridge blocks do not bounce or break on hit (they only fall when collapsed by Axe)
+}
+
 }  // namespace Mario

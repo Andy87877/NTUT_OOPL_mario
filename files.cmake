@@ -22,15 +22,14 @@ set(SRC_FILES
     Mario/Level/EnemyDeathStyleFactory.cpp
     Mario/Level/Entity.cpp
     Mario/Level/EntityFactory.cpp
-    Mario/Level/LevelCompleteController.cpp
     Mario/Level/GameStateManager.cpp
 
     # Behaviors (Phase 4 - Strategy Pattern)
     Mario/Behaviors/DefaultEntityBehavior.cpp
-    Mario/Behaviors/EnemyBehavior.cpp
+    Mario/Behaviors/GoombaBehavior.cpp
     Mario/Behaviors/KoopaFamily.cpp
     Mario/Behaviors/StaticEntityBehaviors.cpp
-    Mario/Behaviors/ItemBehavior.cpp
+    Mario/Behaviors/ItemBehaviors.cpp
     Mario/Behaviors/FireballBehavior.cpp
     Mario/Behaviors/BowserBehavior.cpp
     Mario/Behaviors/CastleFireSpawnerBehavior.cpp
@@ -64,6 +63,7 @@ set(SRC_FILES
     Mario/Services/InputHandler.cpp
     Mario/Services/AudioPathResolver.cpp
     Mario/Services/AudioManager.cpp
+    Mario/Services/LevelManager.cpp
 )
 
 set(INCLUDE_FILES
@@ -94,16 +94,15 @@ set(INCLUDE_FILES
     Mario/Level/EntityState.hpp
     Mario/Level/EnemyDeathAnimation.hpp
     Mario/Level/EnemyDeathStyleFactory.hpp
-    Mario/Level/LevelCompleteController.hpp
     Mario/Level/GameStateManager.hpp
 
     # Behaviors (Phase 4 - Strategy Pattern)
     Mario/Behaviors/IEntityBehavior.hpp
     Mario/Behaviors/DefaultEntityBehavior.hpp
-    Mario/Behaviors/EnemyBehavior.hpp
+    Mario/Behaviors/GoombaBehavior.hpp
     Mario/Behaviors/KoopaFamily.hpp
     Mario/Behaviors/StaticEntityBehaviors.hpp
-    Mario/Behaviors/ItemBehavior.hpp
+    Mario/Behaviors/ItemBehaviors.hpp
     Mario/Behaviors/FireballBehavior.hpp
     Mario/Behaviors/BowserBehavior.hpp
     Mario/Behaviors/CastleFireSpawnerBehavior.hpp
@@ -146,6 +145,8 @@ set(INCLUDE_FILES
     Mario/Services/AudioType.hpp
     Mario/Services/AudioPathResolver.hpp
     Mario/Services/AudioManager.hpp
+    Mario/Services/ILevelService.hpp
+    Mario/Services/LevelManager.hpp
 )
 
 set(TEST_FILES

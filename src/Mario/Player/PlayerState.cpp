@@ -45,10 +45,21 @@ void PlayerState::Init(float worldX, float worldY, int startState) {
     m_StarTimer = 0;
     m_SpecialActive = false;
     m_MemoryState = PowerState::SMALL;
+    m_TransitionTimer = 0;
+    m_PrevPowerState = PowerState::SMALL;
     m_DeathAnimation = std::make_unique<ClassicPlayerDeathAnimation>();
 }
 
 void PlayerState::Tick() {
+    // Handle shape transition freeze
+    if (m_TransitionTimer > 0) {
+        m_TransitionTimer--;
+        m_VelX = 0.0f;
+        m_VelY = 0.0;
+        m_FallHeight = 0.0;
+        return; // Freeze movement and physics during transition
+    }
+
     // Update invincibility timer
     if (m_InvTimer > 0) {
         m_InvTimer--;
@@ -198,6 +209,8 @@ void PlayerState::TakeDamage() {
         StartDeathAnimation();
     } else {
         bool wasBig = m_Form->IsBigOrFire();
+        m_PrevPowerState = m_PowerState; // Save previous state
+        
         m_Form = std::move(nextForm);
         m_PowerState = m_Form->GetPowerState();
         bool isBig = m_Form->IsBigOrFire();
@@ -213,17 +226,24 @@ void PlayerState::TakeDamage() {
             if (!m_Crouching) {
                 SetY(GetY() + GameConfig::TILE_SIZE);
             }
+            m_TransitionTimer = 30; // Shrink transition
         }
     }
 }
 
 void PlayerState::PowerUp(PowerState newState) {
     bool wasBig = IsBigOrFire();
+    m_PrevPowerState = m_PowerState; // Save previous state
+    
     m_Form = m_Form->PowerUp(newState);
     m_PowerState = m_Form->GetPowerState();
     bool isBig = IsBigOrFire();
+    
     if (!wasBig && isBig) {
         SetY(GetY() - GameConfig::TILE_SIZE);
+        m_TransitionTimer = 30; // Grow transition from Small to Big/Fire
+    } else if (wasBig && newState == PowerState::FIRE) {
+        m_TransitionTimer = 30; // Big to Fire transition
     }
 }
 

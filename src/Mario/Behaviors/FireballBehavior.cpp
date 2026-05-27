@@ -83,4 +83,24 @@ std::unique_ptr<IEntityBehavior> FireballBehavior::Clone() const {
     return std::make_unique<FireballBehavior>(*this);
 }
 
+bool FireballBehavior::IsEnemyProjectile() const {
+    return m_Type == FireballType::BOWSER;
+}
+
+bool FireballBehavior::IsImmuneToStomp() const {
+    return m_Type == FireballType::BOWSER;
+}
+
+bool FireballBehavior::IsImmuneToStarPower() const {
+    return m_Type == FireballType::BOWSER;
+}
+
+bool FireballBehavior::IsPlayerFireball() const {
+    return m_Type == FireballType::PLAYER;
+}
+
+bool FireballBehavior::ExplodesOnWall() const {
+    return m_Type == FireballType::PLAYER;
+}
+
 }  // namespace Mario

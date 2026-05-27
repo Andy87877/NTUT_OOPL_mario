@@ -107,14 +107,6 @@ void Entity::UpdateView(float cameraOffset) {
     float entityWidth = static_cast<float>(m_State.GetWidth());
     float entityHeight = static_cast<float>(m_State.GetHeight());
 
-    // TopLeftToPTSD* handles centering + pixel alignment internally
-    float screenX = GameConfig::TopLeftToPTSDX(
-        std::round(m_State.GetX()), entityWidth, std::round(cameraOffset));
-    float screenY =
-        GameConfig::TopLeftToPTSDY(std::round(m_State.GetY()), entityHeight);
-
-    m_Transform.translation = {screenX, screenY};
-
     // Calculate scale: if EntityFactory set a renderTargetWidth override, use
     // it to derive a per-entity widthScale.  Otherwise fall back to the global
     // DRAW_SCALE so existing non-8-4 entities are unchanged.
@@ -129,6 +121,30 @@ void Entity::UpdateView(float cameraOffset) {
             absScaleY = GameConfig::DRAW_SCALE * widthScale;
         }
     }
+
+    // TopLeftToPTSD* handles centering + pixel alignment internally
+    float screenX = GameConfig::TopLeftToPTSDX(
+        std::round(m_State.GetX()), entityWidth, std::round(cameraOffset));
+    float screenY =
+        GameConfig::TopLeftToPTSDY(std::round(m_State.GetY()), entityHeight);
+
+    // Anchored bottom-alignment correction for width-override entities:
+    // Ensures the bottom of the drawn sprite (spriteSize.y * absScaleY)
+    // aligns exactly with the bottom of the logical hitbox (entityHeight),
+    // preventing the sprite from sinking into solid blocks when scaled.
+    if (m_Def.renderTargetWidth > 0.0f && m_Drawable) {
+        glm::vec2 spriteSize = m_Drawable->GetSize();
+        if (spriteSize.y > 0.0f) {
+            float drawnHeight = spriteSize.y * absScaleY;
+            screenY += (drawnHeight - entityHeight) * 0.5f;
+        }
+    }
+
+    if (m_Behavior) {
+        screenY += m_Behavior->GetVisualYOffset(m_LevelName);
+    }
+
+    m_Transform.translation = {screenX, screenY};
 
     // Direction 0=Left (flip), 1=Right (normal)
     if (m_State.GetDirection() == 0) {
@@ -212,6 +228,13 @@ std::shared_ptr<Util::Image> Entity::GetOrLoadSprite(const std::string& path) {
 
     LOG_WARN("Entity sprite not found: {}", path);
     return nullptr;
+}
+
+AABB Entity::GetHitbox() const {
+    if (m_Behavior) {
+        return m_Behavior->GetHitbox(m_State);
+    }
+    return m_State.GetHitbox();
 }
 
 }  // namespace Mario

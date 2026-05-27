@@ -55,6 +55,13 @@ class FireballBehavior : public IEntityBehavior {
 
     bool AlwaysUpdate() const override { return true; }
 
+    /** Enemy fireballs cannot be stomped and act as enemy projectiles. */
+    bool IsEnemyProjectile() const override;
+    bool IsImmuneToStomp() const override;
+    bool IsImmuneToStarPower() const override;
+    bool IsPlayerFireball() const override;
+    bool ExplodesOnWall() const override;
+
     /**
      * Get remaining lifetime in frames.
      */

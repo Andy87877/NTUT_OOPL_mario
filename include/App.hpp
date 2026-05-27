@@ -34,10 +34,10 @@
 #include "Mario/Services/IInputHandler.hpp"
 #include "Mario/Scenes/ISceneHandler.hpp"
 #include "Mario/Level/Level.hpp"
-#include "Mario/Level/LevelCompleteController.hpp"
 #include "Mario/Player/Player.hpp"
 #include "Mario/UI/UIManager.hpp"
 #include "Util/Renderer.hpp"
+#include "Mario/Services/ILevelService.hpp"
 #include "pch.hpp"  // IWYU pragma: export
 
 class App {
@@ -49,17 +49,17 @@ class App {
      */
     enum class State {
         START,         // Initial boot
-        TITLE,         // Title screen
-        LOADING,       // Loading screen (shows world/lives)
-        PLAYING,       // Active gameplay
-        FLAGPOLE,      // Flagpole ending sequence
-        PIPE_WARP,     // Pipe warp transition
-        AXE_SEQUENCE,  // 8-4 boss-defeat cutscene
-        DEATH,         // Mario death animation
-        GAME_OVER,     // Game over screen (lives = 0)
-        GAME_WON,      // All levels cleared
-        ESC_MENU,      // Pause menu
-        END,           // Application exit
+     TITLE,         // Title screen
+     LOADING,       // Loading screen (shows world/lives)
+     PLAYING,       // Active gameplay
+     FLAGPOLE,      // Flagpole ending sequence
+     PIPE_WARP,     // Pipe warp transition
+     AXE_SEQUENCE,  // 8-4 boss-defeat cutscene
+     DEATH,         // Mario death animation
+     GAME_OVER,     // Game over screen (lives = 0)
+     GAME_WON,      // All levels cleared
+     ESC_MENU,      // Pause menu
+     END,           // Application exit
     };
 
     State GetCurrentState() const { return m_CurrentState; }
@@ -80,12 +80,6 @@ class App {
     void StartLevel();
     void PlayCurrentBGM();
     void AdvanceToNextLevel();
-
-    // -- Collision helpers (called ONLY by PlayingSceneHandler — see there) --
-    // NOTE: CheckFlagpoleCollision, CheckPipeCollision, CheckAxeCollision,
-    //       CheckPlayerEntityCollision, CheckEntityEntityCollision, and
-    //       CleanupDeadEntities are now private methods of PlayingSceneHandler.
-    //       App no longer owns game-logic decisions.
 
     /**
      * Returns true when the current level uses a dark (underground/castle)
@@ -109,10 +103,10 @@ class App {
     void ApplyBackground(bool isUnderground);
 
     // -- Data accessors (return by reference for handler read/write) --
-    std::shared_ptr<Mario::Player>& GetPlayer() { return m_Player; }
-    std::shared_ptr<Mario::Level>& GetLevel() { return m_Level; }
+    std::shared_ptr<Mario::Player>& GetPlayer() { return m_LevelService->GetPlayer(); }
+    std::shared_ptr<Mario::Level>& GetLevel() { return m_LevelService->GetLevel(); }
     std::vector<std::shared_ptr<Mario::Entity>>& GetEntities() {
-        return m_Entities;
+        return m_LevelService->GetEntities();
     }
 
     /**
@@ -130,22 +124,20 @@ class App {
         return m_CollisionManager;
     }
     Mario::IInputHandler& GetInputHandler() { return *m_InputHandler; }
-    Mario::LevelCompleteController& GetLevelCompleteCtrl() {
-        return m_LevelCompleteCtrl;
-    }
-    std::shared_ptr<Mario::Entity>& GetFlagEntity() { return m_FlagEntity; }
+    Mario::ISceneHandler* GetCurrentHandler() { return m_CurrentHandler.get(); }
+    std::shared_ptr<Mario::Entity>& GetFlagEntity() { return m_LevelService->GetFlagEntity(); }
 
     int GetTimer() const { return m_Timer; }
-    float GetSpeed() const { return m_Speed; }
+    float GetSpeed() const { return Mario::GameConfig::SCALED_SPEED; }
     const std::string& GetCurrentLevelName() const {
-        return m_CurrentLevelName;
+        return m_LevelService->GetCurrentLevelName();
     }
 
     // Mutable primitive accessors (handlers write these directly)
-    bool& GetLoading() { return m_Loading; }
-    int& GetLoadTimer() { return m_LoadTimer; }
-    int& GetDeathTimer() { return m_DeathTimer; }
-    int& GetESCMenuSelection() { return m_ESCMenuSelection; }
+    bool& GetLoading() { return m_LevelService->GetLoading(); }
+    int& GetLoadTimer() { return m_LevelService->GetLoadTimer(); }
+    int& GetDeathTimer() { return m_LevelService->GetDeathTimer(); }
+    int& GetESCMenuSelection() { return m_LevelService->GetESCMenuSelection(); }
 
    private:
     /** Factory: construct the ISceneHandler for a given state. */
@@ -161,11 +153,8 @@ class App {
     // -- Renderer --
     Util::Renderer m_Renderer;
 
-    // -- Level data --
-    std::shared_ptr<Mario::Level> m_Level;
-
-    // -- Player --
-    std::shared_ptr<Mario::Player> m_Player;
+    // -- Level Service (OOP Decoupled Service) --
+    std::shared_ptr<Mario::ILevelService> m_LevelService;
 
     // -- Input (MVC Controller) — owned via IInputHandler for DIP --
     std::unique_ptr<Mario::IInputHandler> m_InputHandler;
@@ -173,33 +162,14 @@ class App {
     // -- Collision --
     Mario::CollisionManager m_CollisionManager;
 
-    // -- Entities --
-    std::vector<std::shared_ptr<Mario::Entity>> m_Entities;
-
     // -- Level-completion sequences --
-    Mario::LevelCompleteController m_LevelCompleteCtrl;
     Mario::GameStateManager m_GameState;
-    std::shared_ptr<Mario::Entity> m_FlagEntity;
 
     // -- UI --
     std::unique_ptr<Mario::UIManager> m_UIManager;
 
-    // -- Movement speed --
-    float m_Speed = Mario::GameConfig::SCALED_SPEED;
-
-    // -- Loading state --
-    bool m_Loading = false;
-    int m_LoadTimer = -1;
-
-    // -- Death state --
-    int m_DeathTimer = -1;
-
-    // -- Level info --
-    std::string m_CurrentLevelName;
+    // -- App Timer --
     int m_Timer = 0;
-
-    // -- ESC menu --
-    int m_ESCMenuSelection = 0;
 };
 
 #endif  // APP_HPP

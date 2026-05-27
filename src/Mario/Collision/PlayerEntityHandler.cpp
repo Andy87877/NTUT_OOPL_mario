@@ -39,7 +39,7 @@ void PlayerEntityHandler::Resolve(
         if (!es.IsActive()) continue;
         if (es.IsHidden()) continue;  // PiranhaPlant inside pipe — not hittable
 
-        AABB entityBox = es.GetHitbox();
+        AABB entityBox = entity->GetHitbox();
         if (!playerBox.Intersects(entityBox)) continue;
 
         if (es.IsEnemy()) {
@@ -61,7 +61,7 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
     PlayerState& ps = player.GetState();
     EntityState& es = entity.GetState();
     AABB playerBox = ps.GetHitbox();
-    AABB entityBox = es.GetHitbox();
+    AABB entityBox = entity.GetHitbox();
 
     // Helper: floating text at the entity's world centre.
     auto addScore = [&](int score) {
@@ -75,14 +75,15 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
         gameState.AddScore(score);
     };
 
+    auto* behavior = entity.GetBehavior();
+
     // --- Star power: instant kill ------------------------------------------
     if (ps.GetStarTimer() > 0) {
         // Bowser fire is invincible and immune to Star power - it still damages
         // Mario and disappears!
-        if (entity.GetDef().type == EntityType::FIRE && es.IsEnemy()) {
+        if (behavior && behavior->IsEnemyProjectile() && behavior->IsImmuneToStarPower()) {
             ps.TakeDamage();
-            auto* behavior = entity.GetBehavior();
-            if (behavior) behavior->OnPlayerCollision(es, player, false);
+            behavior->OnPlayerCollision(es, player, false);
             if (es.IsActive()) es.Delete();
             return;
         }
@@ -93,25 +94,14 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
         return;
     }
 
-    // --- PiranhaPlant: always damages Mario, cannot be stomped -------------
-    // Reference: NES Mario — Piranha Plant is lethal from any direction.
-    if (entity.GetDef().type == EntityType::PIRANHA_PLANT) {
-        ps.TakeDamage();
-        return;
-    }
-
     // --- Enemy projectiles: always damage Mario, consumed on contact -------
     // Bowser fire (FIRE + isEnemy) and thrown axes (AXE_PROJECTILE) cannot
     // be stomped; they are destroyed on contact just like in the NES game.
-    bool isEnemyProjectile =
-        (entity.GetDef().type == EntityType::FIRE && es.IsEnemy()) ||
-        entity.GetDef().type == EntityType::AXE_PROJECTILE;
-    if (isEnemyProjectile) {
+    if (behavior && behavior->IsEnemyProjectile()) {
         ps.TakeDamage();
         // Consume the projectile: let the behavior clean up first; if the
         // behavior does not delete it, fall back to a direct delete.
-        auto* behavior = entity.GetBehavior();
-        if (behavior) behavior->OnPlayerCollision(es, player, false);
+        behavior->OnPlayerCollision(es, player, false);
         if (es.IsActive()) es.Delete();
         return;
     }
@@ -129,7 +119,6 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
         // --- Stomp-immune enemies (Bowser, Podoboo, etc.) ------------------
         // Query via virtual method — adding a new immune enemy only requires
         // overriding IsImmuneToStomp(); no changes needed here (OCP).
-        auto* behavior = entity.GetBehavior();
         if (behavior && behavior->IsImmuneToStomp()) {
             // Mario cannot stomp them — contact damages Mario instead.
             behavior->OnPlayerCollision(es, player, true);
@@ -138,28 +127,23 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
 
         bool handledByBehavior = false;
 
-        if (entity.GetDef().type == EntityType::KOOPA_SHELL ||
-            es.IsInShellMode()) {
-            // Stomp on shell: kick/propel it.
-            float playerCX =
-                playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
-            float shellCX =
-                entityBox.left + (entityBox.right - entityBox.left) * 0.5f;
-            float kickSpeed = (playerCX > shellCX) ? -GameConfig::SCALED_SPEED
-                                                   : GameConfig::SCALED_SPEED;
-            es.KickShell(kickSpeed);
-            ps.SetInvTimer(5);
-            handledByBehavior = true;
-        } else if (entity.GetDef().type == EntityType::PARAKOOPA) {
-            auto* behavior = entity.GetBehavior();
-            if (behavior) {
-                handledByBehavior =
-                    behavior->OnPlayerCollision(es, player, true);
-            }
+        if (behavior) {
+            handledByBehavior = behavior->OnPlayerCollision(es, player, true);
         }
 
         if (!handledByBehavior) {
-            if (es.IsSquishable()) {
+            if (es.IsInShellMode()) {
+                // Stomp on shell: kick/propel it.
+                float playerCX =
+                    playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
+                float shellCX =
+                    entityBox.left + (entityBox.right - entityBox.left) * 0.5f;
+                float kickSpeed = (playerCX > shellCX) ? -GameConfig::SCALED_SPEED
+                                                       : GameConfig::SCALED_SPEED;
+                es.KickShell(kickSpeed);
+                ps.SetInvTimer(5);
+                handledByBehavior = true;
+            } else if (es.IsSquishable()) {
                 es.TriggerDeath(EnemyDeathCause::STOMP);
                 AudioManager::GetInstance().PlaySFX(SFXName::Squish);
             } else if (es.IsKoopaSquash()) {
@@ -168,8 +152,6 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
             } else {
                 AudioManager::GetInstance().PlaySFX(SFXName::Squish);
             }
-        } else if (entity.GetDef().type == EntityType::PARAKOOPA) {
-            AudioManager::GetInstance().PlaySFX(SFXName::Squish);
         }
 
         // NES consecutive-stomp score: ×1, ×2, ×4, ×8, then cap at 1000.
@@ -186,7 +168,7 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
     }
 
     // --- Shell side collision (moving shell hurts; stationary = kick) ------
-    if (entity.GetDef().type == EntityType::KOOPA_SHELL || es.IsInShellMode()) {
+    if ((behavior && behavior->IsShell()) || es.IsInShellMode()) {
         if (std::abs(es.GetVelX()) < 0.1f) {
             // Stationary shell: kick it.
             AABB eBox = entityBox;

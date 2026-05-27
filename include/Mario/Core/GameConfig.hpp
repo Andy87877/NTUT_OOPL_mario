@@ -69,7 +69,7 @@ struct GameConfig {
     static constexpr int MAX_FIREBALLS = 2;
 
     // -- Collision --
-    static constexpr float INTERSECT_STRICTNESS = 0.75f;
+    static constexpr float INTERSECT_STRICTNESS = 0.35f;
     static constexpr float HITBOX_WIDTH_RATIO =
         0.6875f;  // Player hitbox is narrower
 

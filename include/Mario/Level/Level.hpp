@@ -87,6 +87,12 @@ class Level {
      */
     const std::vector<Block*>& GetGoalBlocks() const { return m_GoalBlocks; }
 
+    /** Get the castle entrance door X coordinate. */
+    float GetCastleDoorX() const { return m_CastleDoorX; }
+
+    /** Trigger bridge blocks to collapse in the castle. */
+    void CollapseBridge();
+
     /**
      * Get all spawn points in the level.
      */
@@ -189,6 +195,9 @@ class Level {
     // Flat 1D grid representation of blocks: index = y * m_Width + x
     std::vector<Block*> m_GridBlocks;
 
+    // Cache of bridge blocks in the level
+    std::vector<Block*> m_BridgeBlocks;
+
     // Spawn points for entities
     std::vector<SpawnPoint> m_SpawnPoints;
 
@@ -201,10 +210,15 @@ class Level {
     float m_PlayerSpawnX = 3.0f * GameConfig::TILE_SIZE;
     float m_PlayerSpawnY = 12.0f * GameConfig::TILE_SIZE;
     float m_PipeExitX = 0.0f;
+    float m_CastleDoorX = -1.0f;
 
     // Static "empty" definitions for lookup failures
     static const BlockDef EMPTY_BLOCK_DEF;
     static const EntityDef EMPTY_ENTITY_DEF;
+
+    // Viewport culling tracking
+    int m_PrevStartCol = -1;
+    int m_PrevEndCol = -1;
 };
 
 }  // namespace Mario

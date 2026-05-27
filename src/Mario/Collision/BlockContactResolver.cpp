@@ -28,6 +28,7 @@ void BlockContactResolver::ResolveDown(PlayerState& state, const AABB& bb,
     // Velocity-adaptive threshold: grows with vertical speed to prevent clipping through the floor when falling fast
     const float threshold = std::max(static_cast<float>(GameConfig::TILE_SIZE) * GameConfig::INTERSECT_STRICTNESS,
                                      static_cast<float>(std::abs(state.GetVelY()) + 2.0f));
+
     if (body.bottom > bb.top && body.bottom < bb.top + threshold &&
         movingDown) {
         state.SetY(bb.top - static_cast<float>(state.GetHeight()));
@@ -45,6 +46,7 @@ void BlockContactResolver::ResolveUp(PlayerState& state, const AABB& bb,
     // Velocity-adaptive threshold: grows with vertical speed to prevent passing through block ceilings when jumping fast
     const float threshold = std::max(static_cast<float>(GameConfig::TILE_SIZE) * GameConfig::INTERSECT_STRICTNESS,
                                      static_cast<float>(std::abs(state.GetVelY()) + 2.0f));
+
     if (body.top < bb.bottom && body.top > bb.bottom - threshold && movingUp) {
         state.SetY(bb.bottom);
         state.SetFallHeight(0.0);

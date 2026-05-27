@@ -42,6 +42,8 @@ class KoopaBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "KoopaBehavior"; }
+    bool IsShell() const override;
+    float GetVisualYOffset(const std::string& levelName) const override;
 
    private:
     KoopaType m_Type;
@@ -106,6 +108,8 @@ class ParaKoopaBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "ParaKoopaBehavior"; }
+    bool IsShell() const override;
+    float GetVisualYOffset(const std::string& levelName) const override;
 
    private:
     static constexpr float PATROL_RANGE = 45.0f;  // +/- 1 tile around anchor Y

@@ -12,10 +12,10 @@
 #include "Mario/Behaviors/BowserBehavior.hpp"
 #include "Mario/Behaviors/CastleFireSpawnerBehavior.hpp"
 #include "Mario/Behaviors/DefaultEntityBehavior.hpp"
-#include "Mario/Behaviors/EnemyBehavior.hpp"
+#include "Mario/Behaviors/GoombaBehavior.hpp"
 #include "Mario/Behaviors/FireballBehavior.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
-#include "Mario/Behaviors/ItemBehavior.hpp"
+#include "Mario/Behaviors/ItemBehaviors.hpp"
 #include "Mario/Behaviors/KoopaFamily.hpp"
 #include "Mario/Behaviors/ParticleDebris.hpp"
 #include "Mario/Behaviors/PiranhaPlantBehavior.hpp"
@@ -204,8 +204,7 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
 
     switch (localDef.type) {
         case EntityType::GOOMBA:
-            behavior = std::make_unique<EnemyBehavior>(
-                EnemyBehavior::EnemyType::GOOMBA);
+            behavior = std::make_unique<GoombaBehavior>();
             break;
         case EntityType::KOOPA_TROOPA:
             behavior = std::make_unique<KoopaBehavior>(
@@ -236,24 +235,19 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             behavior = std::make_unique<PrincessBehavior>();
             break;
         case EntityType::MUSHROOM:
-            behavior = std::make_unique<ItemBehavior>(
-                ItemBehavior::ItemType::MUSHROOM);
+            behavior = std::make_unique<MushroomBehavior>();
             break;
         case EntityType::FIRE_FLOWER:
-            behavior = std::make_unique<ItemBehavior>(
-                ItemBehavior::ItemType::FIRE_FLOWER);
+            behavior = std::make_unique<FireFlowerBehavior>();
             break;
         case EntityType::STAR:
-            behavior =
-                std::make_unique<ItemBehavior>(ItemBehavior::ItemType::STAR);
+            behavior = std::make_unique<StarBehavior>();
             break;
         case EntityType::ONE_UP:
-            behavior =
-                std::make_unique<ItemBehavior>(ItemBehavior::ItemType::ONE_UP);
+            behavior = std::make_unique<OneUpBehavior>();
             break;
         case EntityType::COIN:
-            behavior =
-                std::make_unique<ItemBehavior>(ItemBehavior::ItemType::COIN);
+            behavior = std::make_unique<CoinBehavior>();
             break;
         case EntityType::PARTICLE_DEBRIS:
             behavior = std::make_unique<ParticleDebris>();
@@ -265,9 +259,8 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             behavior = std::make_unique<AxeBehavior>();
             break;
         case EntityType::AXE_PROJECTILE:
-            // Thrown axe projectile: gravity + velocity applied by EntityState
-            // Tick(); DefaultEntityBehavior is sufficient.
-            behavior = std::make_unique<DefaultEntityBehavior>();
+            // Thrown axe projectile: gravity + velocity applied by EntityState Tick()
+            behavior = std::make_unique<AxeProjectileBehavior>();
             break;
         case EntityType::PIRANHA_PLANT:
             behavior = std::make_unique<PiranhaPlantBehavior>();

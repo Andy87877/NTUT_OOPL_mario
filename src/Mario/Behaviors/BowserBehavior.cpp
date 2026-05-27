@@ -47,8 +47,7 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
         float left = 999999.0f;
         float right = -999999.0f;
         for (const auto& block : level.GetAllBlocks()) {
-            if (block && (block->GetName() == "Bridge" ||
-                          block->GetName() == "BridgeBlock" ||
+            if (block && (block->IsBridge() ||
                           block->GetBlockID() == 818)) {
                 float bx = block->GetWorldX();
                 if (bx > 12000.0f) {  // Bowser's bridge is only in Room 5
@@ -218,8 +217,8 @@ void BowserBehavior::UpdatePatrol(EntityState& state, const Level& level,
     ResolveWallAndEdge(state, level);
 }
 
-void BowserBehavior::UpdateFireAttackPhase(const EntityState& state,
-                                           const Player& player) {
+void BowserBehavior::UpdateFireAttackPhase([[maybe_unused]] const EntityState& state,
+                                           [[maybe_unused]] const Player& player) {
     // Fire spitting is now handled continuously in Update() to enable
     // off-screen spitting right from the start of the level.
 }

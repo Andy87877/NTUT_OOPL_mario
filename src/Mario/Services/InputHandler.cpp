@@ -4,7 +4,7 @@
  *        Reads PTSD Util::Input and applies to PlayerState.
  *        Key bindings match the C# reference (Right/D, Left/A, Space/Z, Down/S,
  * E/LShift).
- * @inheritance None (Controller)
+ * @inheritance IInputHandler -> InputHandler
  */
 #include "Mario/Services/InputHandler.hpp"
 

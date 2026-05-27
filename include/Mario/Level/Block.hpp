@@ -2,7 +2,7 @@
  * @file Block.hpp
  * @brief Block game object for terrain tiles (ground, bricks, pipes, etc.).
  *        Inherits from Util::GameObject for rendering in PTSD framework.
- * @inheritance Util::GameObject -> Block
+ * @inheritance Util::GameObject -> Block -> [MovingPlatform, StoneBlock, BrickBlock, QuestionBlock, InvisibleBlock, GoalBlock, BackgroundBlock, BridgeBlock]
  */
 #ifndef MARIO_BLOCK_HPP
 #define MARIO_BLOCK_HPP
@@ -55,6 +55,7 @@ class Block : public Util::GameObject {
 
     /**
      * Called when player head-bumps this block.
+     * Guaranteed to load sprites on demand first before calling HandleOnHit.
      * @param playerState Player's power state (0=small, 1=big, 2=fire)
      */
     void OnHit(int playerState);
@@ -116,6 +117,11 @@ class Block : public Util::GameObject {
      */
     std::string GetSpawnContents(int playerState) const;
 
+    virtual bool IsVisibleBeforeHit() const { return true; }
+    virtual bool IsBridge() const { return false; }
+    virtual bool IsCastleDoor() const { return false; }
+    virtual std::string GetDebrisEntityName() const { return m_Def.name + "Break"; }
+
     const BlockDef& GetDef() const { return m_Def; }
 
     void SetCollidable(bool collidable) { m_Solid = collidable; }
@@ -136,6 +142,11 @@ class Block : public Util::GameObject {
     }
 
    protected:
+    /**
+     * Virtual implementation of the block bump response.
+     */
+    virtual void HandleOnHit(int playerState);
+
     int m_BlockID;
     int m_GridX;
     int m_GridY;
@@ -169,11 +180,56 @@ class Block : public Util::GameObject {
     // Lazy loading support
     bool m_SpriteLoaded = false;
     std::string m_SpritePath;
-    std::vector<std::string> m_AnimPaths;
     std::string m_HitSpritePath;
-
+    std::vector<std::string> m_AnimPaths;
     void SetupSprite();
-    void LoadSpriteOnDemand();  // Called on first Render()
+    virtual void LoadSpriteOnDemand();  // Called on first Render()
+};
+
+class StoneBlock : public Block {
+   public:
+    using Block::Block;
+    void HandleOnHit(int playerState) override;
+};
+
+class BrickBlock : public Block {
+   public:
+    using Block::Block;
+    void HandleOnHit(int playerState) override;
+};
+
+class QuestionBlock : public Block {
+   public:
+    using Block::Block;
+    void HandleOnHit(int playerState) override;
+};
+
+class InvisibleBlock : public Block {
+   public:
+    using Block::Block;
+    void HandleOnHit(int playerState) override;
+    void LoadSpriteOnDemand() override;
+    bool IsVisibleBeforeHit() const override { return false; }
+};
+
+class GoalBlock : public Block {
+   public:
+    using Block::Block;
+    void HandleOnHit(int playerState) override;
+};
+
+class BackgroundBlock : public Block {
+   public:
+    using Block::Block;
+    void HandleOnHit(int playerState) override;
+    bool IsCastleDoor() const override;
+};
+
+class BridgeBlock : public Block {
+   public:
+    using Block::Block;
+    void HandleOnHit(int playerState) override;
+    bool IsBridge() const override { return true; }
 };
 
 }  // namespace Mario

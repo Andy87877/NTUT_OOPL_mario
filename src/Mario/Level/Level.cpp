@@ -51,6 +51,10 @@ bool Level::Load(const std::string& levelName) {
     m_SpawnPoints.clear();
     m_Grid.clear();
     m_GoalBlocks.clear();
+    m_BridgeBlocks.clear();
+    m_CastleDoorX = -1.0f;
+    m_PrevStartCol = -1;
+    m_PrevEndCol = -1;
 
     // Determine sub-level name
     if (levelName == "1-1") {
@@ -358,8 +362,27 @@ void Level::CreateBlocksFromGrid() {
                 continue;
             }
 
-            auto block =
-                std::make_shared<Block>(blockID, x, y, def, m_LevelName);
+            std::shared_ptr<Block> block;
+            if (def.isGoal) {
+                block = std::make_shared<GoalBlock>(blockID, x, y, def, m_LevelName);
+            } else if (def.name == "Bridge" || def.name == "BridgeBlock") {
+                block = std::make_shared<BridgeBlock>(blockID, x, y, def, m_LevelName);
+                m_BridgeBlocks.push_back(block.get());
+            } else if (def.background) {
+                auto bgBlock = std::make_shared<BackgroundBlock>(blockID, x, y, def, m_LevelName);
+                if (bgBlock->IsCastleDoor()) {
+                    m_CastleDoorX = static_cast<float>(x * GameConfig::TILE_SIZE);
+                }
+                block = bgBlock;
+            } else if (def.name == "InvisQuestionBlock") {
+                block = std::make_shared<InvisibleBlock>(blockID, x, y, def, m_LevelName);
+            } else if (def.isContainer) {
+                block = std::make_shared<QuestionBlock>(blockID, x, y, def, m_LevelName);
+            } else if (def.breakable) {
+                block = std::make_shared<BrickBlock>(blockID, x, y, def, m_LevelName);
+            } else {
+                block = std::make_shared<StoneBlock>(blockID, x, y, def, m_LevelName);
+            }
             m_Blocks.push_back(block);
             m_GridBlocks[y * m_Width + x] = block.get();
             if (def.isGoal) m_GoalBlocks.push_back(block.get());
@@ -374,30 +397,57 @@ void Level::IdentifySpawnPoints() {
 }
 
 void Level::UpdateBlocks(float cameraOffset) {
-    for (auto& block : m_Blocks) {
-        if (block->IsBroken()) {
+    int startCol = std::max(0, static_cast<int>(cameraOffset - GameConfig::TILE_SIZE * 2) / GameConfig::TILE_SIZE);
+    int endCol = std::min(m_Width - 1, static_cast<int>(cameraOffset + GameConfig::WINDOW_WIDTH + GameConfig::TILE_SIZE * 2) / GameConfig::TILE_SIZE);
+
+    // Hide blocks in columns that just went off-screen
+    if (m_PrevStartCol == -1) {
+        for (auto& block : m_Blocks) {
             block->SetVisible(false);
-            continue;
         }
-
-        // Only update visible blocks (performance optimization)
-        float worldX = block->GetWorldX();
-        float screenX = worldX - cameraOffset;
-
-        bool visible =
-            (screenX + GameConfig::TILE_SIZE > -GameConfig::TILE_SIZE * 2) &&
-            (screenX < GameConfig::WINDOW_WIDTH + GameConfig::TILE_SIZE * 2);
-
-        // Keep invisible question blocks hidden until they are hit
-        if (block->GetName() == "InvisQuestionBlock" && !block->IsHit()) {
-            visible = false;
-        }
-
-        block->SetVisible(visible);
-        if (visible) {
-            block->Update(cameraOffset);
+    } else {
+        for (int x = m_PrevStartCol; x <= m_PrevEndCol; x++) {
+            if (x < startCol || x > endCol) {
+                for (int y = 0; y < m_Height; y++) {
+                    Block* b = m_GridBlocks[y * m_Width + x];
+                    if (b) {
+                        b->SetVisible(false);
+                    }
+                }
+            }
         }
     }
+
+    // Update and display blocks in visible columns
+    for (int x = startCol; x <= endCol; x++) {
+        for (int y = 0; y < m_Height; y++) {
+            Block* b = m_GridBlocks[y * m_Width + x];
+            if (b && !b->IsBroken()) {
+                bool visible = b->IsVisibleBeforeHit() || b->IsHit();
+                b->SetVisible(visible);
+                if (visible) {
+                    b->Update(cameraOffset);
+                }
+            }
+        }
+    }
+
+    // Update moving platforms (they are not in the static grid blocks map)
+    for (auto* plat : m_MovingPlatforms) {
+        if (plat && !plat->IsBroken()) {
+            float worldX = plat->GetWorldX();
+            float screenX = worldX - cameraOffset;
+            bool visible = (screenX + GameConfig::TILE_SIZE > -GameConfig::TILE_SIZE * 2) &&
+                           (screenX < GameConfig::WINDOW_WIDTH + GameConfig::TILE_SIZE * 2);
+            plat->SetVisible(visible);
+            if (visible) {
+                plat->Update(cameraOffset);
+            }
+        }
+    }
+
+    m_PrevStartCol = startCol;
+    m_PrevEndCol = endCol;
 }
 
 Block* Level::GetBlockAt(int gridX, int gridY) {
@@ -482,6 +532,15 @@ std::vector<std::string> Level::SplitCSVLine(const std::string& line) const {
 bool Level::IsUnderground() const {
     return m_LevelName.find('u') != std::string::npos || m_LevelName == "1-2" ||
            m_LevelName == "8-4";
+}
+
+void Level::CollapseBridge() {
+    for (auto* block : m_BridgeBlocks) {
+        if (block) {
+            block->SetGravity(true);
+            block->SetCollidable(false);
+        }
+    }
 }
 
 }  // namespace Mario

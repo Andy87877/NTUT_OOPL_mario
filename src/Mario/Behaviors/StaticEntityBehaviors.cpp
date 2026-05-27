@@ -1,10 +1,9 @@
 /**
  * @file StaticEntityBehaviors.cpp
- * @brief Implementations for AxeBehavior and PrincessBehavior.
- *        Merged from AxeBehavior.cpp and PrincessBehavior.cpp.
- *        Both are passive 8-4 entities with trivial behavior.
+ * @brief Implementations for AxeBehavior, PrincessBehavior, and AxeProjectileBehavior.
  * @inheritance IEntityBehavior <- AxeBehavior
  *              IEntityBehavior <- PrincessBehavior
+ *              IEntityBehavior <- AxeProjectileBehavior
  */
 #include "Mario/Behaviors/StaticEntityBehaviors.hpp"
 
@@ -60,6 +59,32 @@ bool PrincessBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
 
 std::unique_ptr<IEntityBehavior> PrincessBehavior::Clone() const {
     return std::make_unique<PrincessBehavior>(*this);
+}
+
+// ============================================================================
+// AxeProjectileBehavior
+// ============================================================================
+
+void AxeProjectileBehavior::Update(EntityState& state,
+                                   [[maybe_unused]] const Level& level,
+                                   [[maybe_unused]] const Player& player,
+                                   int gameTimer) {
+    // Axe spin animation: rotate every 4 frames (matches C# visual feel)
+    if (gameTimer % 4 == 0) {
+        state.AdvanceAnimationFrame();
+    }
+}
+
+bool AxeProjectileBehavior::OnPlayerCollision(EntityState& state,
+                                              [[maybe_unused]] Player& player,
+                                              [[maybe_unused]] bool isFromAbove) {
+    if (state.IsDead()) return false;
+    state.Delete();  // Consume and destroy projectile on player hit
+    return true;
+}
+
+std::unique_ptr<IEntityBehavior> AxeProjectileBehavior::Clone() const {
+    return std::make_unique<AxeProjectileBehavior>(*this);
 }
 
 }  // namespace Mario

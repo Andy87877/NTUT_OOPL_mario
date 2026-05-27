@@ -1,6 +1,6 @@
 # Super Mario Bros. — PTSD C++ OOP 架構設計 (Constructure)
 
-> **Last synced:** 2026-05-25 (Modular Reorganization: 40+ raw headers and source files grouped systematically into 6 logical subfolders: Core, Player, Level, Scenes, UI, and Services to eliminate file clutter under `include/Mario` and `src/Mario`; all project includes updated recursively via Python automation; `files.cmake` build registry fully synchronized. Form Strategy: `IPlayerForm` State Pattern with 5 concrete form strategies cleanly managing Mario's powerup dimension, abilities, and damage transitions. Standard Compatibility: Implemented non-inline virtual destructors `Player::~Player()` and `PlayerState::~PlayerState()` to resolve GCC/clang template `std::_Destroy` compilation errors for standard `std::unique_ptr` with incomplete forward declarations, achieving 100% clean compilation in all translation units.)
+> **Last synced:** 2026-05-25
 > **關卡:** 1-1 (Ground) → 1-2 (Underground) → 8-4 (Castle + Boss)
 
 本專案將 C# 版本的 God Class (`Form1.cs`) 徹底解耦，轉換為符合現代 C++ 標準的  
@@ -22,7 +22,7 @@
    - 1.7 IUIPanel 繼承樹 (Strategy Pattern)
    - 1.8 App 全域架構圖
    - 1.9 MVC 完整關係圖
-   - 1.10 ServiceLocator & EventSystem
+   - 1.10 ServiceLocator & EventSystem & ILevelService
    - 1.11 IInputHandler 繼承樹 (DIP)
    - 1.12 IPlayerForm 繼承樹 (State Pattern)
 2. [所有檔案清單](#2-所有檔案清單)
@@ -32,6 +32,19 @@
    - 2.4 GameConfig 關鍵常數
    - 2.5 Python 工具腳本
 3. [設計模式深度解析](#3-設計模式深度解析)
+   - 3.1 State Pattern — App::State 狀態機
+   - 3.2 Strategy Pattern — IEntityBehavior
+   - 3.3 State Pattern — IPlayerForm 力量型態
+   - 3.4 DIP — IAudioService & AudioManager
+   - 3.5 Strategy — IUIPanel & UIManager
+   - 3.6 Service Locator — ServiceLocator 服務定位器
+   - 3.7 Publish/Subscribe — EventSystem\<T\>
+   - 3.8 Strategy + Facade — 碰撞解析子系統
+   - 3.9 Strategy — 敵人死亡動畫策略
+   - 3.10 Strategy — 道具多型策略
+   - 3.11 DIP / Service Locator — 關卡管理服務 (LevelManager)
+   - 3.12 State Pattern — 零向下轉型狀態傳參 (Zero Down-Casting State Handshake)
+   - 3.13 MVC 完整運作序列圖
 4. [Game Loop — 17 Phase 架構](#4-game-loop--17-phase-架構)
 5. [App::State 狀態機轉移圖](#5-appstate-狀態機轉移圖)
 6. [Refactoring 進度總覽](#6-refactoring-進度總覽)
@@ -63,6 +76,7 @@ classDiagram
         -int m_BounceTimer
         +Update(cameraOffset)
         +OnHit(playerState)
+        #HandleOnHit(playerState)*
         +Bounce() / Break()
         +GetAABB() AABB
         +IsSolid() / IsBreakable() / IsGoal()
@@ -83,6 +97,14 @@ classDiagram
         +TryCarryPlayer(ps, prevAABB, onStaticBlock)
     }
 
+    class StoneBlock      { <<Block>> #HandleOnHit(playerState) }
+    class BrickBlock      { <<Block>> #HandleOnHit(playerState) }
+    class QuestionBlock   { <<Block>> #HandleOnHit(playerState) }
+    class InvisibleBlock  { <<Block>> #HandleOnHit(playerState) }
+    class GoalBlock       { <<Block>> #HandleOnHit(playerState) }
+    class BackgroundBlock { <<Block>> #HandleOnHit(playerState) }
+    class BridgeBlock     { <<Block>> #HandleOnHit(playerState) }
+
     class Entity {
         <<Util::GameObject>>
         -EntityDef m_Def
@@ -92,6 +114,7 @@ classDiagram
         +SetBehavior(behavior)
         +GetBehavior() IEntityBehavior*
         +GetState() EntityState&
+        +GetHitbox() AABB
     }
 
     class Player {
@@ -119,6 +142,13 @@ classDiagram
 
     GameObject <|-- Block
     Block <|-- MovingPlatform
+    Block <|-- StoneBlock
+    Block <|-- BrickBlock
+    Block <|-- QuestionBlock
+    Block <|-- InvisibleBlock
+    Block <|-- GoalBlock
+    Block <|-- BackgroundBlock
+    Block <|-- BridgeBlock
     GameObject <|-- Entity
     GameObject <|-- Player
     GameObject <|-- UIImage
@@ -202,9 +232,16 @@ classDiagram
         +OnFireballHit(state) bool
         +ConsumeSpawnRequest(type, x, y, dir) bool
         +IsImmuneToStomp() bool
+        +IsEnemyProjectile() bool
+        +IsImmuneToStarPower() bool
+        +IsPlayerFireball() bool
+        +IsShell() bool
+        +ExplodesOnWall() bool
+        +GetVisualYOffset(levelName) float
+        +GetHitbox(state) AABB
     }
 
-    class EnemyBehavior         { Goomba patrol + squish }
+    class GoombaBehavior        { Goomba patrol + squish + Smart AI }
     class KoopaBehavior         { KoopaTroopa OR Shell -m_Type:KoopaType }
     class ParaKoopaBehavior     { Flying Koopa -m_FloatPhase:float }
     class AxeKoopaBehavior      { Axe-throwing Koopa +ConsumeSpawnRequest() }
@@ -219,9 +256,14 @@ classDiagram
         -ResolveWallAndEdge(state, level)
     }
     class FireballBehavior      { Parabolic / horizontal +AlwaysUpdate() true }
-    class ItemBehavior          { Mushroom/Star/FireFlower/1UP/Coin -m_ItemType:ItemType }
+    class MushroomBehavior      { Mushroom power-up }
+    class FireFlowerBehavior    { Fire Flower power-up }
+    class StarBehavior          { Star bounce movement }
+    class OneUpBehavior         { Green mushroom 1UP }
+    class CoinBehavior          { Collectible coin }
     class AxeBehavior           { Bridge axe kill-trigger (8-4) }
     class PrincessBehavior      { NPC goal marker (8-4) }
+    class AxeProjectileBehavior { Thrown axe projectile (8-4) }
     class PiranhaPlantBehavior  { Pipe plant 4-Phase cycle -m_Phase }
     class PodobooBehavior       { Lava bubble — immortal; +IsImmuneToStomp() true }
     class DefaultEntityBehavior { Passive coin / flag }
@@ -238,15 +280,20 @@ classDiagram
         +AlwaysUpdate() true
     }
 
-    IEntityBehavior <|.. EnemyBehavior
+    IEntityBehavior <|.. GoombaBehavior
     IEntityBehavior <|.. KoopaBehavior
     IEntityBehavior <|.. ParaKoopaBehavior
     IEntityBehavior <|.. AxeKoopaBehavior
     IEntityBehavior <|.. BowserBehavior
     IEntityBehavior <|.. FireballBehavior
-    IEntityBehavior <|.. ItemBehavior
+    IEntityBehavior <|.. MushroomBehavior
+    IEntityBehavior <|.. FireFlowerBehavior
+    IEntityBehavior <|.. StarBehavior
+    IEntityBehavior <|.. OneUpBehavior
+    IEntityBehavior <|.. CoinBehavior
     IEntityBehavior <|.. AxeBehavior
     IEntityBehavior <|.. PrincessBehavior
+    IEntityBehavior <|.. AxeProjectileBehavior
     IEntityBehavior <|.. PiranhaPlantBehavior
     IEntityBehavior <|.. PodobooBehavior
     IEntityBehavior <|.. DefaultEntityBehavior
@@ -255,7 +302,7 @@ classDiagram
 ```
 
 > `KoopaBehavior`, `ParaKoopaBehavior`, `AxeKoopaBehavior` → `KoopaFamily.hpp/.cpp`  
-> `AxeBehavior`, `PrincessBehavior` → `StaticEntityBehaviors.hpp/.cpp`
+> `AxeBehavior`, `PrincessBehavior`, `AxeProjectileBehavior` → `StaticEntityBehaviors.hpp/.cpp`
 
 ---
 
@@ -500,13 +547,10 @@ classDiagram
         -m_CurrentHandler:unique_ptr~ISceneHandler~
         -m_Camera:Camera
         -m_Renderer:Renderer
-        -m_Level:shared_ptr~Level~
-        -m_Player:shared_ptr~Player~
-        -m_Entities:vector~shared_ptr~Entity~~
+        -m_LevelService:shared_ptr~ILevelService~
         -m_InputHandler:unique_ptr~IInputHandler~
         -m_CollisionManager:CollisionManager
         -m_GameState:GameStateManager
-        -m_LevelCompleteCtrl:LevelCompleteController
         -m_UIManager:unique_ptr~UIManager~
         +TransitionTo(State)
         +LoadLevel(name)
@@ -517,19 +561,38 @@ classDiagram
         +PlayCurrentBGM()
     }
 
+    class ILevelService {
+        <<interface>>
+        +LoadLevel(app, name)*
+        +StartLevel(app)*
+        +PlayCurrentBGM(app)*
+        +AddEntityToGame(app, entity)*
+        +IsUnderground(app) bool*
+        +ApplyBackground(app)*
+        +ApplyBackground(app, bool)*
+    }
+
+    class LevelManager {
+        -m_Level:shared_ptr~Level~
+        -m_Player:shared_ptr~Player~
+        -m_Entities:vector~shared_ptr~Entity~~
+        -m_FlagEntity:shared_ptr~Entity~
+    }
+
+    ILevelService <|-- LevelManager
+    App --> ILevelService : owns via shared_ptr (DIP)
     App --> Camera
-    App --> Level
     App --> CollisionManager
     App --> GameStateManager
     App --> IInputHandler       : owns via unique_ptr (DIP)
-    App --> LevelCompleteController
     App --> UIManager
     App --> EntityFactory      : uses static
     App --> PhysicsEngine      : uses static
     App --> AudioManager       : uses singleton
-    App --> ServiceLocator     : registers IAudioService
+    App --> ServiceLocator     : registers IAudioService & ILevelService
     EntityFactory --> EnemyDeathStyleFactory : selects death strategy
     ServiceLocator --> IAudioService : holds as shared_ptr
+    ServiceLocator --> ILevelService : holds as shared_ptr
 ```
 
 ---
@@ -546,6 +609,8 @@ classDiagram
         -m_VelY, m_FallHeight:double
         -m_PowerState, m_MemoryState:PowerState
         -m_InvTimer, m_AnimFrame:int
+        -m_TransitionTimer:int
+        -m_PrevPowerState:PowerState
         -m_DeathAnimation:unique_ptr~IPlayerDeathAnimation~
         +Init() / Tick()
         +ApplyGravity() float
@@ -555,6 +620,8 @@ classDiagram
         +ForceApplyPowerState(idx)
         +IsBigOrFire() bool
         +CanShootFire() bool
+        +GetTransitionTimer() int
+        +GetPrevPowerState() PowerState
     }
 
     class Player {
@@ -746,7 +813,7 @@ classDiagram
 | `Mario/Core/PhysicsEngine.hpp` | `PhysicsEngine` | None (static) | ApplyGravity() + GetJumpHeight() |
 | `Mario/Core/SpritePathResolver.hpp` | `SpritePathResolver` | None (static) | Sprite 路徑解析 Block/Player/Entity（具有 s_ResolvedPathCache 解決每幀磁碟 I/O） |
 | `Mario/Level/EntityDef.hpp` | `EntityDef`, `BlockDef`, `EntityType` | None (data) | CSV 資料結構；EntityType 列舉；`renderTargetWidth` 渲染縮放欄位（EntityFactory 設定，OCP） |
-| `Mario/Level/Block.hpp` | `Block` | `Util::GameObject` | 磚塊：碰撞/動畫/hit/bounce/break；靜態跨實例 Sprite Cache；`ShouldResolveVerticallyFirst()`/`TryCarryPlayer()` virtual 讓 MovingPlatform 覆寫 |
+| `Mario/Level/Block.hpp` | `Block`, `StoneBlock`, `BrickBlock`, `QuestionBlock`, `InvisibleBlock`, `GoalBlock`, `BackgroundBlock`, `BridgeBlock` | `Util::GameObject` | 磚塊基類及 7 種多型子類別；處理 hit 彈跳/破碎/物品生成邏輯，以及自訂 visibility / bridge 屬性與 debris 粒子名稱產生 |
 | `Mario/Level/MovingPlatform.hpp` | `MovingPlatform` | `Block` | 移動平台（1-2 垂直 / 8-4 水平）；override `ShouldResolveVerticallyFirst` 優先垂直 Snap；`TryCarryPlayer` 攜帶玩家 |
 | `Mario/Level/Level.hpp` | `Level` | None | CSV 解析；高階 O(1) 扁平 Block 陣列；視口剔除與 visibility culling；SpawnPoint；`GetGoalBlocks()` 快取；`QueryBlocksInRange(out)` 零分配版；`IsUnderground()` 名稱判斷 |
 | `Mario/Level/EntityState.hpp` | `EntityState` | None (Model) | Entity MVC Model：位置/速度/動畫/死亡策略 |
@@ -762,17 +829,16 @@ classDiagram
 | `Mario/Services/InputHandler.hpp` | `InputHandler` | `IInputHandler -> InputHandler` | Keyboard controller: Arrow/WASD + Space/Z/UP/W jump + E/LShift fire |
 | `Mario/CollisionManager.hpp` | `CollisionManager` | None (facade) | Collision 子系統協調者（Facade Pattern）；公開 API 不變；邏輯委派給 Collision/ 四個 Handler |
 | `Mario/Collision/ICollisionHandler.hpp` | `ICollisionHandler` | None (abstract interface) | 所有碰撞 Handler 的標記基類；定義繼承樹頂點 |
-| `Mario/Collision/BlockContactResolver.hpp` | `BlockContactResolver` | None (static utility) | 靜態 Down/Up/Right/Left AABB Snap helpers；BodyRect() 建立全寬碰撞體（C# GetRecPosition 等效）；`IsPlayerOnStaticBlock()` 判定玩家是否站在靜態方塊上 |
+| `Mario/Collision/BlockContactResolver.hpp` | `BlockContactResolver` | None (static utility) | 靜態 Down/Up/Right/Left AABB Snap helpers；BodyRect() 建立全寬碰撞體（C# GetRecPosition 等效）；`IsPlayerOnStaticBlock()` 判定玩家是否站在靜態方塊上；ResolveDown/Up 配合調優之 INTERSECT_STRICTNESS (0.35f) 實現精確地面與天花板邊緣判定，徹底修復邊緣飄浮 Bug 並保留流暢跳躍落腳物理 |
 | `Mario/Collision/PlayerBlockHandler.hpp` | `PlayerBlockHandler` | `ICollisionHandler` | 玩家-方塊三步驟管線：FallDetect → CeilingTrigger → BodyResolution；ProcessSingleBlock 取代原 lambda |
 | `Mario/Collision/PlayerEntityHandler.hpp` | `PlayerEntityHandler` | `ICollisionHandler` | 玩家-實體碰撞：踩踏 NES Combo / 傷害 / 道具收集；m_StompCombo 在此管理 |
 | `Mario/Collision/EntityBlockHandler.hpp` | `EntityBlockHandler` | `ICollisionHandler` | 實體-方塊碰撞：地面 Snap / 牆壁翻向 / Fireball→Explosion / 落坑刪除 |
 | `Mario/Collision/EntityEntityHandler.hpp` | `EntityEntityHandler` | `ICollisionHandler` | 實體-實體碰撞：火球 vs 敵人 / 移動龜殼 vs 敵人；viewport culling |
-| `Mario/Level/LevelCompleteController.hpp` | `LevelCompleteController`, `EndingPhase` | None | 旗杆/水管/Bowser 結局序列 |
 | `Mario/Level/GameStateManager.hpp` | `GameStateManager` | None (Service) | 分數/生命/金幣/時間/關卡進度 |
 | `Mario/Scenes/ISceneHandler.hpp` | `ISceneHandler` | None (interface) | State Pattern 純虛介面（10 個實作） |
 | `Mario/Scenes/MenuSceneHandlers.hpp` | `TitleSceneHandler`, `DeathSceneHandler`, `GameOverSceneHandler`, `GameWonSceneHandler` | `ISceneHandler` | 選單/死亡/結束場景（合併） |
 | `Mario/Scenes/LoadingSceneHandler.hpp` | `LoadingSceneHandler` | `ISceneHandler` | 加載畫面（顯示 WORLD X-X + LIVES） |
-| `Mario/Scenes/PlayingSceneHandler.hpp` | `PlayingSceneHandler` | `ISceneHandler` | 主遊戲迴圈（17-phase）；`m_DebrisQueryBuffer` 零分配磚塊查詢緩衝 |
+| `Mario/Scenes/PlayingSceneHandler.hpp` | `PlayingSceneHandler` | `ISceneHandler` | 主遊戲迴圈（17-phase）；`m_WasStarActive` 無敵星星 BGM 轉場追蹤；`m_DebrisQueryBuffer` 零分配磚塊查詢緩衝 |
 | `Mario/Scenes/FlagpoleSceneHandler.hpp` | `FlagpoleSceneHandler` | `ISceneHandler` | 旗杆滑動序列 |
 | `Mario/Scenes/PipeWarpSceneHandler.hpp` | `PipeWarpSceneHandler` | `ISceneHandler` | 水管傳送過場 |
 | `Mario/Scenes/AxeSequenceSceneHandler.hpp` | `AxeSequenceSceneHandler` | `ISceneHandler` | 8-4 Bowser 擊敗序列 |
@@ -781,6 +847,8 @@ classDiagram
 | `Mario/Services/IAudioService.hpp` | `IAudioService` | None (interface) | 音效抽象介面（DIP）；`PlayBGM` / `PlaySFX` / `StopBGM` / `PlayBGMForLevel` |
 | `Mario/Services/AudioPathResolver.hpp` | `AudioPathResolver` | None (static utility) | RESOURCE_DIR 路徑解析；`GetBGMPath(filename)` / `GetSFXPath(filename)` |
 | `Mario/Services/AudioManager.hpp` | `AudioManager` | `IAudioService <- AudioManager` (Singleton) | 音效全系統實作；內部 BGM/SFX cache；`PlayBGMForLevel(levelName, time)` 集中 level→BGM 映射 |
+| `Mario/Services/ILevelService.hpp` | `ILevelService` | None (interface) | 關卡服務抽象介面（DIP）；關卡加載、角色/實體/背景渲染管理與狀態控制 |
+| `Mario/Services/LevelManager.hpp` | `LevelManager` | `ILevelService <- LevelManager` | 關卡服務具體實作；封裝載入、啟動、背景設置、BGM 播放與遊戲世界實體集合的管理 |
 | `Mario/Services/ServiceLocator.hpp` | `ServiceLocator` | None (Service Locator) | 服務定位器 Singleton；type-safe `RegisterService<T>` / `GetService<T>` |
 | `Mario/Services/EventSystem.hpp` | `EventSystem<T>` | None (template) | 泛型 Pub/Sub 事件系統；`Subscribe` / `Unsubscribe` / `Publish` |
 | `Mario/UI/UIPanel.hpp` | `IUIPanel` | None (interface) | Strategy 介面：`Register(renderer)` / `Show()` / `Hide()` / `Refresh(gs)`；新增畫面只需新增子類別，不需修改 `UIManager::Update()` (OCP) |
@@ -794,14 +862,14 @@ classDiagram
 | `Mario/UI/UIWidgets.hpp` | `UIImage`, `UIText` | `Util::GameObject <- UIImage/UIText` | 輕量 UI 元件（合併） |
 | `Mario/UI/FloatingText.hpp` | `FloatingText` | None | 漂浮分數文字（60 幀淡出） |
 | `Mario/UI/CoinUI.hpp` | `CoinUI` | None (composite) | 金幣動畫圖示 + 計數文字 |
-| `Mario/Behaviors/IEntityBehavior.hpp` | `IEntityBehavior` | None (interface) | Strategy Pattern 純虛介面（14 個實作） |
-| `Mario/Behaviors/EnemyBehavior.hpp` | `EnemyBehavior` | `IEntityBehavior` | Goomba AI |
+| `Mario/Behaviors/IEntityBehavior.hpp` | `IEntityBehavior` | None (interface) | Strategy Pattern 純虛介面（19 個實作）；新增 GetHitbox、IsImmuneToStomp、IsEnemyProjectile、IsImmuneToStarPower、IsPlayerFireball、IsShell、ExplodesOnWall 與 GetVisualYOffset 多型以解耦所有硬編碼與自動視覺底端對齊調整 |
+| `Mario/Behaviors/GoombaBehavior.hpp` | `GoombaBehavior` | `IEntityBehavior` | Goomba Smart AI (Dodge Hop, Ledge-avoidance, Proximity pursue) |
 | `Mario/Behaviors/KoopaFamily.hpp` | `KoopaBehavior`, `ParaKoopaBehavior`, `AxeKoopaBehavior` | `IEntityBehavior` | Koopa 系列 AI（合併）；`AxeKoopaBehavior` 使用 ConsumeSpawnRequest 生成斧頭（pending-flag 模式） |
 | `Mario/Behaviors/BowserBehavior.hpp` | `BowserBehavior` | `IEntityBehavior` | Boss 5-Phase AI + HP 系統；使用 `vector<SpawnRequest>` 佇列支援同時丟斧頭與吐火球；支援 AlwaysUpdate 以實現開局起持續越屏噴火 |
 | `Mario/Behaviors/CastleFireSpawnerBehavior.hpp` | `CastleFireSpawnerBehavior` | `IEntityBehavior` | 8-4 關卡專用隱形越屏噴火器 |
-| `Mario/Behaviors/FireballBehavior.hpp` | `FireballBehavior` | `IEntityBehavior` | 拋物線/水平火球；支援 AlwaysUpdate 以實現敵方火球越屏平移 |
-| `Mario/Behaviors/ItemBehavior.hpp` | `ItemBehavior` | `IEntityBehavior` | 道具與金幣行為；`ItemType` 枚舉確保各道具與金幣行為獨立，支援金幣閃爍/旋轉動畫 |
-| `Mario/Behaviors/StaticEntityBehaviors.hpp` | `AxeBehavior`, `PrincessBehavior` | `IEntityBehavior` | 8-4 靜態觸發器/NPC（合併） |
+| `Mario/Behaviors/FireballBehavior.hpp` | `FireballBehavior` | `IEntityBehavior` | 拋物線/水平火球；支援 AlwaysUpdate，並多型實作 IsEnemyProjectile 和 IsImmuneToStomp 以支援敵方火球越屏平移與傷害解耦 |
+| `Mario/Behaviors/ItemBehaviors.hpp` | `MushroomBehavior`, `FireFlowerBehavior`, `StarBehavior`, `OneUpBehavior`, `CoinBehavior` | `IEntityBehavior` | Polymorphic power-up and collectible item strategies |
+| `Mario/Behaviors/StaticEntityBehaviors.hpp` | `AxeBehavior`, `PrincessBehavior`, `AxeProjectileBehavior` | `IEntityBehavior` | 8-4 靜態觸發器/NPC/投擲斧頭投影行為（合併） |
 | `Mario/Behaviors/PiranhaPlantBehavior.hpp` | `PiranhaPlantBehavior` | `IEntityBehavior` | 水管食人花 4-Phase；管口安全半徑 1.5×TILE |
 | `Mario/Behaviors/PodobooBehavior.hpp` | `PodobooBehavior` | `IEntityBehavior` | 熔岩泡泡（不可擊殺） |
 | `Mario/Behaviors/DefaultEntityBehavior.hpp` | `DefaultEntityBehavior` | `IEntityBehavior` | 被動實體（金幣/旗幟） |
@@ -813,56 +881,56 @@ classDiagram
 
 | 檔案 | 行數 (約) | 備註 |
 |------|---------|------|
-| `App.cpp` | 276 | TransitionTo + LoadLevel + accessor impls；移除 Z-index 覆寫 (Bug #18) |
+| `App.cpp` | 130 | TransitionTo + delegation to ILevelService + accessor impls；移除 Z-index 覆寫 (Bug #18) |
 | `Mario/Core/Camera.cpp` | 52 | 8-4 Boss 鎖屏邏輯 (Bug #17) |
 | `Mario/Core/PhysicsEngine.cpp` | 47 | |
 | `Mario/Core/SpritePathResolver.cpp` | 428 | 全 unordered_map 靜態表與 s_ResolvedPathCache 解決每幀磁碟 I/O；補齊城堡/出生點 mappings (Bug #13, #14) |
-| `Mario/Level/Block.cpp` | 362 | 靜態 s_BlockSpriteCache；像素對齊渲染 (Bug #12, #23) |
+| `Mario/Level/Block.cpp` | 436 | 靜態 s_BlockSpriteCache；像素對齊渲染；實作 7 個子類別 HandleOnHit 多型與 OnHit Template Method (2026-05-27) |
 | `Mario/Level/MovingPlatform.cpp` | 114 | WorldToScreen 使用統一轉換 helper (Bug #24) |
-| `Mario/Level/Level.cpp` | 487 | CSV 解析與 O(1) 扁平 2D 陣列 Block 索引；UpdateBlocks 視口 visibility culling 降低 draw calls |
-| `Mario/Player/PlayerState.cpp` | 354 | 死亡策略；蹲下高度動態調整 (Bug #20)；階梯式退化 (Bug #25)；`ForceApplyPowerState(idx)` 作弊器；`IsBigOrFire()` DRY helper (2026-05-24)；定義非內聯解構子 `~PlayerState()` 以解決前置宣告不完整類型編譯錯誤 (2026-05-25) |
+| `Mario/Level/Level.cpp` | 547 | CSV 解析與 O(1) 扁平 2D 陣列 Block 索引；UpdateBlocks 視口 column visibility culling 降低 CPU 迴圈；快取橋樑方塊與城堡門位置以達到 O(1) 更新/檢查效能 (2026-05-25) |
+| `Mario/Player/PlayerState.cpp` | 354 | 死亡策略；蹲下高度動態調整 (Bug #20)；階梯式退化 (Bug #25)；`ForceApplyPowerState(idx)` 作弊器；`IsBigOrFire()` DRY helper (2026-05-24)；定義非內聯解構子 `~PlayerState()` 以解決前置宣告不完整類型編譯錯誤 (2026-05-25)；新增 shape-changing 視覺 transition freeze 機制 (2026-05-27) |
 | `Mario/Player/PlayerForm.cpp` | 303 | IPlayerForm 及 5 種力量型態子類別多型行為實作 |
 | `Mario/Player/PlayerDeathAnimation.cpp` | 35 | ClassicPlayerDeathAnimation 策略實作 |
-| `Mario/Player/Player.cpp` | 166 | 死亡精靈鎖定 (Bug #19)；閃爍 PTSD 基類直呼叫 (Bug #5)；像素對齊 (Bug #12)；**crouch sprite anchored to hitbox bottom, fixes floor sinking** (2026-05-24)；定義非內聯虛擬解構子 `~Player()` 以解決前置宣告不完整類型編譯錯誤 (2026-05-25) |
+| `Mario/Player/Player.cpp` | 166 | 死亡精靈鎖定 (Bug #19)；閃爍 PTSD 基類直呼叫 (Bug #5)；像素對齊 (Bug #12)；**crouch sprite anchored to hitbox bottom, fixes floor sinking** (2026-05-24)；定義非內聯虛擬解構子 `~Player()` 以解決前置宣告不完整類型編譯錯誤 (2026-05-25)；精緻化 transition 大小狀態交替渲染與 Y 座標接地校正 (2026-05-27) |
 | `Mario/Services/InputHandler.cpp` | 122 | 全寬 uncrouch guard (Bug #20) |
-| `Mario/Level/EntityState.cpp` | 220 | 死亡策略整合 |
+| `Mario/Level/EntityState.cpp` | 206 | 死亡策略整合；簡化 GetHitbox 為預設 AABB 運算，消除硬編碼字串 (2026-05-25) |
 | `Mario/Level/EnemyDeathAnimation.cpp` | 162 | 四種死亡策略實作 |
 | `Mario/Level/EnemyDeathStyleFactory.cpp` | 30 | 依 EntityType 選策略 |
-| `Mario/Level/Entity.cpp` | 217 | 靜態 s_EntitySpriteCache；Z-index 自決策（PiranhaPlant, COIN）(Bug #18, #29) |
+| `Mario/Level/Entity.cpp` | 221 | 靜態 s_EntitySpriteCache；Z-index 自決策（PiranhaPlant, COIN）；實作 GetHitbox 碰撞體委派邏輯 (2026-05-25) |
 | `Mario/Level/EntityFactory.cpp` | 418 | AXE->AxeBehavior (Bug #8)；COIN/STAR/FIRE_FLOWER/ONE_UP ItemType 精確注入 (Bug #28)；**`MakeProjectileDef()` centralises all projectile EntityDef construction** (2026-05-24) |
 | `Mario/CollisionManager.cpp` | 65 | **Facade only** — 5 個 CheckXxx 方法各自委派給對應 Handler；全部邏輯已移至 Collision/ 子系統 |
 | `Mario/Collision/BlockContactResolver.cpp` | 114 | 靜態 Down/Up/Right/Left 解析方法；BodyRect helper（原 file-scope static 函數） |
 | `Mario/Collision/PlayerBlockHandler.cpp` | 315 | 三步驟管線 + ProcessSingleBlock（取代原 lambda）+ TriggerBlockHit（原私有方法）|
-| `Mario/Collision/PlayerEntityHandler.cpp` | 289 | HandleEnemyCollision + HandleItemCollision；m_StompCombo NES Combo 計數 |
-| `Mario/Collision/EntityBlockHandler.cpp` | 134 | CheckGround + CheckWalls（Fireball→Explosion spawn）|
-| `Mario/Collision/EntityEntityHandler.cpp` | 104 | Fireball vs Enemy + Moving Shell vs Enemy；IsMovingShell() static helper |
-| `Mario/Level/LevelCompleteController.cpp` | 451 | 旗杆 Y 修正 (Bug #15)；8-4 通關重力釋放 (Bug #27) |
+| `Mario/Collision/PlayerEntityHandler.cpp` | 290 | HandleEnemyCollision + HandleItemCollision；m_StompCombo NES Combo 計數；自訂行為碰撞體支援 (2026-05-25) |
+| `Mario/Collision/EntityBlockHandler.cpp` | 136 | CheckGround + CheckWalls（Fireball→Explosion spawn）；自訂行為碰撞體支援 (2026-05-25) |
+| `Mario/Collision/EntityEntityHandler.cpp` | 109 | Fireball vs Enemy + Moving Shell vs Enemy；IsMovingShell() static helper；使用 thread_local 暫存快取 pre-filtering 篩選可見實體，將碰撞迴圈由 O(N^2) 降低至 O(M^2) (2026-05-25) |
 | `Mario/Level/GameStateManager.cpp` | 104 | |
 | `Mario/Scenes/MenuSceneHandlers.cpp` | 128 | 死亡場景接管生命扣除與動畫 (Bug #19)；GameWon 黑底 (Bug #26) |
 | `Mario/Scenes/LoadingSceneHandler.cpp` | 47 | 強制黑色背景 (Bug #16) |
-| `Mario/Scenes/PlayingSceneHandler.cpp` | 539 | X-only 旗杆 fallback (Bug #4)；pipe 展開 box (Bug #21)；viewport entity culling (Bug #23) |
-| `Mario/Scenes/FlagpoleSceneHandler.cpp` | 43 | Camera lockoff 傳入 (Bug #17) |
-| `Mario/Scenes/PipeWarpSceneHandler.cpp` | 66 | |
-| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 77 | Camera lockoff 解除 (Bug #17) |
+| `Mario/Scenes/PlayingSceneHandler.cpp` | 595 | X-only 旗杆 fallback (Bug #4)；pipe 展開 box (Bug #21)；viewport entity culling；無敵星星 Star BGM 動態轉場；重構結局/傳送邏輯委派給各自 Scene (2026-05-25) |
+| `Mario/Scenes/FlagpoleSceneHandler.cpp` | 190 | 旗杆滑動與城堡進入過場邏輯；整合原 LevelCompleteController 邏輯，並以 O(1) 檢查城堡門位置；移除 13.0f 地面硬編碼，改用 Dynamic Player-Block 碰撞檢測以動態貼齊任何地形與高度 (2026-05-25) |
+| `Mario/Scenes/PipeWarpSceneHandler.cpp` | 143 | 水管傳送過場邏輯；整合原 LevelCompleteController 邏輯 (2026-05-25) |
+| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 166 | 8-4 Bowser 擊敗與橋樑坍塌動畫過場邏輯；整合原 LevelCompleteController 邏輯 (2026-05-25) |
 | `Mario/Scenes/ESCMenuSceneHandler.cpp` | 129 | 5-item menu logic; case 4 cycles power cheat + calls ForceApplyPowerState() |
 | `Mario/UI/UIManager.cpp` | 514 | InitLoadingScreen 預載 (Bug #16)；FPS+版權文字 (Bug #22)；座標 helper (Bug #24) |
 | `Mario/Services/AudioManager.cpp` | 238 | AudioPathResolver 實作 |
 | `Mario/Services/AudioPathResolver.cpp` | 8 | BGM/SFX 路徑映射 |
+| `Mario/Services/LevelManager.cpp` | 180 | 關卡服務實作：LoadLevel, StartLevel, BGM 播放, 背景設置 |
 | `Mario/UI/CoinUI.cpp` | 85 | |
 | `Mario/UI/FloatingText.cpp` | 44 | |
-| `Mario/Behaviors/EnemyBehavior.cpp` | 74 | |
+| `Mario/Behaviors/GoombaBehavior.cpp` | 91 | Smart AI implementation |
 | `Mario/Behaviors/KoopaFamily.cpp` | 241 | |
 | `Mario/Behaviors/BowserBehavior.cpp` | 364 | 丟斧頭（定時/快速）與吐火球 AI 佇列生成；HP 系統 |
 | `Mario/Behaviors/CastleFireSpawnerBehavior.cpp` | 81 | 隱形定時向左發射火球 |
 | `Mario/Behaviors/FireballBehavior.cpp` | 86 | |
-| `Mario/Behaviors/ItemBehavior.cpp` | 85 | ItemType 精確分流 (Bug #28) |
+| `Mario/Behaviors/ItemBehaviors.cpp` | 134 | Implementations of specialized power-up and collectible behaviors |
 | `Mario/Behaviors/StaticEntityBehaviors.cpp` | 65 | |
-| `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 148 | 居中修正 + 安全半徑 (Bug #18) |
+| `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 159 | 居中修正 + 安全半徑 (Bug #18)；實作 GetHitbox 回傳精確緊湊碰撞體 (2026-05-25) |
 | `Mario/Behaviors/PodobooBehavior.cpp` | 107 | |
 | `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | |
 | `Mario/Behaviors/ParticleDebris.cpp` | 52 | |
 
-**Total: 48 source files, 8641 lines of C++17 OOP code**
+**Total: 48 source files, 8628 lines of C++17 OOP code**
 
 ### 2.3 Resources
 
@@ -894,7 +962,7 @@ classDiagram
 | `BASE_SPEED` | 7.35f | 基礎移速（tiles/sec） |
 | `SCALED_SPEED` | BASE_SPEED × TILE_SIZE × TICK_INTERVAL ≈ 6.615f | 每幀像素速度 |
 | `RUN_MULTIPLIER` | 1.25f | 奔跑加速係數 |
-| `INTERSECT_STRICTNESS` | 0.75f | 牆壁碰撞嚴格度 |
+| `INTERSECT_STRICTNESS` | 0.35f | 牆壁碰撞與落腳判定嚴格度 (調優至 0.35f 以防邊緣飄浮 Bug，保留流暢落腳物理) |
 | `HITBOX_WIDTH_RATIO` | 0.6875f | Mario 碰撞體寬度比例 |
 | `INITIAL_LIVES` | 3 | 初始生命數 |
 | `INITIAL_TIME` | 400 | 初始計時 |
@@ -979,7 +1047,7 @@ m_CurrentHandler->OnRender(*this);  // drawing
 
 | EntityType | Behavior 類 | 對應敵人 | 特性 |
 |-----------|------------|---------|------|
-| GOOMBA | EnemyBehavior | 栗寶寶 | 巡邏、踩死 |
+| GOOMBA | GoombaBehavior | 栗寶寶 | Smart AI (Dodge Hop, Ledge-avoidance, Proximity pursue) |
 | KOOPA_TROOPA | KoopaBehavior (TROOPA) | 烏龜兵 | 巡邏->Shell |
 | KOOPA_SHELL | KoopaBehavior (SHELL) | 龜殼 | 靜止或反彈 |
 | PARAKOOPA | ParaKoopaBehavior | 飛翔烏龜 | 正弦波浮動->著陸 |
@@ -987,7 +1055,11 @@ m_CurrentHandler->OnRender(*this);  // drawing
 | BOWSER | BowserBehavior | Boss 庫巴 | 5-Phase AI + HP |
 | (castle fire) | CastleFireSpawnerBehavior | 8-4 隱形噴火器 | AlwaysUpdate；越屏持續向左射出火球 |
 | FIRE | FireballBehavior | 玩家火球 | 拋物線軌跡 |
-| MUSHROOM/STAR/FIRE_FLOWER/ONE_UP/COIN | ItemBehavior | 道具與金幣 | 彈跳+收集 / 旋轉閃爍 |
+| MUSHROOM | MushroomBehavior | 紅色香菇 | 成長為大瑪莉 |
+| FIRE_FLOWER | FireFlowerBehavior | 火之花 | 成長為火瑪莉 |
+| STAR | StarBehavior | 無敵星星 | 彈跳移動，無敵狀態 |
+| ONE_UP | OneUpBehavior | 綠色香菇 | 增加生命計數 |
+| COIN | CoinBehavior | 金幣 | 增加金幣與分數 |
 | AXE | AxeBehavior | 橋頭斧 | 觸發橋塌序列 |
 | PRINCESS | PrincessBehavior | 公主 NPC | 靜態顯示 |
 | PIRANHA_PLANT | PiranhaPlantBehavior | 水管食人花 | 4-Phase 伸縮 |
@@ -1074,6 +1146,147 @@ events.Unsubscribe(id);
 
 ---
 
+### 3.8 Strategy + Facade — 碰撞解析子系統
+
+**原問題：** `CollisionManager.cpp` 曾是一個高達 800 行的巨大「義大利麵」類別，在單一檔案內混合處理了玩家-方塊、玩家-敵人、實體-方塊、實體-實體等 4 種截然不同的碰撞邏輯，內部充斥著大量的狀態標記 lambda 與高度耦合的私有輔助方法，完全違反了 SRP（單一職責原則）。
+
+**解法：** 導入 **Facade（外觀模式）** 與 **Strategy（策略模式）**。
+- `CollisionManager` 本身被重構為一個極其簡潔的 **Facade（外觀門面）**，它不包含任何具體的碰撞計算邏輯，而是將職責徹底委派給 4 個特化的策略處理器（均繼承自 `ICollisionHandler` 標記基類）。
+- **四個特化處理器：**
+  1. `PlayerBlockHandler`：處理玩家與方塊的碰撞（採用 C# 經典的三步驟物理 Snap 管線）。
+  2. `PlayerEntityHandler`：處理玩家與各類敵方/道具實體的碰撞（如 Stomp Combo 踩踏、星星無敵殺敵、硬幣收集、變身升級）。
+  3. `EntityBlockHandler`：處理所有敵人與場景方塊的碰撞（地面 Snap、面牆反向、落坑刪除）。
+  4. `EntityEntityHandler`：處理實體與實體間的碰撞（玩家火球擊殺敵人、移動龜殼擊殺敵人），並透過 thread-local 快取與視口剔除將碰撞迴圈從 $O(N^2)$ 優化至 $O(M^2)$。
+
+```mermaid
+classDiagram
+    direction TB
+    class CollisionManager {
+        <<Facade>>
+        -m_PlayerBlockHandler:PlayerBlockHandler
+        -m_PlayerEntityHandler:PlayerEntityHandler
+        -m_EntityBlockHandler:EntityBlockHandler
+        -m_EntityEntityHandler:EntityEntityHandler
+        +CheckPlayerBlockCollision()
+        +CheckPlayerEntityCollision()
+        +CheckEntityBlockCollision()
+        +CheckEntityEntityCollision()
+    }
+    class ICollisionHandler {
+        <<interface>>
+    }
+    class PlayerBlockHandler { +Resolve() }
+    class PlayerEntityHandler { +Resolve() }
+    class EntityBlockHandler { +Resolve() }
+    class EntityEntityHandler { +Resolve() }
+
+    CollisionManager --> PlayerBlockHandler
+    CollisionManager --> PlayerEntityHandler
+    CollisionManager --> EntityBlockHandler
+    CollisionManager --> EntityEntityHandler
+    ICollisionHandler <|-- PlayerBlockHandler
+    ICollisionHandler <|-- PlayerEntityHandler
+    ICollisionHandler <|-- EntityBlockHandler
+    ICollisionHandler <|-- EntityEntityHandler
+```
+
+---
+
+### 3.9 Strategy — 敵人死亡動畫策略
+
+**原問題：** 遊戲中敵人的死亡演出形式各異（栗寶寶被踩扁、烏龜被踩縮回殼中、火球擊中翻轉墜下、星星撞飛），原版實作在 `EntityState` 中以硬編碼的計時器與標記分支來控制，當需要加入新的死亡形式時，必須修改核心實體代碼，違反了 OCP（開閉原則）。
+
+**解法：** 導入 **Strategy Pattern（策略模式）** 與 **Abstract Factory（抽象工廠）**。
+- 定義抽象策略介面 `IEnemyDeathAnimation`，其包含 `Update()`、`GetSpriteKey()` 與 `IsFinished()`。
+- 將不同的死亡演出封裝為獨立的策略類別：
+  - `GoombaSquishDeathAnimation`：栗寶寶被踩扁的動畫（快速消失）。
+  - `KoopaRetreatDeathAnimation`：烏龜被踩踏後縮入龜殼的動畫。
+  - `FireballFlipDeathAnimation`：被火球或無敵星星擊中時翻轉下墜的動畫。
+  - `ClassicEnemyDeathAnimation`：通用下墜動畫。
+- 引入 **`EnemyDeathStyleFactory`**，負責根據 `EntityType` 與 `EnemyDeathCause` 動態建立並注入對應的死亡動畫策略。
+- 實體死亡時，`EntityState` 僅需呼叫 `TriggerDeath(cause)`，隨後將每幀的動畫更新與精靈切換委派給當前的死亡策略，達成完美解耦。
+
+---
+
+### 3.10 Strategy — 道具多型策略
+
+**原問題：** 遊戲中的各種道具（香菇、花、星星、1UP、硬幣）原先使用一個臃腫的 `ItemBehavior` 類別，在 `Update()` 內部使用 `if-else` 或 `switch` 判斷 `ItemType` 來實施不同的位移邏輯，造成代碼臃腫且極難擴展。
+
+**解法：** 導入 **Strategy Pattern（策略模式）**。
+- 將 `ItemBehavior` 徹底拆分為 5 個獨立且高度聚焦的策略類別，全部繼承自 `IEntityBehavior`：
+  - `MushroomBehavior`：香菇行為（從方塊升起，向右平移，受重力下墜，碰牆反向）。
+  - `FireFlowerBehavior`：火之花行為（靜態升起，等待玩家收集）。
+  - `StarBehavior`：星星行為（落地時跳躍起伏，持續前進）。
+  - `OneUpBehavior`：1UP 綠香菇行為（與紅香菇位移邏輯一致，但觸發增加生命）。
+  - `CoinBehavior`：金幣行為（靜態旋轉，無重力或水平運動）。
+- 移除所有道具 `ItemType` 的硬編碼分支。當需要加入新的道具類型（例如冰花、飛天貓）時，只需新增對應的策略類別，並在 `EntityFactory` 中進行註冊即可，現有的碰撞與行為引擎代碼**完全不需要修改任何一行**！
+
+---
+
+### 3.11 DIP / Service Locator — 關卡管理服務 (LevelManager)
+
+**原問題：** 主控制器 `App` 曾是一個典型的 **God Class（上帝類別）**。它直接擁有了 `Player`、`Level`、`Entities`、計時器、以及 OpenGL 清理與背景渲染逻辑。這導致 `App` 本身行數飆升，且其他 Handler 或子系統必須大量依賴 `App` 的內部成員。
+
+**解法：** 導入 **Dependency Inversion Principle (DIP)** 與 **Service Locator Pattern（服務定位器模式）**。
+- **介面隔離**：我們建立了一個全新的抽象介面 `ILevelService`，聲明了關卡加載、啟動、BGM播放、背景設置等一切與關卡及遊戲世界狀態有關的 API。
+- **具體實作**：實作 `LevelManager` 繼承自 `ILevelService`。將 `m_Level`、`m_Player`、`m_Entities`、`m_FlagEntity` 等所有數據成員從 `App` 中剝離，**徹底歸入 `LevelManager` 進行管理**。
+- **服務定位**：在 `App::Start()` 時，我們實例化 `LevelManager`，並將其註冊至 `ServiceLocator` 中，供全域解耦使用。
+- **向後相容**：為了避免修改數十個 Scene Handlers 的 `app.GetPlayer()` 調用，`App` 保留了原有的 getter 存取 API，但在底層直接委派給 `m_LevelService` 執行，這使得 `App.cpp` 大幅度減肥至僅有約 130 行，成為一個乾淨純粹的最高層級狀態機協調器！
+
+---
+
+### 3.12 State Pattern — 零向下轉型狀態傳參 (Zero Down-Casting State Handshake)
+
+**原問題：** 在 `PlayingSceneHandler` 中，當觸發拉下旗桿切換至 `FLAGPOLE` 狀態，或走入水管切換至 `PIPE_WARP` 狀態時，目標狀態需要接收特定的座標和實體參數。原先的作法是在 `app.TransitionTo(...)` 之後，使用 `dynamic_cast<FlagpoleSceneHandler*>` 或 `dynamic_cast<PipeWarpSceneHandler*>` 將場景指針向下轉型，再呼叫 `Setup` 配置方法。這是一個嚴重的**向下轉型類型壞味道（Down-casting Smell）**，破壞了狀態機的封裝性。
+
+**解法：** 導入 **Self-Configuring（狀態自適應）** 與 **State Context DTO（狀態傳遞數據物件）**。
+1. **旗桿狀態自適應（Self-Configuring Flagpole）**：
+   - 移除 `SetupFlagpole` 介面。讓 `FlagpoleSceneHandler` 在 `OnEnter()` 觸發時，主動向 `ILevelService` 查詢當前的 `GetFlagEntity()`，並自 Level 的 `GetGoalBlocks()` 快取中動態發現第一個目標方塊的 X 座標來完成自動定位。
+2. **水管傳送上下文 DTO（Warp Context DTO）**：
+   - 在 `GameStateManager` 中加入專用的輕量級 Warp 數據欄位（傳送方向、入口 X、入口 Y 座標）。
+   - `PlayingSceneHandler` 在轉場前呼叫 `app.GetGameState().SetWarpInfo("Down", x, y)` 將傳送 context 存入全局的 GameState 中，然後直接呼叫 `app.TransitionTo(App::State::PIPE_WARP)`。
+   - `PipeWarpSceneHandler` 在其 `OnEnter()` 生命週期勾子中，主動自 `GameState` 讀取參數並完成初始化。
+- **成果：** 整個 C++ 專案中**完全清除了所有的 `dynamic_cast` 與向下轉型呼叫**，達成了 100% textbook-pure 的狀態模式多型切換！
+
+---
+
+### 3.13 MVC 完整運作序列圖
+
+下圖呈現了本專案在每幀（Per Frame）遊戲主迴圈中，**Model (M) — View (V) — Controller (C)** 與各個解耦服務（LevelManager、InputHandler、CollisionManager、AudioManager）之間的時序交互關係。這保證了代碼各司其職，毫無義大利麵式的混亂耦合：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Player as Player Input
+    participant App as App Context
+    participant Handler as PlayingSceneHandler
+    participant Service as LevelManager (ILevelService)
+    participant Input as InputHandler (Controller)
+    participant State as PlayerState (Model)
+    participant Col as CollisionManager (Facade)
+    participant View as Player (View)
+    participant Sfx as AudioManager (Service)
+
+    Player->>Input: Press Key (e.g. RIGHT / D)
+    App->>Handler: Update(App&) [Per Frame Loop]
+    Handler->>Input: HandleInput(State, speed, level)
+    Input->>State: SetVelX(), SetMovingRight(true)
+    Handler->>State: ApplyGravity() -> velY
+    Handler->>Col: CheckPlayerBlockCollision()
+    Col->>State: Resolve overlaps / SetGrounded()
+    Handler->>Col: CheckPlayerEntityCollision()
+    Col->>State: TakeDamage() or CollectItem()
+    Col->>Sfx: PlaySFX()
+    Handler->>State: Tick() [Update timers]
+    Handler->>Service: GetEntities() -> Update behaviors
+    App->>Handler: OnRender(App&) [Per Frame Render]
+    Handler->>View: UpdateView(cameraOffset)
+    View->>App: SetPosition() / SetSprite()
+    Handler->>App: GetRenderer().Update() [OpenGL Clear + Draw]
+```
+
+---
+
 ## 4. Game Loop — 17 Phase 架構
 
 `PlayingSceneHandler::Update(App&)` 每幀依序執行：
@@ -1132,20 +1345,26 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 
 ## 5. App::State 狀態機轉移圖
 
-```
-START -> TITLE --(RETURN)--> LOADING --(timer)--> PLAYING
-                                                    |
-          ESC_MENU <--(ESC)------------------------+
-          ESC_MENU --(Resume)--> PLAYING
-          ESC_MENU --(Quit)--> TITLE
-
-PLAYING --(touch Goal Block 1-1)---> FLAGPOLE -> LOADING (next level)
-PLAYING --(stand on pipe + DOWN, 1-2)-> PIPE_WARP -> LOADING (next level)
-PLAYING --(touch Axe, 8-4)----------> AXE_SEQUENCE -> GAME_WON
-PLAYING --(pit fall / enemy / time up)-> DEATH
-  DEATH --(lives > 0)--> LOADING (retry same level)
-  DEATH --(lives == 0)--> GAME_OVER --(RETURN)--> TITLE
-GAME_WON --(RETURN)--> TITLE -> NewGame()
+```mermaid
+stateDiagram-v2
+    [*] --> START
+    START --> TITLE : App::Start()
+    TITLE --> LOADING : PRESS ENTER (Select World)
+    LOADING --> PLAYING : LEVEL_TRANSITION_DELAY (3.0s) timer expires
+    PLAYING --> ESC_MENU : PRESS ESC (Pause Game)
+    ESC_MENU --> PLAYING : SELECT RESUME / PRESS ESC
+    ESC_MENU --> TITLE : SELECT QUIT
+    PLAYING --> FLAGPOLE : Collide with flagpole column (1-1 / 1-2)
+    FLAGPOLE --> LOADING : Castle entering animation finishes
+    PLAYING --> PIPE_WARP : Stand on Pipe + press DOWN or RIGHT (1-2)
+    PIPE_WARP --> LOADING : Descend/rightwalk sequence completes
+    PLAYING --> AXE_SEQUENCE : Collide with bridge Axe (8-4)
+    AXE_SEQUENCE --> GAME_WON : Bowser defeat sequence completes
+    PLAYING --> DEATH : Mario dies (damage, pit fall, time up)
+    DEATH --> LOADING : Lives > 0 -> Retry same level
+    DEATH --> GAME_OVER : Lives == 0
+    GAME_OVER --> TITLE : PRESS ENTER
+    GAME_WON --> TITLE : PRESS ENTER
 ```
 
 **Level sequence** (`GameStateManager::m_LevelSequence`):
@@ -1166,7 +1385,7 @@ GAME_WON --(RETURN)--> TITLE -> NewGame()
 | PHASE 4 | ✅ DONE | 旗杆/水管/死亡/GameOver 序列 |
 | PHASE 5 | ✅ DONE | 計時器警告 UI；FloatingText 淡出；ESC 選單 |
 | PHASE 6 | ✅ DONE | Boss 戰 5-Phase AI；Game Won 狀態 |
-| PHASE 7 | ✅ DONE | 全部 14 個 IEntityBehavior 實作 |
+| PHASE 7 | ✅ DONE | 全部 19 個 IEntityBehavior 實作 |
 | PHASE 8 | ✅ DONE | ParaKoopaBehavior；8-4 地圖重新生成 |
 | PHASE 9 | ✅ DONE | AudioManager 整合；BGM/SFX 全面測試 |
 | FINAL | ✅ DONE | 1-1 → 1-2 → 8-4 完整流程驗證 |
@@ -1197,7 +1416,7 @@ GAME_WON --(RETURN)--> TITLE -> NewGame()
 | 沒有 God Class | App 只持有子系統 + TransitionTo()；邏輯分散到各 Handler/Manager | ✅ DONE |
 | MVC 架構 | PlayerState(M) ← Player(V) ← InputHandler(C) | ✅ DONE |
 | State Pattern | 10 個 ISceneHandler 子類；App::Update() 只有兩行；導入 `IPlayerForm` 多型管理力量型態 | ✅ DONE |
-| Strategy Pattern | 14 個 `IEntityBehavior` + 4 個 `IEnemyDeathAnimation` + 1 個 `IPlayerDeathAnimation` + 5 個 `IPlayerForm` 力量狀態策略 | ✅ DONE |
+| Strategy Pattern | 19 個 `IEntityBehavior` + 4 個 `IEnemyDeathAnimation` + 1 個 `IPlayerDeathAnimation` + 5 個 `IPlayerForm` 力量狀態策略 | ✅ DONE |
 | Factory Pattern | EntityFactory 唯一入口；EnemyDeathStyleFactory 策略選擇；符合 SRP | ✅ DONE |
 | DIP | IAudioService 介面；AudioManager 實作；ServiceLocator 輔助注入 | ✅ DONE |
 | OCP 原則 | 新增怪物/狀態不修改現有類別 | ✅ DONE |

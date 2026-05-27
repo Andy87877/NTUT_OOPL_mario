@@ -60,10 +60,15 @@ class PiranhaPlantBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
 
     /** Piranha Plants are immune to fireballs in this implementation. */
-    bool OnFireballHit(EntityState& state) override { return false; }
+    bool OnFireballHit(EntityState& /*state*/) override { return false; }
+
+    /** Piranha Plants cannot be stomped. */
+    bool IsImmuneToStomp() const override { return true; }
 
     /** Deep copy for factory use. */
     std::unique_ptr<IEntityBehavior> Clone() const override;
+
+    AABB GetHitbox(const EntityState& state) const override;
 
     const char* GetName() const override { return "PiranhaPlantBehavior"; }
 
@@ -75,11 +80,11 @@ class PiranhaPlantBehavior : public IEntityBehavior {
     float m_BaseY = 0.0f;     // Y of the pipe opening (set on first Update)
     bool m_BaseYSet = false;  // Guard so m_BaseY is only recorded once
 
-    // Tuning constants (frames at 60 fps)
     static constexpr int HIDE_FRAMES = 90;             // 1.5 s hidden
     static constexpr int VISIBLE_FRAMES = 45;          // 0.75 s at full height
     static constexpr float EMERGE_SPEED = 2.0f;        // px/frame up or down
-    static constexpr float EMERGE_HEIGHT = 90.0f;      // 2 tiles above pipe
+    static constexpr float HIDE_HEIGHT = 90.0f;        // Fully below pipe mouth
+    static constexpr float EXTEND_HEIGHT = 64.0f;      // Emerging 1.4 tiles, leaving 26px inside pipe mouth
     static constexpr float MARIO_SAFE_RADIUS = 45.0f;  // 1 tile width
 };
 

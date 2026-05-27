@@ -39,7 +39,7 @@ class Block;
  */
 class PlayingSceneHandler : public ISceneHandler {
    public:
-    PlayingSceneHandler() = default;
+    PlayingSceneHandler() : m_WasStarActive(false) {}
 
     void Update(App& app) override;
     void OnRender(App& app) override;
@@ -75,6 +75,10 @@ class PlayingSceneHandler : public ISceneHandler {
 
     /** Remove inactive entities from the entity list and renderer. */
     void CleanupDeadEntities(App& app) const;
+
+    // -- BGM State Tracking --
+    /** Tracks whether the invincibility Star theme was active in the last frame. */
+    bool m_WasStarActive;
 };
 
 }  // namespace Mario

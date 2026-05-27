@@ -91,6 +91,7 @@ class BowserBehavior : public IEntityBehavior {
      * Star power still defeats him via the handler's star-kill path.
      */
     bool IsImmuneToStomp() const override { return true; }
+    bool IsImmuneToStarPower() const override { return true; }
 
     /**
      * Check if Bowser is defeated.

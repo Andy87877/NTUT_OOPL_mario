@@ -84,6 +84,16 @@ class GameStateManager {
     }
     bool HasNextLevelOverride() const { return !m_NextLevelOverride.empty(); }
 
+    // Warp pipe details (used to pass transition parameters without down-casting)
+    void SetWarpInfo(const std::string& direction, float x, float y) {
+        m_WarpDirection = direction;
+        m_WarpX = x;
+        m_WarpY = y;
+    }
+    const std::string& GetWarpDirection() const { return m_WarpDirection; }
+    float GetWarpX() const { return m_WarpX; }
+    float GetWarpY() const { return m_WarpY; }
+
     // Preserve player power state across level loads.
     int GetSavedPowerState() const { return m_SavedPowerState; }
     void SavePowerState(int state) { m_SavedPowerState = state; }
@@ -109,6 +119,11 @@ class GameStateManager {
     int m_LevelIndex = 0;
     bool m_IsUnderground = false;
     std::string m_NextLevelOverride;
+
+    // Warp pipe transition details
+    std::string m_WarpDirection = "";
+    float m_WarpX = 0.0f;
+    float m_WarpY = 0.0f;
 
     // Persistence across levels
     int m_SavedPowerState = 0;  // 0=small, 1=big, 2=fire

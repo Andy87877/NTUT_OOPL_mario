@@ -113,7 +113,9 @@ class PlayerState {
     bool IsStar() const { return m_StarTimer > 0; }
     bool IsInvincible() const { return m_InvTimer > 0; }
     bool IsPoleSliding() const { return m_PoleSliding; }
-    bool IsControllable() const { return m_Controllable; }
+    bool IsControllable() const { return m_Controllable && m_TransitionTimer <= 0; }
+    int GetTransitionTimer() const { return m_TransitionTimer; }
+    PowerState GetPrevPowerState() const { return m_PrevPowerState; }
     bool IsDeathAnimActive() const {
         return m_DeathAnimation && m_DeathAnimation->IsActive();
     }
@@ -221,6 +223,10 @@ class PlayerState {
     int m_StarTimer = 0;
     int m_StarState = 0;
     PowerState m_MemoryState = PowerState::SMALL;
+
+    // Transition
+    int m_TransitionTimer = 0;
+    PowerState m_PrevPowerState = PowerState::SMALL;
 
     // Animation
     int m_AnimFrame = 0;

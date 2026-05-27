@@ -41,9 +41,8 @@ void PiranhaPlantBehavior::Update(EntityState& state,
         state.SetX(state.GetX() - static_cast<float>(GameConfig::TILE_SIZE));
         
         m_BaseYSet = true;
-        // Start fully hidden inside the pipe (EMERGE_HEIGHT below adjusted
-        // base)
-        state.SetY(m_BaseY + EMERGE_HEIGHT);
+        // Start fully hidden inside the pipe (HIDE_HEIGHT below adjusted base)
+        state.SetY(m_BaseY + HIDE_HEIGHT);
         state.SetHidden(true);
     }
 
@@ -80,7 +79,7 @@ void PiranhaPlantBehavior::Update(EntityState& state,
         }
 
         case Phase::EMERGING: {
-            float targetY = m_BaseY - EMERGE_HEIGHT;
+            float targetY = m_BaseY - EXTEND_HEIGHT;
             float currentY = state.GetY();
             if (currentY > targetY) {
                 state.SetY(currentY - EMERGE_SPEED);
@@ -90,8 +89,7 @@ void PiranhaPlantBehavior::Update(EntityState& state,
                 m_PhaseTimer = 0;
             }
             // Show only once the plant head has cleared the pipe mouth.
-            // While Y > m_BaseY the plant is still inside the pipe — keep
-            // hidden.
+            // While Y > m_BaseY the plant is still inside the pipe — keep hidden.
             state.SetHidden(state.GetY() > m_BaseY);
             break;
         }
@@ -111,10 +109,10 @@ void PiranhaPlantBehavior::Update(EntityState& state,
 
         case Phase::RETREATING: {
             float currentY = state.GetY();
-            if (currentY < m_BaseY) {
+            if (currentY < m_BaseY + HIDE_HEIGHT) {
                 state.SetY(currentY + EMERGE_SPEED);
             } else {
-                state.SetY(m_BaseY + EMERGE_HEIGHT);  // reset to hidden pos
+                state.SetY(m_BaseY + HIDE_HEIGHT);  // reset to hidden pos
                 m_Phase = Phase::HIDING;
                 m_PhaseTimer = 0;
             }
@@ -139,6 +137,16 @@ bool PiranhaPlantBehavior::OnPlayerCollision(
         ps.TakeDamage();
     }
     return false;  // Plant stays alive
+}
+
+AABB PiranhaPlantBehavior::GetHitbox(const EntityState& state) const {
+    float w = static_cast<float>(state.GetWidth());
+    float h = static_cast<float>(state.GetHeight());
+    float hitW = std::min(w * 0.55f, static_cast<float>(GameConfig::TILE_SIZE) * 0.85f);
+    float hitH = std::min(h * 0.70f, static_cast<float>(GameConfig::TILE_SIZE) * 1.30f);
+    float hitX = state.GetX() + (w - hitW) * 0.5f;
+    float hitY = state.GetY() + h * 0.05f;
+    return AABB::FromPosSize(hitX, hitY, hitW, hitH);
 }
 
 std::unique_ptr<IEntityBehavior> PiranhaPlantBehavior::Clone() const {

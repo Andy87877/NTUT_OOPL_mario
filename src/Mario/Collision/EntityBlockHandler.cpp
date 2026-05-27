@@ -9,6 +9,8 @@
 #include "Mario/Level/EntityDef.hpp"
 #include "Mario/Level/EntityFactory.hpp"
 #include "Mario/Core/GameConfig.hpp"
+#include "Mario/Behaviors/IEntityBehavior.hpp"
+#include "Mario/Level/Entity.hpp"
 
 namespace Mario {
 
@@ -19,9 +21,8 @@ void EntityBlockHandler::Resolve(
     Entity& entity, Level& level,
     std::vector<std::shared_ptr<Entity>>* outNewEntities) {
     // Bowser's fireball and thrown axes ignore blocks/walls completely in the original game
-    bool ignoreBlocks =
-        (entity.GetDef().type == EntityType::FIRE && entity.GetState().IsEnemy()) ||
-        (entity.GetDef().type == EntityType::AXE_PROJECTILE);
+    auto* behavior = entity.GetBehavior();
+    bool ignoreBlocks = behavior && behavior->IsEnemyProjectile();
 
     if (ignoreBlocks) {
         // Pit fall: deactivate entities that fall below the level floor.
@@ -32,7 +33,7 @@ void EntityBlockHandler::Resolve(
         return;
     }
 
-    CheckGround(entity.GetState(), level);
+    CheckGround(entity, level);
     CheckWalls(entity, level, outNewEntities);
 
     // Pit fall: deactivate entities that fall below the level floor.
@@ -46,8 +47,9 @@ void EntityBlockHandler::Resolve(
 // CheckGround
 // Snaps the entity to the top of any solid block it sinks into.
 // ============================================================================
-void EntityBlockHandler::CheckGround(EntityState& state, Level& level) {
-    AABB box = state.GetHitbox();
+void EntityBlockHandler::CheckGround(Entity& entity, Level& level) {
+    AABB box = entity.GetHitbox();
+    EntityState& state = entity.GetState();
     const int tileSize = GameConfig::TILE_SIZE;
 
     int leftTile = static_cast<int>(box.left) / tileSize;
@@ -82,10 +84,10 @@ void EntityBlockHandler::CheckWalls(
     Entity& entity, Level& level,
     std::vector<std::shared_ptr<Entity>>* outNewEntities) {
     EntityState& state = entity.GetState();
-    AABB box = state.GetHitbox();
+    AABB box = entity.GetHitbox();
     const int tileSize = GameConfig::TILE_SIZE;
-    bool isFireball = (entity.GetDef().type == EntityType::FIRE) ||
-                      (entity.GetDef().type == EntityType::AXE_PROJECTILE);
+    auto* behavior = entity.GetBehavior();
+    bool isFireball = behavior && behavior->ExplodesOnWall();
 
     auto spawnExplosion = [&]() {
         if (!outNewEntities) return;

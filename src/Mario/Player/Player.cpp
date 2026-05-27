@@ -61,6 +61,20 @@ void Player::UpdateView(float cameraOffset) {
         prefix = "Jump";
         frame = 0;
         spriteState = 0;
+    } else if (m_State.GetTransitionTimer() > 0) {
+        // Alternate sprites every 4 frames during transition
+        prefix = "Idle";
+        frame = 0;
+        bool useBig = (m_State.GetTransitionTimer() / 4) % 2 == 0;
+        
+        if (m_State.GetPowerState() == PowerState::FIRE && m_State.GetPrevPowerState() == PowerState::BIG) {
+            // Transition from Big to Fire: alternate between Big (state 1) and Fire (state 2)
+            spriteState = useBig ? 2 : 1;
+        } else {
+            // Transition between Small and Big/Fire: alternate between Small (state 0) and Big (state 1)
+            spriteState = useBig ? 1 : 0;
+        }
+        starState = 0;
     } else {
         prefix = m_State.GetAnimPrefix();
         frame = m_State.GetAnimFrame();
@@ -95,12 +109,12 @@ void Player::UpdateView(float cameraOffset) {
     float screenX = GameConfig::TopLeftToPTSDX(std::round(m_State.GetX()),
                                                playerWidth, roundedOffset);
 
-    // Y: crouch fix — anchor sprite bottom to hitbox bottom so the sprite
-    // never sinks into the floor when Big/Fire Mario crouches.
-    // The crouch sprite canvas is always 2-tile tall; the hitbox is 1 tile.
-    float spriteHeight = (m_State.IsBigOrFire())
-                             ? static_cast<float>(GameConfig::TILE_SIZE * 2)
-                             : playerHeight;
+    // Y: crouch and transition fix — anchor sprite bottom to hitbox bottom so the sprite
+    // never sinks into the floor when Big/Fire Mario crouches or alternates states.
+    // The Big/Fire sprite canvas is always 2-tile tall; the Small sprite is 1-tile tall.
+    float spriteHeight = (spriteState == 0)
+                             ? static_cast<float>(GameConfig::TILE_SIZE)
+                             : static_cast<float>(GameConfig::TILE_SIZE * 2);
     float hitboxBottom = std::round(m_State.GetY()) + playerHeight;
     float worldCY = hitboxBottom - spriteHeight / 2.0f;
     float screenY = GameConfig::WorldToPTSDY(worldCY);

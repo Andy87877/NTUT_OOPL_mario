@@ -185,20 +185,6 @@ void EntityState::Jump() {
 AABB EntityState::GetHitbox() const {
     float w = static_cast<float>(GetWidth());
     float h = static_cast<float>(GetHeight());
-
-    // PiranhaPlant sprites in 8-4 are visually wider/taller than the damaging
-    // body (transparent margins + pipe overlap). Use a tighter body hitbox so
-    // Mario is only damaged by the visible plant body/head region.
-    if (m_Name == "PiranhaPlant") {
-        float hitW = std::min(
-            w * 0.55f, static_cast<float>(GameConfig::TILE_SIZE) * 0.85f);
-        float hitH = std::min(
-            h * 0.70f, static_cast<float>(GameConfig::TILE_SIZE) * 1.30f);
-        float hitX = m_PosX + (w - hitW) * 0.5f;
-        float hitY = m_PosY + h * 0.05f;
-        return AABB::FromPosSize(hitX, hitY, hitW, hitH);
-    }
-
     return AABB::FromPosSize(m_PosX, m_PosY, w, h);
 }
 

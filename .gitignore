@@ -505,6 +505,7 @@ docs/html/
 .debug.log
 *.py
 python_src/
+scratch/
 
 docs/
 

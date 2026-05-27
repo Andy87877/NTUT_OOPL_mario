@@ -11,6 +11,8 @@
 #include <memory>
 
 #include "Mario/Level/EntityDef.hpp"  // EntityType
+#include "Mario/Core/Collider.hpp"
+#include "Mario/Level/EntityState.hpp"
 
 namespace Mario {
 
@@ -72,6 +74,49 @@ class IEntityBehavior {
      * Bowser and Podoboo override to return true.
      */
     virtual bool IsImmuneToStomp() const { return false; }
+
+    virtual bool IsEnemyProjectile() const { return false; }
+
+    /**
+     * Whether this entity is immune to player's star power (invincible).
+     * Bowser's fire is immune in the C# reference and original NES.
+     * Default: false.
+     */
+    virtual bool IsImmuneToStarPower() const { return false; }
+
+    /**
+     * Whether this entity is a player fireball.
+     * Used polymorphically in entity-entity collision resolution.
+     */
+    virtual bool IsPlayerFireball() const { return false; }
+
+    /**
+     * Whether this entity is a Koopa/ParaKoopa shell.
+     * Used polymorphically in moving shell collision resolution.
+     */
+    virtual bool IsShell() const { return false; }
+
+    virtual bool ExplodesOnWall() const { return false; }
+
+    /**
+     * Get visual Y-rendering offset in pixels.
+     * Default: 0.0f. Positive values shift the sprite UP on the screen.
+     */
+    virtual float GetVisualYOffset(const std::string& levelName) const {
+        (void)levelName;
+        return 0.0f;
+    }
+
+    /**
+     * Get customized hitbox for the entity.
+     * Default: return a standard AABB based on state position and dimensions.
+     * Override in behaviors that need tighter hitboxes (e.g. PiranhaPlantBehavior).
+     */
+    virtual AABB GetHitbox(const EntityState& state) const {
+        return AABB::FromPosSize(state.GetX(), state.GetY(),
+                                 static_cast<float>(state.GetWidth()),
+                                 static_cast<float>(state.GetHeight()));
+    }
 
     /**
      * Whether this behavior must be updated even when off-screen.

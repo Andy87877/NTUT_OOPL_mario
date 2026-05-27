@@ -15,6 +15,7 @@
 #include "App.hpp"
 
 // Scene handlers — included here so CreateSceneHandler() can instantiate them.
+#include "Mario/Level/EntityDef.hpp"
 #include "Mario/Scenes/AxeSequenceSceneHandler.hpp"
 #include "Mario/Scenes/ESCMenuSceneHandler.hpp"
 #include "Mario/Scenes/FlagpoleSceneHandler.hpp"
@@ -25,6 +26,7 @@
 #include "Mario/Scenes/PipeWarpSceneHandler.hpp"
 #include "Mario/Scenes/PlayingSceneHandler.hpp"
 #include "Mario/Services/ServiceLocator.hpp"
+#include "Mario/Services/LevelManager.hpp"
 #include "Util/Image.hpp"
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
@@ -38,6 +40,10 @@
 // ============================================================================
 void App::Start() {
     LOG_TRACE("Start");
+    // Instantiate and register LevelManager service
+    m_LevelService = std::make_shared<Mario::LevelManager>();
+    Mario::ServiceLocator::GetInstance().RegisterService<Mario::ILevelService>(m_LevelService);
+
     // Concrete keyboard controller injected here (DIP: App.hpp only knows
     // IInputHandler)
     m_InputHandler = std::make_unique<Mario::InputHandler>();
@@ -76,9 +82,9 @@ void App::TransitionTo(State next) {
     m_CurrentState = next;
     m_CurrentHandler = CreateSceneHandler(next);
     if (next == State::TITLE) {
-        m_Player = nullptr;
-        m_Level = nullptr;
-        m_Entities.clear();
+        GetPlayer() = nullptr;
+        GetLevel() = nullptr;
+        GetEntities().clear();
         m_Renderer = Util::Renderer();
         m_Camera.Reset();
     }
@@ -120,156 +126,46 @@ std::unique_ptr<Mario::ISceneHandler> App::CreateSceneHandler(State s) {
 }
 
 // ============================================================================
-// Level Management
+// Level Management (Delegated to ILevelService / LevelManager)
 // ============================================================================
 
 void App::LoadLevel(const std::string& levelName) {
-    m_Camera.Reset();
-    m_LevelCompleteCtrl.Reset();
-    m_FlagEntity = nullptr;
-    m_CurrentLevelName = levelName;
-
-    // Create and load the level
-    m_Level = std::make_shared<Mario::Level>();
-    if (!m_Level->Load(levelName)) {
-        LOG_ERROR("Failed to load level: {}", levelName);
-        TransitionTo(State::TITLE);
-        return;
-    }
-
-    // Create player at spawn position from level CSV
-    float spawnX = m_Level->GetPlayerSpawnX();
-    float spawnY = m_Level->GetPlayerSpawnY();
-
-    // Restore saved power state across levels
-    int savedState = m_GameState.GetSavedPowerState();
-    m_Player = std::make_shared<Mario::Player>(spawnX, spawnY, savedState);
-
-    // Spawn entities (Goomba, KoopaTroopa, etc.) from level data.
-    // EntityFactory::SpawnFromLevel() also handles level-specific hardcoded
-    // entities (e.g. 8-4 Podoboos) so App does not need per-level logic here.
-    m_Entities = Mario::EntityFactory::SpawnFromLevel(*m_Level);
-
-    // Bowser  = ID 847 (BowserSpawn)  at row=9, col=58
-    // Axe     = ID 849 (AxeTrigger)   at row=9, col=65
-    // Princess= ID 879 (PrincessSpawn) at row=9, col=72
-    // Player  = ID 999 (MarioStart)   at row=9, col=3
-
-    // Look for the Flag entity in spawn list
-    for (auto& entity : m_Entities) {
-        if (entity->GetState().GetName() == "Flag") {
-            m_FlagEntity = entity;
-            break;
-        }
-    }
-
-    // Build renderer: clear and add all blocks + player + entities.
-    // ZIndex hierarchy (higher = rendered in front):
-    //   GameConfig::Z_BACKGROUND = background tiles (-10.0f)
-    //   GameConfig::Z_BLOCK      = solid tiles (-5.0f)
-    //   1.0f = entities / enemies (in front of tiles)
-    //   2.0f = player (always in front of everything except UI)
-    // During pipe warp entry the player is dropped to GameConfig::Z_BLOCK
-    // - 1.0f (-6.0f) so it sinks behind the pipe tiles, giving the correct
-    // "enter pipe" visual.
-    m_Renderer = Util::Renderer();
-    for (const auto& block : m_Level->GetAllBlocks()) {
-        m_Renderer.AddChild(block);
-    }
-    m_Renderer.AddChild(m_Player);
-    for (const auto& entity : m_Entities) {
-        m_Renderer.AddChild(entity);
-    }
-
-    // Hide all game-world objects during the loading/transition screen.
-    // The UIManager's MarioPreview sprite (a separate UIImage) is what shows
-    // on the loading screen; the actual Player and Entities are revealed in
-    // StartLevel() once gameplay begins.  This prevents enemies from being
-    // visible in the background while "WORLD X-X" is displayed.
-    m_Player->SetVisible(false);
-    for (const auto& entity : m_Entities) {
-        entity->SetVisible(false);
-    }
-
-    // Level knows its own background type; GameStateManager tracks the runtime
-    // pipe-warp underground flag. App::IsUnderground() merges both.
-    ApplyBackground();
-
-    LOG_INFO("Level {} loaded: {} blocks, {} entities, player at ({}, {})",
-             levelName, m_Level->GetAllBlocks().size(), m_Entities.size(),
-             spawnX, spawnY);
+    m_LevelService->LoadLevel(*this, levelName);
 }
 
 void App::PlayCurrentBGM() {
-    // BGM selection logic lives in AudioManager — App is just the coordinator.
-    Mario::AudioManager::GetInstance().PlayBGMForLevel(
-        m_CurrentLevelName, m_GameState.GetTimeRemaining());
+    m_LevelService->PlayCurrentBGM(*this);
 }
 
 void App::AddEntityToGame(std::shared_ptr<Mario::Entity> entity) {
-    if (!entity) return;
-    m_Renderer.AddChild(entity);
-    m_Entities.push_back(entity);
+    m_LevelService->AddEntityToGame(*this, entity);
 }
 
 void App::StartLevel() {
-    m_GameState.ResetTime();
-    m_GameState.StartTime();
-
-    // Reveal game-world objects hidden during the loading screen.
-    if (m_Player) {
-        m_Player->SetVisible(true);
-        m_Player->GetState().SetControllable(true);
-    }
-    for (const auto& entity : m_Entities) {
-        entity->SetVisible(true);
-    }
-
-    PlayCurrentBGM();
+    m_LevelService->StartLevel(*this);
 }
 
-// ============================================================================
-// IsUnderground — combines Level name detection + runtime pipe-warp flag.
-// Single authoritative query; scene handlers should use this instead of
-// duplicating the level-name check.
-// ============================================================================
 bool App::IsUnderground() const {
-    if (m_GameState.IsUnderground()) return true;
-    if (m_Level) return m_Level->IsUnderground();
-    return false;
+    return m_LevelService->IsUnderground(const_cast<App&>(*this));
 }
 
-// ============================================================================
-// ApplyBackground — sets the OpenGL clear colour for the current frame.
-// The no-arg overload is the preferred form for scene handlers.
-// ============================================================================
-void App::ApplyBackground() { ApplyBackground(IsUnderground()); }
+void App::ApplyBackground() {
+    m_LevelService->ApplyBackground(*this);
+}
 
 void App::ApplyBackground(bool isUnderground) {
-    if (isUnderground) {
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // Castle / dungeon: black
-    } else {
-        glClearColor(92.0f / 255.0f, 148.0f / 255.0f, 252.0f / 255.0f,
-                     0.0f);  // Surface: sky blue
-    }
+    m_LevelService->ApplyBackground(*this, isUnderground);
 }
 
 void App::AdvanceToNextLevel() {
-    std::string nextLevel = m_GameState.AdvanceLevel();
-    if (m_GameState.IsGameWon()) {
-        LOG_INFO("Game Complete! Entering victory screen.");
-        TransitionTo(State::GAME_WON);
-        return;
-    }
-    LOG_INFO("Advancing to level {}", nextLevel);
-    m_Loading = false;
-    TransitionTo(State::LOADING);
+    m_LevelService->AdvanceToNextLevel(*this);
 }
 
 // ============================================================================
 // End
 // ============================================================================
 void App::End() { LOG_TRACE("End"); }
+
 // NOTE: CheckFlagpoleCollision, CheckPipeCollision, CheckAxeCollision,
 //       CheckPlayerEntityCollision, CheckEntityEntityCollision, and
 //       CleanupDeadEntities have been moved to PlayingSceneHandler — they are
