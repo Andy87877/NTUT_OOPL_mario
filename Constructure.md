@@ -103,27 +103,33 @@ classDiagram
     }
 
     class Block {
-        <<Util::GameObject>>
-        -int m_BlockID, m_GridX, m_GridY
+        -int m_BlockID
+        -int m_GridX
+        -int m_GridY
         -BlockDef m_Def
         -bool m_Solid
         -int m_BounceTimer
         +Update(cameraOffset)
         +OnHit(playerState)
         #HandleOnHit(playerState)*
-        +Bounce() / Break()
+        +Bounce()
+        +Break()
         +GetAABB() AABB
-        +IsSolid() / IsBreakable() / IsGoal()
+        +IsSolid() bool
+        +IsBreakable() bool
+        +IsGoal() bool
         +JustBroken() bool
         +ShouldResolveVerticallyFirst(playerBody) bool*
         +TryCarryPlayer(ps, prevAABB, onStaticBlock)*
     }
 
     class MovingPlatform {
-        <<Block>>
         -Direction m_Dir
-        -float m_Velocity, m_MinBound, m_MaxBound
-        -float m_LastDeltaX, m_LastDeltaY
+        -float m_Velocity
+        -float m_MinBound
+        -float m_MaxBound
+        -float m_LastDeltaX
+        -float m_LastDeltaY
         +StepMovement()
         +GetLastDeltaX() float
         +GetLastDeltaY() float
@@ -131,16 +137,15 @@ classDiagram
         +TryCarryPlayer(ps, prevAABB, onStaticBlock)
     }
 
-    class StoneBlock      { <<Block>> #HandleOnHit(playerState) }
-    class BrickBlock      { <<Block>> #HandleOnHit(playerState) }
-    class QuestionBlock   { <<Block>> #HandleOnHit(playerState) }
-    class InvisibleBlock  { <<Block>> #HandleOnHit(playerState) }
-    class GoalBlock       { <<Block>> #HandleOnHit(playerState) }
-    class BackgroundBlock { <<Block>> #HandleOnHit(playerState) }
-    class BridgeBlock     { <<Block>> #HandleOnHit(playerState) }
+    class StoneBlock      { #HandleOnHit(playerState) }
+    class BrickBlock      { #HandleOnHit(playerState) }
+    class QuestionBlock   { #HandleOnHit(playerState) }
+    class InvisibleBlock  { #HandleOnHit(playerState) }
+    class GoalBlock       { #HandleOnHit(playerState) }
+    class BackgroundBlock { #HandleOnHit(playerState) }
+    class BridgeBlock     { #HandleOnHit(playerState) }
 
     class Entity {
-        <<Util::GameObject>>
         -EntityDef m_Def
         -EntityState m_State
         -unique_ptr~IEntityBehavior~ m_Behavior
@@ -152,23 +157,19 @@ classDiagram
     }
 
     class Player {
-        <<Util::GameObject>>
         -PlayerState m_State
         -bool m_Visible
         +UpdateView(cameraOffset)
         +GetState() PlayerState&
         +SetVisible(bool)
     }
-    note for Player "sprite anchor = hitbox-bottom; crouch sprite never sinks below floor"
 
     class UIImage {
-        <<Util::GameObject>>
         +SetPosition(x, y)
         +SetImagePath(path)
     }
 
     class UIText {
-        <<Util::GameObject>>
         +SetTextContent(text)
         +SetTextColor(color)
         +SetPosition(x, y)
@@ -206,14 +207,12 @@ classDiagram
         +GetName() const char**
     }
 
-    class TitleSceneHandler     { <<ISceneHandler>> }
-    class LoadingSceneHandler   { <<ISceneHandler>> show WORLD X-X + LIVES }
+    class TitleSceneHandler
+    class LoadingSceneHandler
     class PlayingSceneHandler {
-        <<ISceneHandler>>
-        17-Phase game loop
         -SpawnPlayerFireball()
         -SpawnBrickDebris()
-        -TriggerFlagpoleEntry(app,ps,poleX,level)
+        -TriggerFlagpoleEntry(app, ps, poleX, level)
         -CheckFlagpoleCollision()
         -CheckPipeCollision()
         -CheckAxeCollision()
@@ -221,16 +220,13 @@ classDiagram
         -CheckEntityEntityCollision()
         -CleanupDeadEntities()
     }
-    class FlagpoleSceneHandler  { <<ISceneHandler>> }
-    class PipeWarpSceneHandler  { <<ISceneHandler>> }
-    class AxeSequenceSceneHandler { <<ISceneHandler>> 8-4 boss-defeat cutscene }
-    class DeathSceneHandler     { <<ISceneHandler>> }
-    class GameOverSceneHandler  { <<ISceneHandler>> }
-    class GameWonSceneHandler   { <<ISceneHandler>> }
+    class FlagpoleSceneHandler
+    class PipeWarpSceneHandler
+    class AxeSequenceSceneHandler
+    class DeathSceneHandler
+    class GameOverSceneHandler
+    class GameWonSceneHandler
     class ESCMenuSceneHandler {
-        <<ISceneHandler>>
-        5-item pause menu
-        RESUME / 1-1 / 1-2 / 8-4 / POWER
         +ForceApplyPowerState(idx)
     }
 
@@ -246,7 +242,14 @@ classDiagram
     ISceneHandler <|.. ESCMenuSceneHandler
 ```
 
-> `TitleSceneHandler`, `DeathSceneHandler`, `GameOverSceneHandler`, `GameWonSceneHandler` 合併於 `MenuSceneHandlers.hpp/.cpp` 中實作。
+> **各場景職責簡述：**
+> - `TitleSceneHandler`: 標題畫面，等待玩家按下 Enter 開始。
+> - `LoadingSceneHandler`: 黑色過場畫面，預載紋理並顯示世界關卡數與剩餘命數。
+> - `PlayingSceneHandler`: 主遊戲進行狀態，處理核心 17-Phase 的每幀物理、AI 與碰撞分派。
+> - `FlagpoleSceneHandler`: 自動下滑旗桿並向右走入城堡的通關過場。
+> - `PipeWarpSceneHandler`: 進入水管向下或向右平移的傳送過場。
+> - `AxeSequenceSceneHandler`: 8-4 Boss 擊敗後庫巴墜落與橋樑塌陷序列。
+> - `ESCMenuSceneHandler`: 暫停選單，支持關卡跳轉與變身作弊功能。
 
 ---
 
@@ -281,46 +284,50 @@ classDiagram
         +IsEnemySpawner() bool
     }
 
-    class GoombaBehavior        { Goomba patrol + squish (standard C# patrol) }
-    class KoopaBehavior         { KoopaTroopa OR Shell -m_Type:KoopaType }
-    class ParaKoopaBehavior     { Flying Koopa -m_FloatPhase:float }
-    class AxeKoopaBehavior      { Axe-throwing Koopa +ConsumeSpawnRequest() }
+    class GoombaBehavior
+    class KoopaBehavior {
+        -m_Type: KoopaType
+    }
+    class ParaKoopaBehavior {
+        -m_FloatPhase: float
+    }
+    class AxeKoopaBehavior
     class BowserBehavior {
-        5-Phase Boss AI + HP
-        -m_Phase:BowserPhase
-        -m_HealthPoints:int
-        -m_PendingSpawns:vector~SpawnRequest~
-        +AlwaysUpdate() true
-        +IsImmuneToStomp() true
-        +IsBowser() true
-        +IsEnemySpawner() true
-        +ConsumeSpawnRequest()
+        -m_Phase: BowserPhase
+        -m_HealthPoints: int
+        -m_PendingSpawns: vector~SpawnRequest~
+        +AlwaysUpdate() bool
+        +IsImmuneToStomp() bool
+        +IsBowser() bool
+        +IsEnemySpawner() bool
+        +ConsumeSpawnRequest() bool
         -ResolveWallAndEdge(state, level)
     }
-    class FireballBehavior      { Parabolic / horizontal +AlwaysUpdate() true }
-    class MushroomBehavior      { Mushroom power-up }
-    class FireFlowerBehavior    { Fire Flower power-up }
-    class StarBehavior          { Star bounce movement }
-    class OneUpBehavior         { Green mushroom 1UP }
-    class CoinBehavior          { Collectible coin }
-    class AxeBehavior           { Bridge axe kill-trigger (8-4) +IsAxe() true }
-    class PrincessBehavior      { NPC goal marker (8-4) +IsPrincess() true }
-    class FlagBehavior          { Flagpole flag animated +IsFlag() true }
-    class AxeProjectileBehavior { Thrown axe projectile (8-4) }
-    class PiranhaPlantBehavior  { Pipe plant 4-Phase cycle -m_Phase }
-    class PodobooBehavior       { Lava bubble — immortal; +IsImmuneToStomp() true }
-    class DefaultEntityBehavior { Passive coin / flag }
+    class FireballBehavior
+    class MushroomBehavior
+    class FireFlowerBehavior
+    class StarBehavior
+    class OneUpBehavior
+    class CoinBehavior
+    class AxeBehavior
+    class PrincessBehavior
+    class FlagBehavior
+    class AxeProjectileBehavior
+    class PiranhaPlantBehavior {
+        -m_Phase: PiranhaPlantPhase
+    }
+    class PodobooBehavior
+    class DefaultEntityBehavior
     class ParticleDebris {
-        Brick debris particles
-        -m_InitialVelX, m_InitialVelY:float
-        -m_LifetimeFrames:int
-        +AlwaysUpdate() true
+        -m_InitialVelX: float
+        -m_InitialVelY: float
+        -m_LifetimeFrames: int
+        +AlwaysUpdate() bool
         +OnSpawned(vx, vy)
     }
     class CastleFireSpawnerBehavior {
-        8-4 off-screen fire spawner
-        -m_PendingSpawns:vector~SpawnRequest~
-        +AlwaysUpdate() true
+        -m_PendingSpawns: vector~SpawnRequest~
+        +AlwaysUpdate() bool
     }
 
     IEntityBehavior <|.. GoombaBehavior
@@ -345,9 +352,6 @@ classDiagram
     IEntityBehavior <|.. CastleFireSpawnerBehavior
 ```
 
-> `KoopaBehavior`, `ParaKoopaBehavior`, `AxeKoopaBehavior` 合併於 `KoopaFamily.hpp/.cpp` 中實作。  
-> `AxeBehavior`, `PrincessBehavior`, `FlagBehavior`, `AxeProjectileBehavior` 合併於 `StaticEntityBehaviors.hpp/.cpp` 中實作。
-
 ---
 
 ### 1.4 死亡動畫策略繼承樹
@@ -362,10 +366,10 @@ classDiagram
         +Tick(runtime, gravity, tickInterval)*
         +IsActive() bool*
     }
-    class GoombaSquishDeathAnimation  { stomp → squash hold → delete }
-    class KoopaRetreatDeathAnimation  { stomp → shell ; fire/shell/star → flip die }
-    class FireballFlipDeathAnimation  { flip arc then despawn }
-    class ClassicEnemyDeathAnimation  { generic fallback }
+    class GoombaSquishDeathAnimation
+    class KoopaRetreatDeathAnimation
+    class FireballFlipDeathAnimation
+    class ClassicEnemyDeathAnimation
 
     IEnemyDeathAnimation <|.. GoombaSquishDeathAnimation
     IEnemyDeathAnimation <|.. KoopaRetreatDeathAnimation
@@ -379,10 +383,10 @@ classDiagram
         +IsActive() bool*
     }
     class ClassicPlayerDeathAnimation {
-        freeze 12 frames → launch → fall
-        -m_Active, m_Launched:bool
-        -m_FrameCounter:int
-        -m_VelY:double
+        -m_Active: bool
+        -m_Launched: bool
+        -m_FrameCounter: int
+        -m_VelY: double
     }
 
     IPlayerDeathAnimation <|.. ClassicPlayerDeathAnimation
@@ -396,7 +400,9 @@ classDiagram
 classDiagram
     direction TB
 
-    class ICollisionHandler { <<abstract>> }
+    class ICollisionHandler {
+        <<interface>>
+    }
 
     class BlockContactResolver {
         <<static utility>>
@@ -409,46 +415,30 @@ classDiagram
     }
 
     class PlayerBlockHandler {
-        <<ICollisionHandler>>
-        Step 1 FallDetect
-        Step 2 CeilingTrigger
-        Step 3 BodyResolution (C# order)
         +Resolve(player, level, camera, gameState, ui, spawns)
         -ProcessSingleBlock(state, blk, movingDown, movingUp, ...)
     }
 
     class PlayerEntityHandler {
-        <<ICollisionHandler>>
-        -m_StompCombo:int
-        NES combo ×1×2×4×8→1000
-        Star power instant-kill
-        Shell kick / side damage
+        -m_StompCombo: int
         +Resolve(player, entities, camera, gameState, ui)
     }
 
     class EntityBlockHandler {
-        <<ICollisionHandler>>
-        Ground snap / Wall flip
-        Fireball → Explosion on wall
-        Pit deactivation
         +Resolve(entity, level, outNewEntities)
     }
 
     class EntityEntityHandler {
-        <<ICollisionHandler>>
-        Fireball vs Enemy → kill
-        Moving Shell vs Enemy → kill
-        Camera culling
         +Resolve(entities, gameState, cameraOffset)
     }
 
     class CollisionManager {
         <<Facade>>
-        +CheckPlayerBlockCollision()
+        +CheckPlayerBlockCollision() bool
         +CheckPitFall() bool
-        +CheckPlayerEntityCollision()
-        +CheckEntityEntityCollision()
-        +CheckEntityBlockCollision()
+        +CheckPlayerEntityCollision() bool
+        +CheckEntityEntityCollision() bool
+        +CheckEntityBlockCollision() bool
     }
 
     ICollisionHandler <|-- PlayerBlockHandler
@@ -503,15 +493,11 @@ classDiagram
     AudioManager --> SFXName : uses
 ```
 
-> `IAudioService.hpp`, `AudioPathResolver.hpp`, `AudioType.hpp` 以單獨文件的形式存在。
-> `AudioManager.hpp` 包含介面定義並實作；`AudioPathResolver` 提供靜態映射輔助。
-
 ---
 
 ### 1.7 IUIPanel 繼承樹 (Strategy Pattern)
 
-每個遊戲畫面的 UI 小部件由對應的 `IUIPanel` 子類別封裝。  
-`UIManager` 僅持有 `unordered_map<State, IUIPanel*>` 並在 `Update()` 中查表分派，不包含任何 `switch-case`。新增畫面只需新增子類別並在 `UIManager` 建構子中 `Register()`，**不需修改** `UIManager::Update()`（OCP）。
+每個遊戲畫面的 UI 小部件由對應的 `IUIPanel` 子類別封裝。
 
 ```mermaid
 classDiagram
@@ -524,45 +510,45 @@ classDiagram
     }
     class HUDPanel {
         +Refresh(gs) void
-        -m_HeaderMario UIText
-        -m_HeaderWorld UIText
-        -m_HeaderTime UIText
-        -m_ScoreText UIText
-        -m_WorldText UIText
-        -m_TimeText UIText
-        -m_CoinUI CoinUI
-        -m_FlashCounter int
+        -m_HeaderMario: UIText
+        -m_HeaderWorld: UIText
+        -m_HeaderTime: UIText
+        -m_ScoreText: UIText
+        -m_WorldText: UIText
+        -m_TimeText: UIText
+        -m_CoinUI: CoinUI
+        -m_FlashCounter: int
     }
     class TitlePanel {
         +Refresh(gs) void
-        -m_TitleLabel UIText
-        -m_SubLabel UIText
+        -m_TitleLabel: UIText
+        -m_SubLabel: UIText
     }
     class LoadingPanel {
         +Refresh(gs) void
-        -m_WorldLabel UIText
-        -m_LivesText UIText
-        -m_MarioPreview UIImage
+        -m_WorldLabel: UIText
+        -m_LivesText: UIText
+        -m_MarioPreview: UIImage
     }
     class SimpleTextPanel {
         +Refresh(gs) void
-        -m_TitleText string
-        -m_TitleLabel UIText
-        -m_ScoreText UIText
+        -m_TitleText: string
+        -m_TitleLabel: UIText
+        -m_ScoreText: UIText
     }
     class ESCMenuPanel {
         +SetMenuContext(sel, power) void
         +Refresh(gs) void
-        -m_Selection int
-        -m_PausedLabel UIText
-        -m_MenuTexts vector
+        -m_Selection: int
+        -m_PausedLabel: UIText
+        -m_MenuTexts: vector~UIText~
     }
     class AxeEndingPanel {
         +SetShowCredits(bool) void
         +Refresh(gs) void
-        -m_ShowCredits bool
-        -m_Line1 UIText
-        -m_Line2 UIText
+        -m_ShowCredits: bool
+        -m_Line1: UIText
+        -m_Line2: UIText
     }
     IUIPanel <|.. HUDPanel
     IUIPanel <|.. TitlePanel
@@ -571,9 +557,6 @@ classDiagram
     IUIPanel <|.. ESCMenuPanel
     IUIPanel <|.. AxeEndingPanel
 ```
-
-> `SimpleTextPanel` 被 `UIManager` 實例化兩次：`m_GameOverPanel("GAME OVER")` 與 `m_GameWonPanel("WORLD CLEARED")`。  
-> `HUDPanel` 在所有 `PLAYING` / `ESC_MENU` 狀態下疊加顯示。
 
 ---
 
@@ -584,15 +567,15 @@ classDiagram
     direction LR
 
     class App {
-        -m_CurrentState:State
-        -m_CurrentHandler:unique_ptr~ISceneHandler~
-        -m_Camera:Camera
-        -m_Renderer:Renderer
-        -m_LevelService:shared_ptr~ILevelService~
-        -m_InputHandler:unique_ptr~IInputHandler~
-        -m_CollisionManager:CollisionManager
-        -m_GameState:GameStateManager
-        -m_UIManager:unique_ptr~UIManager~
+        -m_CurrentState: State
+        -m_CurrentHandler: unique_ptr~ISceneHandler~
+        -m_Camera: Camera
+        -m_Renderer: Renderer
+        -m_LevelService: shared_ptr~ILevelService~
+        -m_InputHandler: unique_ptr~IInputHandler~
+        -m_CollisionManager: CollisionManager
+        -m_GameState: GameStateManager
+        -m_UIManager: unique_ptr~UIManager~
         +TransitionTo(State)
         +LoadLevel(name)
         +AddEntityToGame(entity)
@@ -614,26 +597,26 @@ classDiagram
     }
 
     class LevelManager {
-        -m_Level:shared_ptr~Level~
-        -m_Player:shared_ptr~Player~
-        -m_Entities:vector~shared_ptr~Entity~~
-        -m_FlagEntity:shared_ptr~Entity~
+        -m_Level: shared_ptr~Level~
+        -m_Player: shared_ptr~Player~
+        -m_Entities: vector~shared_ptr~Entity~~
+        -m_FlagEntity: shared_ptr~Entity~
     }
 
     ILevelService <|-- LevelManager
-    App --> ILevelService : owns via shared_ptr (DIP)
+    App --> ILevelService : "owns via shared_ptr (DIP)"
     App --> Camera
     App --> CollisionManager
     App --> GameStateManager
-    App --> IInputHandler       : owns via unique_ptr (DIP)
+    App --> IInputHandler       : "owns via unique_ptr (DIP)"
     App --> UIManager
-    App --> EntityFactory      : uses static
-    App --> PhysicsEngine      : uses static
-    App --> AudioManager       : uses singleton
-    App --> ServiceLocator     : registers IAudioService & ILevelService
-    EntityFactory --> EnemyDeathStyleFactory : selects death strategy
-    ServiceLocator --> IAudioService : holds as shared_ptr
-    ServiceLocator --> ILevelService : holds as shared_ptr
+    App --> EntityFactory      : "uses static"
+    App --> PhysicsEngine      : "uses static"
+    App --> AudioManager       : "uses singleton"
+    App --> ServiceLocator     : "registers IAudioService & ILevelService"
+    EntityFactory --> EnemyDeathStyleFactory : "selects death strategy"
+    ServiceLocator --> IAudioService : "holds as shared_ptr"
+    ServiceLocator --> ILevelService : "holds as shared_ptr"
 ```
 
 ---
@@ -646,18 +629,25 @@ classDiagram
 
     class PlayerState {
         <<Model>>
-        -m_PosX, m_PosY, m_VelX:float
-        -m_VelY, m_FallHeight:double
-        -m_PowerState, m_MemoryState:PowerState
-        -m_InvTimer, m_AnimFrame:int
-        -m_TransitionTimer:int
-        -m_PrevPowerState:PowerState
-        -m_DeathAnimation:unique_ptr~IPlayerDeathAnimation~
-        +Init() / Tick()
+        -m_PosX: float
+        -m_PosY: float
+        -m_VelX: float
+        -m_VelY: double
+        -m_FallHeight: double
+        -m_PowerState: PowerState
+        -m_MemoryState: PowerState
+        -m_InvTimer: int
+        -m_AnimFrame: int
+        -m_TransitionTimer: int
+        -m_PrevPowerState: PowerState
+        -m_DeathAnimation: unique_ptr~IPlayerDeathAnimation~
+        +Init()
+        +Tick()
         +ApplyGravity() float
         +GetAABB() AABB
         +BuildAnimationKey() string
-        +TakeDamage() / IsInvincible()
+        +TakeDamage()
+        +IsInvincible() bool
         +ForceApplyPowerState(idx)
         +IsBigOrFire() bool
         +CanShootFire() bool
@@ -666,24 +656,26 @@ classDiagram
     }
 
     class Player {
-        <<View — Util::GameObject>>
-        -m_State:PlayerState
-        -m_Visible:bool
+        <<View>>
+        -m_State: PlayerState
+        -m_Visible: bool
         +UpdateView(cameraOffset)
+        +GetState() PlayerState&
         +SetVisible(bool)
     }
 
     class IInputHandler {
-        <<interface — Controller>>
+        <<interface>>
         +HandleInput(PlayerState, speed, level)*
         +IsJumpPressed() bool*
     }
 
     class InputHandler {
-        <<IInputHandler — Keyboard>>
-        Space/Z/UP/W = Jump
-        Right/D Left/A Down/S
-        E/LShift = Run/Fire
+        -m_Right: bool
+        -m_Left: bool
+        -m_Jump: bool
+        -m_Crouch: bool
+        -m_Run: bool
         +HandleInput(PlayerState, speed, level)
     }
 
@@ -691,34 +683,42 @@ classDiagram
 
     class EntityState {
         <<Model>>
-        -m_PosX, m_PosY, m_VelX:float
-        -m_VelY, m_FallHeight:double
-        -m_Active, m_IsEnemy, m_Deleted:bool
-        -m_AnimFrame, m_ScoreWorth:int
-        -m_DeathAnimation:unique_ptr~IEnemyDeathAnimation~
-        +Init() / Tick()
+        -m_PosX: float
+        -m_PosY: float
+        -m_VelX: float
+        -m_VelY: double
+        -m_FallHeight: double
+        -m_Active: bool
+        -m_IsEnemy: bool
+        -m_Deleted: bool
+        -m_AnimFrame: int
+        -m_ScoreWorth: int
+        -m_DeathAnimation: unique_ptr~IEnemyDeathAnimation~
+        +Init()
+        +Tick()
         +GetAABB() AABB
-        +SetDeleted(bool) / IsDeleted()
+        +SetDeleted(bool)
+        +IsDeleted() bool
     }
 
     class Entity {
-        <<View — Util::GameObject>>
-        -m_Def:EntityDef
-        -m_State:EntityState
-        -m_Behavior:unique_ptr~IEntityBehavior~
+        <<View>>
+        -m_Def: EntityDef
+        -m_State: EntityState
+        -m_Behavior: unique_ptr~IEntityBehavior~
         +UpdateView(cameraOffset)
         +GetState() EntityState&
         +GetBehavior() IEntityBehavior*
     }
 
-    InputHandler --> PlayerState : writes
-    IInputHandler --> PlayerState : writes (via impl)
-    Player --> PlayerState : owns
-    PlayerState --> IPlayerDeathAnimation : owns (strategy)
+    InputHandler --> PlayerState : "writes"
+    IInputHandler --> PlayerState : "writes"
+    Player --> PlayerState : "owns"
+    PlayerState --> IPlayerDeathAnimation : "owns (strategy)"
 
-    Entity --> EntityState : owns
-    EntityState --> IEnemyDeathAnimation : owns (strategy)
-    Entity --> IEntityBehavior : owns (polymorphic dispatch)
+    Entity --> EntityState : "owns"
+    EntityState --> IEnemyDeathAnimation : "owns (strategy)"
+    Entity --> IEntityBehavior : "owns (strategy)"
 ```
 
 ---
@@ -731,7 +731,7 @@ classDiagram
 
     class ServiceLocator {
         <<Singleton>>
-        -m_Services:map~string, shared_ptr~
+        -m_Services: map~string, shared_ptr~
         +GetInstance()$ ServiceLocator&
         +RegisterService~T~(service)
         +GetService~T~() shared_ptr~T~
@@ -739,9 +739,8 @@ classDiagram
     }
 
     class EventSystem~T~ {
-        <<template>>
-        -m_Listeners:map~int, EventListener~
-        -m_NextId:int
+        -m_Listeners: map~int, EventListener~
+        -m_NextId: int
         +Subscribe(listener) int
         +Unsubscribe(id)
         +Publish(event)
@@ -749,16 +748,15 @@ classDiagram
     }
 
     class CollisionContext {
-        <<DTO>>
-        +player:shared_ptr~Player~
-        +level:shared_ptr~Level~
-        +entityFactory:EntityFactory*
-        +gameState:GameStateManager*
-        +gameTimer:int
-        +invTimer:int
+        +player: shared_ptr~Player~
+        +level: shared_ptr~Level~
+        +entityFactory: EntityFactory*
+        +gameState: GameStateManager*
+        +gameTimer: int
+        +invTimer: int
     }
 
-    ServiceLocator --> IAudioService : holds
+    ServiceLocator --> IAudioService : "holds"
     IAudioService <|.. AudioManager
 ```
 
@@ -781,23 +779,20 @@ classDiagram
     }
 
     class InputHandler {
-        <<IInputHandler — Keyboard>>
-        -m_Right, m_Left, m_Jump:bool
-        -m_Crouch, m_Run:bool
-        Bindings: Arrow/WASD + Space/Z/UP/W jump + E/LShift
+        -m_Right: bool
+        -m_Left: bool
+        -m_Jump: bool
+        -m_Crouch: bool
+        -m_Run: bool
         +HandleInput(state, speed, level)
     }
 
     IInputHandler <|.. InputHandler
 ```
 
-> `IInputHandler` 遵循與 `IAudioService` 相同的 DIP 模式：`App.hpp` 僅依賴抽象，具體的 `InputHandler` 在 `App::Start()` 時注入。
-
 ---
 
 ### 1.12 IPlayerForm 繼承樹 (State Pattern)
-
-為了將 Mario 的各種力量狀態 (Small, Big, Fire, Star) 與實體行為解耦，我們導入了狀態模式 (State Pattern)。`PlayerState` 不再以臃腫的 switch-cases 或條件判斷處理狀態行為，而是持有多型的 `IPlayerForm` 策略指標。
 
 ```mermaid
 classDiagram
@@ -817,11 +812,15 @@ classDiagram
         +PowerUp(PowerState) unique_ptr~IPlayerForm~*
     }
 
-    class SmallPlayerForm     { <<IPlayerForm>> }
-    class BigPlayerForm       { <<IPlayerForm>> }
-    class FirePlayerForm      { <<IPlayerForm>> }
-    class SmallStarPlayerForm { <<IPlayerForm>> }
-    class BigStarPlayerForm   { <<IPlayerForm>> }
+    class SmallPlayerForm
+    class BigPlayerForm
+    class FirePlayerForm
+    class SmallStarPlayerForm {
+        -m_MemoryState: PowerState
+    }
+    class BigStarPlayerForm {
+        -m_MemoryState: PowerState
+    }
 
     IPlayerForm <|.. SmallPlayerForm
     IPlayerForm <|.. BigPlayerForm
@@ -830,13 +829,9 @@ classDiagram
     IPlayerForm <|.. BigStarPlayerForm
 ```
 
-> `IPlayerForm` 透過多型虛擬函式封裝了各個型態的特定維度、攻擊判定以及受傷、升級時的型態轉換邏輯。新增任何 Mario 型態 (如狸貓、冰花) 僅需新增對應的子類別，完美遵循開閉原則 (OCP)。
-
 ---
 
 ## 2. 設計模式簡介 — 3 句話版
-
-看完 §1 的繼承圖後，這裡用最短的語言說清楚每個 Pattern 的「為什麼」。詳細動機與程式碼範例請見 [§5 設計模式深度解析](#5-設計模式深度解析)。
 
 ### 2.1 Pattern 對照表
 
@@ -1009,7 +1004,7 @@ Controller -> InputHandler               (讀鍵盤 -> 寫 PlayerState)
 ```
 
 關鍵分離原則：
-- `PlayerState` / `EntityState` 不依賴任何 PTSD 渲染 API。
+- `PlayerState` / `EntityState` 不依賴 any PTSD 渲染 API。
 - `Player` / `Entity` 不包含遊戲邏輯，只根據 Model 選擇 Sprite。
 - 碰撞解析由 `CollisionManager` 處理，不放在 View 層。
 
@@ -1028,8 +1023,7 @@ EntityFactory::SpawnEntity(def, x, y, dir, fromBlock, levelName)
   // 4. entity.SetBehavior(behavior)
   // 5. return shared_ptr<Entity>
 
-// 投射物 EntityDef 建立（取代 PlayingSceneHandler 80-line inline 段）
-// 所有 Fireball / Axe 投射物的 EntityDef config 集中在此，符合 OCP：
+// 投射物 EntityDef 建立
 EntityFactory::MakeProjectileDef(spawnType, isEnemy, level)
   // → 查 EntityList.csv → 補 fallback def → 回傳完整設定的 EntityDef
 ```
@@ -1142,7 +1136,7 @@ classDiagram
   - `StarBehavior`：星星行為（落地時跳躍起伏，持續前進）。
   - `OneUpBehavior`：1UP 綠香菇行為（與紅香菇位移邏輯一致，但觸發增加生命）。
   - `CoinBehavior`：金幣行為（靜態旋轉，無重力或水平運動）。
-- 移除所有道具 `ItemType` 的硬編碼分支。新增道具類型只需新增對應的策略類別，現有代碼**完全不需要修改任何一行**！
+- 移除所有道具 `ItemType` 的硬編碼分支。新增道具類型只需新增對應的策略類別，現有代碼**完全不需要修改任何一行程式碼**！
 
 ---
 
@@ -1191,7 +1185,7 @@ classDiagram
   - `PowerUp(newState)`: 封裝吃道具升級的轉移矩陣（如 Small + Flower ➔ Fire，Small + Star ➔ SmallStar，Big + Star ➔ BigStar 等）。
 - **無敵星星 MemoryState 機制：**
   - 當 Mario 獲得無敵星星變身為 `SmallStarPlayerForm` 或 `BigStarPlayerForm` 時，會內部持有一個 `m_MemoryState` 欄位以記錄變身前的基礎力量型態（如 Small, Big, 或 Fire）。
-  - 在星星狀態下，`CanShootFire()` 透過 `m_MemoryState` 進行多型判定；當無敵時間結束，狀態機會自動依據 `m_MemoryState` 退回原本的狀態。
+  - 在星星狀態下，`CanShootFire()` 透過 `m_MemoryState` 進行多型判定；當無敵時間結束，狀態機與力量策略會自動依據 `m_MemoryState` 退回原本的狀態。
 - **成果：** 完美符合開閉原則（OCP）。新增任何力量型態僅需擴充 `IPlayerForm` 的子類別，核心物理引擎、輸入處理與渲染主流程完全**不需要修改任何一行程式碼**。
 
 ---
@@ -1343,11 +1337,10 @@ classDiagram
         -m_PanelMap unordered_map
     }
     class LevelManager {
-        <<ILevelService impl>>
-        -m_Level
-        -m_Player
-        -m_Entities
-        -m_FlagEntity
+        -m_Level: shared_ptr~Level~
+        -m_Player: shared_ptr~Player~
+        -m_Entities: vector~shared_ptr~Entity~~
+        -m_FlagEntity: shared_ptr~Entity~
     }
     class GameStateManager {
         -score, lives, coins
@@ -1401,43 +1394,43 @@ classDiagram
         -m_DeathAnim IEnemyDeathAnimation
     }
 
-    App "1" --> "1" PlayingSceneHandler : currentHandler
-    App "1" *-- "1" CollisionManager : owns
-    App "1" *-- "1" UIManager : owns
-    App "1" *-- "1" GameStateManager : owns
-    App "1" --> "1" LevelManager : owns (via ILevelService)
-    App --> ServiceLocator : registers services
+    App "1" --> "1" PlayingSceneHandler : "currentHandler"
+    App "1" *-- "1" CollisionManager : "owns"
+    App "1" *-- "1" UIManager : "owns"
+    App "1" *-- "1" GameStateManager : "owns"
+    App "1" --> "1" LevelManager : "owns (via ILevelService)"
+    App --> ServiceLocator : "registers services"
 
-    ServiceLocator --> "1" LevelManager : holds (ILevelService)
-    ServiceLocator --> "1" AudioManager : holds (IAudioService)
+    ServiceLocator --> "1" LevelManager : "holds (ILevelService)"
+    ServiceLocator --> "1" AudioManager : "holds (IAudioService)"
 
-    PlayingSceneHandler --> LevelManager : via app
-    PlayingSceneHandler --> CollisionManager : via app
-    PlayingSceneHandler --> GameStateManager : via app
-    PlayingSceneHandler --> EntityFactory : static calls
+    PlayingSceneHandler --> LevelManager : "via app"
+    PlayingSceneHandler --> CollisionManager : "via app"
+    PlayingSceneHandler --> GameStateManager : "via app"
+    PlayingSceneHandler --> EntityFactory : "static calls"
 
-    LevelManager "1" *-- "1" Level : owns
-    LevelManager "1" *-- "1" Player : owns
-    LevelManager "1" *-- "*" Entity : owns vector
+    LevelManager "1" *-- "1" Level : "owns"
+    LevelManager "1" *-- "1" Player : "owns"
+    LevelManager "1" *-- "*" Entity : "owns vector"
 
-    Level "1" *-- "*" Block : owns 2D grid
+    Level "1" *-- "*" Block : "owns 2D grid"
 
-    Player "1" *-- "1" PlayerState : owns
-    Entity "1" *-- "1" EntityState : owns
-    Entity "1" *-- "1" IEntityBehavior : owns (unique_ptr)
+    Player "1" *-- "1" PlayerState : "owns"
+    Entity "1" *-- "1" EntityState : "owns"
+    Entity "1" *-- "1" IEntityBehavior : "owns (unique_ptr)"
 
-    PlayerState "1" *-- "1" IPlayerForm : owns (unique_ptr)
-    PlayerState "1" *-- "0..1" IPlayerDeathAnimation : owns
+    PlayerState "1" *-- "1" IPlayerForm : "owns (unique_ptr)"
+    PlayerState "1" *-- "0..1" IPlayerDeathAnimation : "owns"
 
-    EntityState "1" *-- "0..1" IEnemyDeathAnimation : owns
+    EntityState "1" *-- "0..1" IEnemyDeathAnimation : "owns"
 
     CollisionManager *-- PlayerBlockHandler
     CollisionManager *-- PlayerEntityHandler
     CollisionManager *-- EntityBlockHandler
     CollisionManager *-- EntityEntityHandler
 
-    EntityFactory --> EnemyDeathStyleFactory : uses static
-    UIManager "1" *-- "*" IUIPanel : owns map
+    EntityFactory --> EnemyDeathStyleFactory : "uses static"
+    UIManager "1" *-- "*" IUIPanel : "owns map"
 ```
 
 ---
@@ -1454,47 +1447,32 @@ stateDiagram-v2
     [*] --> BIG   : Init(state=1)
     [*] --> FIRE  : Init(state=2)
 
-    SMALL --> BIG        : Collect Mushroom\nMushroomBehavior::OnPlayerCollision
-    SMALL --> FIRE       : Collect Fire Flower\nFireFlowerBehavior::OnPlayerCollision
-    SMALL --> SMALL_STAR : Collect Star\nStarBehavior::OnPlayerCollision
+    SMALL --> BIG        : Collect Mushroom
+    SMALL --> FIRE       : Collect Fire Flower
+    SMALL --> SMALL_STAR : Collect Star
     BIG   --> FIRE       : Collect Fire Flower
     BIG   --> BIG_STAR   : Collect Star
     FIRE  --> BIG_STAR   : Collect Star
 
-    SMALL_STAR --> SMALL : StarTimer == 0\n(PowerState::SMALL_STAR → SMALL)
-    BIG_STAR   --> BIG   : StarTimer == 0\n(PowerState::BIG_STAR → BIG)
+    SMALL_STAR --> SMALL : StarTimer == 0
+    BIG_STAR   --> BIG   : StarTimer == 0
 
-    BIG   --> SMALL : TakeDamage()\nStage-down
-    FIRE  --> BIG   : TakeDamage()\nStage-down
+    BIG   --> SMALL : TakeDamage()
+    FIRE  --> BIG   : TakeDamage()
 
-    SMALL      --> [*] : TakeDamage() → DeathAnimation
-    SMALL_STAR --> [*] : TakeDamage() → DeathAnimation
-    BIG_STAR   --> SMALL : TakeDamage() (star doesn't protect from death pit)
+    SMALL      --> [*] : TakeDamage()
+    SMALL_STAR --> [*] : TakeDamage()
+    BIG_STAR   --> SMALL : TakeDamage()
 
     note right of SMALL
         SmallPlayerForm
-        height = 1 × TILE_SIZE (45px)
-        cannot break BrickBlock
+        Height: 45px
+        Cannot break bricks
     end note
     note right of BIG
         BigPlayerForm
-        height = 2 × TILE_SIZE (90px)
-        can break BrickBlock
-    end note
-    note right of FIRE
-        FirePlayerForm
-        height = 2 × TILE_SIZE
-        CanShootFire() = true
-    end note
-    note right of SMALL_STAR
-        SmallStarPlayerForm
-        IsImmuneToEnemies() = true
-        kills on contact
-    end note
-    note right of BIG_STAR
-        BigStarPlayerForm
-        IsImmuneToEnemies() = true
-        kills on contact
+        Height: 90px
+        Can break bricks
     end note
 ```
 
@@ -1506,36 +1484,17 @@ stateDiagram-v2
 stateDiagram-v2
     direction TB
 
-    [*] --> Spawned : EntityFactory::SpawnEntity()\nor SpawnFromLevel()
+    [*] --> Spawned : Spawned
 
-    Spawned --> Inactive : worldX < cameraLeft - CULL_MARGIN\n(outside viewport, not AlwaysUpdate)
-    Spawned --> Active   : worldX in viewport\nor AlwaysUpdate()==true
+    Spawned --> Inactive : Outside viewport
+    Spawned --> Active   : Inside viewport or AlwaysUpdate
 
     Inactive --> Active  : Enter viewport
-    Active   --> Inactive: Exit viewport\n(not AlwaysUpdate)
+    Active   --> Inactive: Exit viewport
 
-    Active --> DyingAnim : TriggerDeath(EnemyDeathCause)\nIEnemyDeathAnimation injected by\nEnemyDeathStyleFactory
-
-    DyingAnim --> MarkedDeleted : Animation frames exhausted\nstate.IsAnimated()==false\nor GoombaSquish hold done
-
-    MarkedDeleted --> [*] : PlayingSceneHandler PHASE 17\nCleanupDeadEntities()\nerase from m_Entities vector
-
-    note right of Active
-        Per-frame:
-        IEntityBehavior::Update()
-        EntityState::Tick()
-        Entity::UpdateView()
-        CollisionManager checks
-    end note
-
-    note right of DyingAnim
-        Per-frame:
-        IEnemyDeathAnimation::Tick()
-        Entity::UpdateView() shows death sprite
-        GoombaSquish: hold 30fr → delete
-        FireballFlip: arc → delete
-        KoopaRetreat: stomp→shell | fire→flip
-    end note
+    Active --> DyingAnim : TriggerDeath
+    DyingAnim --> MarkedDeleted : Animation finished
+    MarkedDeleted --> [*] : CleanupDeadEntities
 ```
 
 ---
@@ -1548,40 +1507,23 @@ Bowser 的 5 個 `BowserPhase` 透過 `EntityState` 由 `BowserBehavior::Update(
 stateDiagram-v2
     direction TB
 
-    [*] --> PATROL : AxeSequenceSceneHandler::OnEnter\ninitialises Bowser entity
+    [*] --> PATROL : Initialize Bowser
 
-    PATROL      --> FIRE_ATTACK  : patrol_timer >= FIRE_INTERVAL\n(enqueue SpawnRequest fireballs)
-    FIRE_ATTACK --> PATROL       : shots_fired >= MAX_SHOTS\n(reset patrol timer)
+    PATROL      --> FIRE_ATTACK  : patrol_timer >= FIRE_INTERVAL
+    FIRE_ATTACK --> PATROL       : shots_fired >= MAX_SHOTS
     PATROL      --> JUMP_ATTACK  : jump_timer >= JUMP_INTERVAL
-    JUMP_ATTACK --> PATROL       : grounded == true after landing
+    JUMP_ATTACK --> PATROL       : Landed on ground
 
-    PATROL      --> DAMAGED      : OnFireballHit() [hp > 0]\nm_HealthPoints--
-    FIRE_ATTACK --> DAMAGED      : OnFireballHit() [hp > 0]
-    JUMP_ATTACK --> DAMAGED      : OnFireballHit() [hp > 0]
-    DAMAGED     --> PATROL       : blink_timer expires [hp > 0]
+    PATROL      --> DAMAGED      : Hit by player fireball
+    FIRE_ATTACK --> DAMAGED      : Hit by player fireball
+    JUMP_ATTACK --> DAMAGED      : Hit by player fireball
+    DAMAGED     --> PATROL       : blink_timer expires
 
-    PATROL      --> DEFEATED     : OnFireballHit() [hp == 0]
-    FIRE_ATTACK --> DEFEATED     : OnFireballHit() [hp == 0]
-    DAMAGED     --> DEFEATED     : [hp == 0]
+    PATROL      --> DEFEATED     : HP == 0
+    FIRE_ATTACK --> DEFEATED     : HP == 0
+    DAMAGED     --> DEFEATED     : HP == 0
 
-    DEFEATED    --> [*]          : App::TransitionTo(AXE_SEQUENCE)\nAxeSequenceSceneHandler takes over
-
-    note right of PATROL
-        Walk left-right at patrol speed
-        ResolveWallAndEdge() prevents pit fall
-        ConsumeSpawnRequest() returns false
-    end note
-    note right of FIRE_ATTACK
-        m_PendingSpawns.push_back(SpawnRequest)
-        PlayingSceneHandler reads via
-        ConsumeSpawnRequest() each frame
-        EntityFactory::SpawnEntity(FIRE, ...)
-    end note
-    note right of DAMAGED
-        Entity flashes red (blink_timer frames)
-        IsImmuneToStomp() = true always
-        AlwaysUpdate() = true (off-screen active)
-    end note
+    DEFEATED    --> [*]          : Bridge collapses
 ```
 
 ---
@@ -1591,47 +1533,35 @@ stateDiagram-v2
 ```mermaid
 sequenceDiagram
     autonumber
-    participant User  as User / Input
-    participant App   as App (State Machine)
-    participant GSM   as GameStateManager
-    participant LM    as LevelManager (ILevelService)
-    participant Lv    as Level
-    participant EF    as EntityFactory (static)
-    participant AM    as AudioManager
-    participant UM    as UIManager
-    participant LSH   as LoadingSceneHandler
+    actor User as User
+    participant App as App Context
+    participant GSM as GameStateManager
+    participant LM as LevelManager
+    participant Lv as Level
+    participant EF as EntityFactory
+    participant AM as AudioManager
+    participant UM as UIManager
+    participant LSH as LoadingSceneHandler
 
-    User->>App: PRESS ENTER / Select Level
+    User->>App: PRESS ENTER
     App->>App: TransitionTo(LOADING)
-    App->>LSH: OnEnter(App&)
+    App->>LSH: OnEnter()
     LSH->>UM: ShowPanel(LOADING)
-    LSH->>GSM: GetLevelName() → "1-1"
+    LSH->>GSM: GetLevelName()
 
-    App->>LM: LoadLevel(app, "1-1")
-    LM->>LM: Camera::Reset()
-    LM->>Lv: Level::Load("1-1")
-    Lv->>Lv: Parse 1-1.csv → blocks[16×220]
-    Lv->>Lv: Parse EntityList.csv → spawnPoints[]
-    Lv-->>LM: ok
-
-    LM->>LM: Create Player at spawnX, spawnY
-    LM->>LM: Restore savedPowerState from GSM
-
-    LM->>EF: SpawnFromLevel(level)
-    loop Each SpawnPoint in level
-        EF->>EF: SpawnEntity(def, x, y, dir)
-        EF->>EF: switch(EntityType) → make_unique<XxxBehavior>()
-        EF->>EF: EnemyDeathStyleFactory::CreateStrategy(type)
-    end
-    EF-->>LM: vector<shared_ptr<Entity>>
-
-    LM->>App: AddRenderable(player, entities, blocks)
+    App->>LM: LoadLevel(levelName)
+    LM->>LM: Reset Camera
+    LM->>Lv: Load CSV map
+    Lv-->>LM: map parsed
+    LM->>LM: Create Player
+    LM->>EF: SpawnEntities()
+    EF-->>LM: entities vector
     LM-->>App: done
 
-    LSH->>LSH: Wait LEVEL_TRANSITION_DELAY (3.0 s)
+    LSH->>LSH: Wait 3.0s
     LSH->>App: TransitionTo(PLAYING)
-    App->>LM: StartLevel(app)
-    App->>AM: PlayBGMForLevel("1-1", timeRemaining)
+    App->>LM: StartLevel()
+    App->>AM: PlayBGM()
     App->>UM: ShowPanel(HUD)
 ```
 
@@ -1644,36 +1574,26 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant PBH  as PlayerBlockHandler
-    participant B    as Block (base class)
-    participant Sub  as Subclass (virtual HandleOnHit)
-    participant Lv   as Level (spawn registry)
-    participant PSH  as PlayingSceneHandler
+    participant PBH as PlayerBlockHandler
+    participant B as Block Base
+    participant Sub as Block Subclass
+    participant Lv as Level
 
-    PBH->>B: OnHit(playerPowerState) [Template Method entry]
-    B->>B: LoadSpriteOnDemand() (lazy load PNG)
-    B->>B: m_BounceTimer = BOUNCE_FRAMES (trigger animation)
-    B->>Sub: HandleOnHit(playerPowerState) [virtual dispatch]
+    PBH->>B: OnHit(playerState)
+    B->>B: LoadSprite()
+    B->>B: StartBounce()
+    B->>Sub: HandleOnHit(playerState)
 
-    alt QuestionBlock (always spawns item)
-        Sub->>Sub: SetSprite("QuestionBlockUsed.png")
-        Sub->>Sub: m_Solid stays true
-        Sub->>Lv: AddSpawnPoint(gridX, gridY, itemDef)
-    else BrickBlock + Big/Fire Mario
-        Sub->>Sub: Break() → m_Solid=false, SetVisible(false)
-        Sub->>Sub: m_JustBroken = true
-        note over Sub,PSH: PHASE 13 reads JustBroken() →\nSpawnBrickDebris(4 ParticleDebris)
-    else BrickBlock + Small Mario
-        Sub->>Sub: Bounce only — brickblock not broken
-    else StoneBlock / InvisibleBlock / GoalBlock
-        Sub->>Sub: (no-op or reveal invisible)
-    else BackgroundBlock / BridgeBlock
-        Sub->>Sub: (no-op, decoration only)
+    alt QuestionBlock
+        Sub->>Sub: SetUsedSprite()
+        Sub->>Lv: SpawnItem()
+    else BrickBlock (Big/Fire Mario)
+        Sub->>Sub: BreakBlock()
+        Sub-->>PBH: block broken
+    else BrickBlock (Small Mario)
+        Sub->>Sub: BounceOnly()
     end
-
     B-->>PBH: return
-    note over PBH: PHASE 5: Level::PopSpawnPoints()\n→ EntityFactory::SpawnEntity(itemDef)\n→ app.AddEntityToGame(entity)
-    PSH->>PSH: PHASE 5 processes queued SpawnPoints
 ```
 
 ---
@@ -1685,84 +1605,43 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant PSH  as PlayingSceneHandler
-    participant CM   as CollisionManager (Facade)
-    participant PBH  as PlayerBlockHandler
-    participant BCR  as BlockContactResolver (static)
-    participant PEH  as PlayerEntityHandler
-    participant EBH  as EntityBlockHandler
-    participant EEH  as EntityEntityHandler
-    participant PS   as PlayerState (Model)
-    participant ES   as EntityState (Model)
+    participant PSH as PlayingSceneHandler
+    participant CM as CollisionManager
+    participant PBH as PlayerBlockHandler
+    participant BCR as BlockContactResolver
+    participant PEH as PlayerEntityHandler
+    participant EBH as EntityBlockHandler
+    participant EEH as EntityEntityHandler
+    participant PS as PlayerState
+    participant ES as EntityState
 
-    Note over PSH: PHASE 4 — Player-Block Collision
-
+    Note over PSH,CM: PHASE 4 - Player Block Collision
     PSH->>CM: CheckPlayerBlockCollision()
-    CM->>PBH: Resolve(player, level, camera, gs, ui, spawns)
+    CM->>PBH: Resolve()
+    PBH->>BCR: BodyRect()
+    PBH->>PBH: Step 1: FallDetect
+    PBH->>PBH: Step 2: CeilingTrigger
+    PBH->>PBH: Step 3: BodyResolution
+    PBH-->>CM: Position Snapped
 
-    PBH->>BCR: BodyRect(state) → full-body AABB
-    PBH->>PBH: Step 1 FallDetect\n4px strip below feet\n→ SetGrounded(false) if no block
-    PBH->>PBH: Step 2 CeilingTrigger\nnarrow head hitbox\n→ TriggerBlockHit() if hit
-    loop Per visible Block in QueryBlocksInRange()
-        PBH->>BCR: BodyRect(state) → AABB
-        alt Airborne path
-            BCR->>PS: ResolveDown → snap top of block
-            BCR->>PS: ResolveRight / ResolveLeft → push out wall
-            BCR->>PS: ResolveUp → snap below ceiling
-        else Grounded path
-            BCR->>PS: ResolveRight or ResolveLeft only
-        end
-    end
-    PBH-->>CM: SetGrounded / snapped position written to PlayerState
+    Note over PSH,CM: PHASE 7 - Entity Block Collision
+    PSH->>CM: CheckEntityBlockCollision()
+    CM->>EBH: Resolve()
+    EBH->>ES: Ground snap & Wall flip
 
-    Note over PSH: PHASE 9 — Player-Entity Collision
-
+    Note over PSH,CM: PHASE 9 - Player Entity Collision
     PSH->>CM: CheckPlayerEntityCollision()
-    CM->>PEH: Resolve(player, entities, camera, gs, ui)
-    loop Per active Entity (AABB overlap test)
-        alt isFromAbove (stomp)
-            PEH->>ES: TriggerDeath(STOMPED)
-            PEH->>PEH: m_StompCombo++ → NES score 100→200→400→800→1000
-            PEH->>PS: SetVelY(STOMP_BOUNCE)
-        else Side contact + enemy
-            PEH->>PS: TakeDamage() [IPlayerForm::TakeDamage → new form]
-        else Item / coin
-            PEH->>PS: PowerUp(powerUpState) or AddCoin()
-        else Star-powered
-            PEH->>ES: TriggerDeath(STAR) → instant kill
-        end
-    end
-    PEH-->>CM: done
-
-    Note over PSH: PHASE 7 — Entity-Block Collision (inside AI update)
-
-    loop Per active Entity
-        PSH->>CM: CheckEntityBlockCollision()
-        CM->>EBH: Resolve(entity, level, outNewEntities)
-        EBH->>ES: Ground snap (SetGrounded)
-        EBH->>ES: Wall flip (SetDirection)
-        alt Fireball hits wall
-            EBH->>EBH: ExplodesOnWall()==true → push to outNewEntities as EXPLOSION
-        end
-        alt Entity falls into pit
-            EBH->>ES: SetDeleted(true)
-        end
+    CM->>PEH: Resolve()
+    alt stomp
+        PEH->>ES: TriggerDeath(STOMPED)
+        PEH->>PS: StompBounce()
+    else hit
+        PEH->>PS: TakeDamage()
     end
 
-    Note over PSH: PHASE 10 — Entity-Entity Collision
-
+    Note over PSH,CM: PHASE 10 - Entity Entity Collision
     PSH->>CM: CheckEntityEntityCollision()
-    CM->>EEH: Resolve(entities, gs, camera)
-    note over EEH: thread_local visible cache\npre-filter → O(M²) not O(N²)
-    loop Per visible Entity pair
-        alt PlayerFireball hits Enemy
-            EEH->>ES: TriggerDeath(FIREBALL) ; delete fireball
-        else Moving Shell hits Enemy
-            EEH->>ES: TriggerDeath(SHELL) ; add score
-        end
-    end
-    EEH-->>CM: done
-    CM-->>PSH: all collision phases complete
+    CM->>EEH: Resolve()
 ```
 
 ---
@@ -1798,7 +1677,7 @@ sequenceDiagram
 | `Mario/CollisionManager.hpp` | `CollisionManager` | None (facade) | Collision 子系統協調者（Facade Pattern）。 |
 | `Mario/Collision/ICollisionHandler.hpp` | `ICollisionHandler` | None (interface) | 所有碰撞 Handler 的標記基類。 |
 | `Mario/Collision/BlockContactResolver.hpp` | `BlockContactResolver` | None (static utility) | 靜態 Down/Up/Right/Left AABB Snap helpers；INTERSECT_STRICTNESS (0.35f) 地面邊緣調優。 |
-| `Mario/Collision/PlayerBlockHandler.hpp` | `PlayerBlockHandler` | `ICollisionHandler` | 玩家-方塊三步驟管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
+| `Mario/Collision/PlayerBlockHandler.hpp` | `PlayerBlockHandler` | `ICollisionHandler` | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
 | `Mario/Collision/PlayerEntityHandler.hpp` | `PlayerEntityHandler` | `ICollisionHandler` | 玩家-實體碰撞：踩踏 NES Combo / 傷害 / 道具收集。 |
 | `Mario/Collision/EntityBlockHandler.hpp` | `EntityBlockHandler` | `ICollisionHandler` | 實體-方塊碰撞：地面 Snap / 牆壁翻向 / Fireball爆炸 / 落坑刪除。 |
 | `Mario/Collision/EntityEntityHandler.hpp` | `EntityEntityHandler` | `ICollisionHandler` | 實體-實體碰撞：火球 vs 敵人 / 移動龜殼 vs 敵人；快取過濾。 |
@@ -1806,11 +1685,11 @@ sequenceDiagram
 | `Mario/Scenes/ISceneHandler.hpp` | `ISceneHandler` | None (interface) | State Pattern 純虛介面（10 個實作）。 |
 | `Mario/Scenes/MenuSceneHandlers.hpp` | `TitleSceneHandler`, `DeathSceneHandler`, `GameOverSceneHandler`, `GameWonSceneHandler` | `ISceneHandler` | 選單/死亡/結束場景（合併實作）。 |
 | `Mario/Scenes/LoadingSceneHandler.hpp` | `LoadingSceneHandler` | `ISceneHandler` | 加載畫面（顯示 WORLD X-X + LIVES）。 |
-| `Mario/Scenes/PlayingSceneHandler.hpp` | `PlayingSceneHandler` | `ISceneHandler` | 主遊戲迴圈（17-phase）；`TriggerFlagpoleEntry()` 旗桿觸發 DRY helper。 |
-| `Mario/Scenes/FlagpoleSceneHandler.hpp` | `FlagpoleSceneHandler` | `ISceneHandler` | 旗杆滑動與城堡進入過場序列。 |
-| `Mario/Scenes/PipeWarpSceneHandler.hpp` | `PipeWarpSceneHandler` | `ISceneHandler` | 水管傳送過場序列。 |
+| `Mario/Scenes/PlayingSceneHandler.hpp` | `PlayingSceneHandler` | `ISceneHandler` | 主遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
+| `Mario/Scenes/FlagpoleSceneHandler.hpp` | `FlagpoleSceneHandler` | `ISceneHandler` | 旗桿滑下與城堡進入動畫過場邏輯。 |
+| `Mario/Scenes/PipeWarpSceneHandler.hpp` | `PipeWarpSceneHandler` | `ISceneHandler` | 水管傳送過場動畫邏輯。 |
 | `Mario/Scenes/AxeSequenceSceneHandler.hpp` | `AxeSequenceSceneHandler` | `ISceneHandler` | 8-4 Bowser 擊敗序列與橋樑塌陷序列。 |
-| `Mario/Scenes/ESCMenuSceneHandler.hpp` | `ESCMenuSceneHandler` | `ISceneHandler` | ESC 暫停選單（RESUME/1-1/1-2/8-4/POWER作弊鍵）。 |
+| `Mario/Scenes/ESCMenuSceneHandler.hpp` | `ESCMenuSceneHandler` | `ISceneHandler` | ESC 暫停選單（RESUME/1-1/1-2/8-4/POWER作弊變身切換）。 |
 | `Mario/Services/AudioType.hpp` | `BGMName`, `SFXName` | None (enum) | BGM / SFX 音效枚舉定義。 |
 | `Mario/Services/IAudioService.hpp` | `IAudioService` | None (interface) | 音效抽象介面（DIP）。 |
 | `Mario/Services/AudioPathResolver.hpp` | `AudioPathResolver` | None (static) | RESOURCE_DIR 路徑解析映射。 |
@@ -1834,8 +1713,8 @@ sequenceDiagram
 | `Mario/Behaviors/StaticEntityBehaviors.hpp` | `AxeBehavior`, `PrincessBehavior`, `FlagBehavior`, `AxeProjectileBehavior` | `IEntityBehavior` | 8-4 靜態觸發器/NPC/旗桿旗幟/投擲斧頭投影行為（合併）。 |
 | `Mario/Behaviors/PiranhaPlantBehavior.hpp` | `PiranhaPlantBehavior` | `IEntityBehavior` | 水管食人花 4-Phase AI 伸縮管口策略。 |
 | `Mario/Behaviors/PodobooBehavior.hpp` | `PodobooBehavior` | `IEntityBehavior` | 岩漿向上跳躍泡泡（無重力無視方塊，不可踩）。 |
-| `Mario/Behaviors/DefaultEntityBehavior.hpp` | `DefaultEntityBehavior` | `IEntityBehavior` | 被動實體（背景金幣/旗幟）。 |
-| `Mario/Behaviors/ParticleDebris.hpp` | `ParticleDebris` | `IEntityBehavior` | 磚塊破碎粒子物理模擬策略。 |
+| `Mario/Behaviors/DefaultEntityBehavior.hpp` | `DefaultEntityBehavior` | `IEntityBehavior` | 預設靜態裝飾策略。 |
+| `Mario/Behaviors/ParticleDebris.hpp` | `ParticleDebris` | `IEntityBehavior` | 磚塊破碎粒子模擬策略。 |
 
 ---
 
@@ -1856,7 +1735,7 @@ sequenceDiagram
 | `Mario/Player/PlayerForm.cpp` | 303 | IPlayerForm 及 5 種力量型態子類別多型升級與傷害退化轉換實作。 |
 | `Mario/Player/PlayerDeathAnimation.cpp` | 35 | ClassicPlayerDeathAnimation 死亡策略動畫（凍結➔起跳➔下墜）。 |
 | `Mario/Player/Player.cpp` | 180 | Player View；像素對齊；crouch sprite anchored to hitbox bottom（修正下陷問題）。 |
-| `Mario/Services/InputHandler.cpp` | 122 | 全寬 uncrouch 阻擋保護與按鍵快取。 |
+| `Mario/Services/InputHandler.cpp` | 122 | 鍵盤按鍵狀態擷取與防卡判定。 |
 | `Mario/Level/EntityState.cpp` | 206 | Entity MVC Model；死亡動畫策略整合；GetHitbox 零硬編碼 AABB 運算。 |
 | `Mario/Level/EnemyDeathAnimation.cpp` | 162 | 四種死亡動畫策略（Squish壓扁/Retreat龜殼/Flip擊飛/Classic通用）具體實作。 |
 | `Mario/Level/EnemyDeathStyleFactory.cpp` | 30 | 依 EntityType 與 Cause 動態建立死亡動畫策略。 |
@@ -1893,7 +1772,7 @@ sequenceDiagram
 | `Mario/Behaviors/StaticEntityBehaviors.cpp` | 116 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（合併實作）。 |
 | `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 156 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 1.5×TILE 檢查。 |
 | `Mario/Behaviors/PodobooBehavior.cpp` | 107 | 岩漿火球定時向上彈跳無視地形 AI。 |
-| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | 靜態與被動實體（背景裝飾）預設策略。 |
+| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 52 | 破碎磚塊碎屑粒子策略。 |
 
 **Total: 48 source files, 8,990 lines of C++17 OOP code** (排除 entry `main.cpp` 與孤兒 leftover `src/Mario/UIManager.cpp`)。
