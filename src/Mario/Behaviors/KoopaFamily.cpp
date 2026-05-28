@@ -9,16 +9,16 @@
  *              IEntityBehavior <- ParaKoopaBehavior
  */
 #include "Mario/Behaviors/KoopaFamily.hpp"
-#include "Mario/Services/AudioManager.hpp"
 
 #include <cmath>
 
 #include "Mario/Core/Collider.hpp"
-#include "Mario/Level/EntityState.hpp"
 #include "Mario/Core/GameConfig.hpp"
-#include "Mario/Level/Level.hpp"
 #include "Mario/Core/PhysicsEngine.hpp"
+#include "Mario/Level/EntityState.hpp"
+#include "Mario/Level/Level.hpp"
 #include "Mario/Player/Player.hpp"
+#include "Mario/Services/AudioManager.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {
@@ -30,7 +30,8 @@ namespace Mario {
 KoopaBehavior::KoopaBehavior(KoopaType type) : m_Type(type) {}
 
 void KoopaBehavior::Update(EntityState& state, const Level& level,
-                           const Player& player, [[maybe_unused]] int gameTimer) {
+                           const Player& player,
+                           [[maybe_unused]] int gameTimer) {
     if (state.IsSquished() || state.IsDead()) {
         if (!state.IsAnimated()) state.Delete();
         return;
@@ -48,13 +49,15 @@ void KoopaBehavior::Update(EntityState& state, const Level& level,
     // -------------------------------------------------------------
     // AI for Living Koopa Troopa (TROOPA)
     // -------------------------------------------------------------
-    float baseSpeed = GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
+    float baseSpeed =
+        GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
     state.SetVelX(state.GetDirection() == 1 ? baseSpeed : -baseSpeed);
 
     // Ledge/Cliff Awareness
-    // Red Koopas (GetName() == "Koopa") turn around at cliffs to avoid falling.
-    // Green Koopas (GetName() == "KoopaTroopa") walk off cliffs blindly.
-    bool avoidsLedges = (state.GetName() == "Koopa");
+    // RED_TROOPA (red shell) turns around at cliffs; TROOPA (green) walks off.
+    // The type is set by EntityFactory from CSV entity name — no string
+    // comparison needed at runtime here (OCP / SRP).
+    bool avoidsLedges = (m_Type == KoopaType::RED_TROOPA);
     if (avoidsLedges && state.IsGrounded()) {
         float checkX = (state.GetVelX() > 0.0f)
                            ? state.GetWorldX() + state.GetWidth() + 4.0f
@@ -92,9 +95,7 @@ std::unique_ptr<IEntityBehavior> KoopaBehavior::Clone() const {
     return std::make_unique<KoopaBehavior>(*this);
 }
 
-bool KoopaBehavior::IsShell() const {
-    return m_Type == KoopaType::SHELL;
-}
+bool KoopaBehavior::IsShell() const { return m_Type == KoopaType::SHELL; }
 
 float KoopaBehavior::GetVisualYOffset(const std::string& levelName) const {
     (void)levelName;
@@ -187,7 +188,8 @@ bool AxeKoopaBehavior::ConsumeSpawnRequest(EntityType& outType, float& outX,
 
 void ParaKoopaBehavior::Update(EntityState& state,
                                [[maybe_unused]] const Level& level,
-                               [[maybe_unused]] const Player& player, int gameTimer) {
+                               [[maybe_unused]] const Player& player,
+                               int gameTimer) {
     if (m_Mode != Mode::SHELL && state.IsInShellMode()) {
         m_Mode = Mode::SHELL;
         state.SetCollidable(true);
@@ -195,12 +197,12 @@ void ParaKoopaBehavior::Update(EntityState& state,
         state.SetVelY(0.0f);
         state.SetFallHeight(0.0f);
     }
- 
+
     if (!m_AnchorInitialized) {
         m_AnchorY = state.GetWorldY();
         m_AnchorInitialized = true;
     }
- 
+
     if (m_Mode == Mode::FLYING) {
         // Flying ParaKoopa should be a pure vertical patrol enemy.
         // Keep it out of generic gravity/block-collision side effects.
@@ -209,11 +211,11 @@ void ParaKoopaBehavior::Update(EntityState& state,
         state.SetVelX(0.0f);
         state.SetVelY(0.0f);
         state.SetFallHeight(0.0f);
- 
+
         float newY = state.GetWorldY() + PATROL_SPEED * m_VerticalDir;
         float upperBound = m_AnchorY - PATROL_RANGE;
         float lowerBound = m_AnchorY + PATROL_RANGE;
- 
+
         if (newY <= upperBound) {
             newY = upperBound;
             m_VerticalDir = 1;
@@ -221,7 +223,7 @@ void ParaKoopaBehavior::Update(EntityState& state,
             newY = lowerBound;
             m_VerticalDir = -1;
         }
- 
+
         state.SetWorldY(newY);
     } else if (m_Mode == Mode::WALKING) {
         // Walking Koopa: no vertical patrol, normal gravity + block collision.
@@ -235,11 +237,12 @@ void ParaKoopaBehavior::Update(EntityState& state,
         // Shell mode: preserve shell movement, no patrol forcing.
         state.SetCollidable(true);
     }
- 
+
     if (gameTimer % 10 == 0) state.AdvanceAnimationFrame();
 }
- 
-bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state, [[maybe_unused]] Player& player,
+
+bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state,
+                                          [[maybe_unused]] Player& player,
                                           bool isFromAbove) {
     if (!isFromAbove) {
         return false;
@@ -283,9 +286,7 @@ std::unique_ptr<IEntityBehavior> ParaKoopaBehavior::Clone() const {
     return std::make_unique<ParaKoopaBehavior>(*this);
 }
 
-bool ParaKoopaBehavior::IsShell() const {
-    return m_Mode == Mode::SHELL;
-}
+bool ParaKoopaBehavior::IsShell() const { return m_Mode == Mode::SHELL; }
 
 float ParaKoopaBehavior::GetVisualYOffset(const std::string& levelName) const {
     (void)levelName;

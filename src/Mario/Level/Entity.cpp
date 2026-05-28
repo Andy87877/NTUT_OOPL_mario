@@ -25,7 +25,11 @@ Entity::Entity(const EntityDef& def, float worldX, float worldY, int direction,
                  def.scoreWorth, def.isAnimated, def.animFrames, def.animBuffer,
                  def.oneLoop, fromBlock, def.powerUpState);
 
-    if (def.type == EntityType::PIRANHA_PLANT || def.type == EntityType::COIN) {
+    // Z-layer: entities flagged rendersBehindBlocks (PiranhaPlant, Coin) render
+    // at Z_BLOCK-1 so they appear behind solid tiles.  EntityFactory sets the
+    // flag; Entity.cpp never needs to know about specific EntityType values
+    // (OCP / DIP — data-driven, not type-switch).
+    if (def.rendersBehindBlocks) {
         SetZIndex(GameConfig::Z_BLOCK - 1.0f);
     } else {
         SetZIndex(GameConfig::Z_ENTITY);
@@ -56,39 +60,12 @@ void Entity::UpdateView(float cameraOffset) {
             SetDrawable(sprite);
             SetVisible(true);
 
-            // Size and Y-offset initialization: run ONLY ONCE per entity
-            // lifetime (first sprite load). Running this on every animation
-            // frame change causes entities with tall sprites (Princess, etc.)
-            // to drift upward by TILE_SIZE every frame — a critical bug.
+            // Size initialization: run ONLY ONCE per entity lifetime.
+            // Running this on every animation frame change causes tall-sprite
+            // entities (Princess, etc.) to drift upward every frame.
             if (!m_SizeInitialized) {
                 m_SizeInitialized = true;
-
-                glm::vec2 spriteSize = sprite->GetSize();
-
-                if (m_Def.type == EntityType::PIRANHA_PLANT) {
-                    // PiranhaPlant: always 2-tile hitbox.
-                    // PiranhaPlantBehavior manages Y position — no shift here.
-                    m_State.SetSizeX(GameConfig::TILE_SIZE * 2);
-                    m_State.SetSizeY(GameConfig::TILE_SIZE * 2);
-                } else if (m_Def.renderTargetWidth > 0.0f &&
-                           spriteSize.x > 0.0f) {
-                    // Width-override entity: EntityFactory set
-                    // renderTargetWidth based on level context (e.g. 8-4 enemy
-                    // scaling).
-                    float tw = m_Def.renderTargetWidth;
-                    m_State.SetSizeX(static_cast<int>(tw));
-                    if (spriteSize.y > spriteSize.x) {
-                        float heightScale = spriteSize.y / spriteSize.x;
-                        m_State.SetSizeY(static_cast<int>(tw * heightScale));
-                        m_State.SetY(m_State.GetY() - GameConfig::TILE_SIZE);
-                    } else {
-                        m_State.SetSizeY(static_cast<int>(tw));
-                    }
-                } else if (spriteSize.y > spriteSize.x) {
-                    // Tall-sprite default: 2-tile height, shift up one tile.
-                    m_State.SetSizeY(GameConfig::TILE_SIZE * 2);
-                    m_State.SetY(m_State.GetY() - GameConfig::TILE_SIZE);
-                }
+                InitializeSizeOnce(sprite->GetSize());
             }
         } else {
             SetVisible(false);
@@ -154,22 +131,37 @@ void Entity::UpdateView(float cameraOffset) {
     }
     m_Transform.scale.y = absScaleY;
 
-    // Procedural animation for coins to simulate rotation (since they fall back
-    // to a single static image file on disk e.g. UnderCoin.png or Coin.png)
-    if (m_State.IsCoin() && !m_State.IsHidden() && m_State.IsActive()) {
-        int frame = m_State.GetAnimFrame();
-        // Cycle of 4 animation frames:
-        // frame 0: full width (1.0)
-        // frame 1: medium width (0.6)
-        // frame 2: thin line width (0.15)
-        // frame 3: medium width (0.6)
-        float scaleXModifier = 1.0f;
-        if (frame == 1 || frame == 3) {
-            scaleXModifier = 0.6f;
-        } else if (frame == 2) {
-            scaleXModifier = 0.15f;
+    // Per-frame X-scale modifier (e.g. coin rotation) — delegated to behavior
+    // so Entity.cpp stays free of entity-specific visual logic (OCP).
+    if (m_Behavior) {
+        m_Transform.scale.x *= m_Behavior->GetVisualScaleXModifier(m_State);
+    }
+}
+
+void Entity::InitializeSizeOnce(const glm::vec2& spriteSize) {
+    if (m_Def.fixedHitboxTiles > 0) {
+        // EntityFactory set an explicit tile-size hitbox (e.g. PiranhaPlant=2).
+        // Entity.cpp never inspects EntityType here — data-driven (OCP/DIP).
+        int sz = m_Def.fixedHitboxTiles * GameConfig::TILE_SIZE;
+        m_State.SetSizeX(sz);
+        m_State.SetSizeY(sz);
+    } else if (m_Def.renderTargetWidth > 0.0f && spriteSize.x > 0.0f) {
+        // Width-override entity: EntityFactory set renderTargetWidth (e.g. 8-4
+        // enemy scaling).  Height is derived proportionally from the sprite.
+        float tw = m_Def.renderTargetWidth;
+        m_State.SetSizeX(static_cast<int>(tw));
+        if (spriteSize.y > spriteSize.x) {
+            float heightScale = spriteSize.y / spriteSize.x;
+            m_State.SetSizeY(static_cast<int>(tw * heightScale));
+            m_State.SetY(m_State.GetY() - GameConfig::TILE_SIZE);
+        } else {
+            m_State.SetSizeY(static_cast<int>(tw));
         }
-        m_Transform.scale.x *= scaleXModifier;
+    } else if (spriteSize.y > spriteSize.x) {
+        // Tall-sprite default: 2-tile height, shift up one tile so the bottom
+        // of the sprite aligns with the entity's logical ground position.
+        m_State.SetSizeY(GameConfig::TILE_SIZE * 2);
+        m_State.SetY(m_State.GetY() - GameConfig::TILE_SIZE);
     }
 }
 

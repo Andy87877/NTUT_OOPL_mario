@@ -93,6 +93,17 @@ class BowserBehavior : public IEntityBehavior {
     bool IsImmuneToStomp() const override { return true; }
     bool IsImmuneToStarPower() const override { return true; }
 
+    /** Used by AxeSequenceSceneHandler to locate Bowser without EntityType
+     * check. */
+    bool IsBowser() const override { return true; }
+
+    /**
+     * Bowser spawns enemy fireballs and axe projectiles.
+     * EntityFactory::SpawnProjectile uses this to configure projectile
+     * physics (speed, gravity) without comparing EntityType (OCP).
+     */
+    bool IsEnemySpawner() const override { return true; }
+
     /**
      * Check if Bowser is defeated.
      */

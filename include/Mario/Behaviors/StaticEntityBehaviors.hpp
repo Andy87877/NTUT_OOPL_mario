@@ -1,9 +1,11 @@
 /**
  * @file StaticEntityBehaviors.hpp
  * @brief Passive / static / projectile behaviors with no autonomous AI logic.
- *        Contains AxeBehavior, PrincessBehavior, and AxeProjectileBehavior.
+ *        Contains AxeBehavior, PrincessBehavior, FlagBehavior, and
+ * AxeProjectileBehavior.
  * @inheritance IEntityBehavior <- AxeBehavior
  *              IEntityBehavior <- PrincessBehavior
+ *              IEntityBehavior <- FlagBehavior
  *              IEntityBehavior <- AxeProjectileBehavior
  */
 #ifndef MARIO_STATIC_ENTITY_BEHAVIORS_HPP
@@ -40,6 +42,9 @@ class AxeBehavior : public IEntityBehavior {
     }
     const char* GetName() const override { return "AxeBehavior"; }
 
+    /** Used by PlayingSceneHandler to find the axe without EntityType check. */
+    bool IsAxe() const override { return true; }
+
    private:
     int m_AnimationFrame = 0;
 };
@@ -63,6 +68,35 @@ class PrincessBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "PrincessBehavior"; }
+
+    /** Used by scene handlers to find the Princess without EntityType check. */
+    bool IsPrincess() const override { return true; }
+};
+
+// ============================================================================
+// FlagBehavior — animated flag on the flagpole
+// ============================================================================
+/**
+ * Passive animated entity.  FlagpoleSceneHandler moves it programmatically.
+ * Identity query IsFlag() lets LevelManager locate it after level load
+ * without comparing EntityType enum values outside the Factory.
+ * @inheritance IEntityBehavior <- FlagBehavior
+ */
+class FlagBehavior : public IEntityBehavior {
+   public:
+    FlagBehavior() = default;
+    ~FlagBehavior() override = default;
+
+    void Update(EntityState& state, const Level& level, const Player& player,
+                int gameTimer) override;
+    bool OnPlayerCollision(EntityState& state, Player& player,
+                           bool isFromAbove) override;
+    std::unique_ptr<IEntityBehavior> Clone() const override;
+    const char* GetName() const override { return "FlagBehavior"; }
+
+    /** Used by LevelManager to locate the flag entity without EntityType check.
+     */
+    bool IsFlag() const override { return true; }
 };
 
 // ============================================================================

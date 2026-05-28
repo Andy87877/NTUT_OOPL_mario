@@ -10,8 +10,8 @@
 
 #include <memory>
 
-#include "Mario/Level/EntityDef.hpp"  // EntityType
 #include "Mario/Core/Collider.hpp"
+#include "Mario/Level/EntityDef.hpp"  // EntityType
 #include "Mario/Level/EntityState.hpp"
 
 namespace Mario {
@@ -108,9 +108,23 @@ class IEntityBehavior {
     }
 
     /**
+     * Get per-frame X scale modifier for procedural visual animation.
+     * Default: 1.0f (no modification).
+     * Override for entities that need frame-based scale effects
+     * (e.g. CoinBehavior simulates coin rotation).
+     * Entity.cpp multiplies m_Transform.scale.x by this value — all
+     * coin-rotation magic numbers live here, not in the View layer (OCP).
+     */
+    virtual float GetVisualScaleXModifier(const EntityState& state) const {
+        (void)state;
+        return 1.0f;
+    }
+
+    /**
      * Get customized hitbox for the entity.
      * Default: return a standard AABB based on state position and dimensions.
-     * Override in behaviors that need tighter hitboxes (e.g. PiranhaPlantBehavior).
+     * Override in behaviors that need tighter hitboxes (e.g.
+     * PiranhaPlantBehavior).
      */
     virtual AABB GetHitbox(const EntityState& state) const {
         return AABB::FromPosSize(state.GetX(), state.GetY(),
@@ -176,6 +190,36 @@ class IEntityBehavior {
         (void)outDir;
         return false;
     }
+
+    // -------------------------------------------------------------------------
+    // Entity-identity queries (OCP / Strategy Pattern).
+    // Replaces raw EntityType comparisons at call sites outside the Factory.
+    // Default: false.  Override in the one concrete behavior that is that type.
+    // -------------------------------------------------------------------------
+
+    /** True only for AxeBehavior — used by
+     * PlayingSceneHandler::CheckAxeCollision. */
+    virtual bool IsAxe() const { return false; }
+
+    /** True only for PrincessBehavior — used by Axe/FlagpoleSceneHandler. */
+    virtual bool IsPrincess() const { return false; }
+
+    /** True only for BowserBehavior — used by AxeSequenceSceneHandler. */
+    virtual bool IsBowser() const { return false; }
+
+    /**
+     * True only for FlagBehavior — used by LevelManager to locate the flag
+     * entity after level load without scanning by EntityType enum.
+     */
+    virtual bool IsFlag() const { return false; }
+
+    /**
+     * True for behaviors whose entity spawns *enemy* projectiles
+     * (Bowser, AxeKoopa, CastleFireSpawner).
+     * Used by EntityFactory::SpawnProjectile to configure the spawned
+     * projectile's speed and gravity without comparing EntityType (OCP).
+     */
+    virtual bool IsEnemySpawner() const { return false; }
 };
 
 }  // namespace Mario

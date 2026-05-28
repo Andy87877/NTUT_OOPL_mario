@@ -22,7 +22,8 @@ namespace Mario {
 // MushroomBehavior — standard mushroom power-up (linear movement + gravity)
 // ============================================================================
 /**
- * Grants Big Mario power when collected. Moves horizontally and falls under gravity.
+ * Grants Big Mario power when collected. Moves horizontally and falls under
+ * gravity.
  * @inheritance IEntityBehavior <- MushroomBehavior
  */
 class MushroomBehavior : public IEntityBehavior {
@@ -82,7 +83,8 @@ class StarBehavior : public IEntityBehavior {
 // OneUpBehavior — green mushroom 1UP (linear movement + gravity)
 // ============================================================================
 /**
- * Grants an extra life when collected. Moves horizontally and falls under gravity.
+ * Grants an extra life when collected. Moves horizontally and falls under
+ * gravity.
  * @inheritance IEntityBehavior <- OneUpBehavior
  */
 class OneUpBehavior : public IEntityBehavior {
@@ -102,7 +104,8 @@ class OneUpBehavior : public IEntityBehavior {
 // CoinBehavior — collectible coin (static, animated)
 // ============================================================================
 /**
- * Awarded score/coin counter increment when collected. Stationary, animated in-place.
+ * Awarded score/coin counter increment when collected. Stationary, animated
+ * in-place.
  * @inheritance IEntityBehavior <- CoinBehavior
  */
 class CoinBehavior : public IEntityBehavior {
@@ -116,6 +119,7 @@ class CoinBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "CoinBehavior"; }
+    float GetVisualScaleXModifier(const EntityState& state) const override;
 };
 
 }  // namespace Mario

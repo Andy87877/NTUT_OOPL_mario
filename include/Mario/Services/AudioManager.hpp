@@ -12,8 +12,8 @@
 #include <optional>
 #include <string>
 
-#include "Mario/Services/IAudioService.hpp"
 #include "Mario/Services/AudioType.hpp"
+#include "Mario/Services/IAudioService.hpp"
 #include "Util/BGM.hpp"
 #include "Util/SFX.hpp"
 
@@ -55,8 +55,7 @@ class AudioManager : public IAudioService {
     void PlaySFX(SFXName name) override;
     void SetVolume(float volume) override;
     void SetMuted(bool muted) override;
-    void PlayBGMForLevel(const std::string& levelName,
-                         int timeRemaining) override;
+    void PlayBGMForLevel(BGMTheme theme, int timeRemaining) override;
 
    private:
     float m_Volume = 1.0f;

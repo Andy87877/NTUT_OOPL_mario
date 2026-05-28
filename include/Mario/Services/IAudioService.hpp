@@ -9,6 +9,8 @@
 #define MARIO_I_AUDIO_SERVICE_HPP
 
 #include <string>
+
+#include "Mario/Core/GameConfig.hpp"
 #include "Mario/Services/AudioType.hpp"
 
 namespace Mario {
@@ -49,13 +51,13 @@ class IAudioService {
 
     /**
      * Select and play the correct BGM track for a level.
-     * Encapsulates the level-name -> BGMName mapping so callers never
-     * hard-code level names against BGMName values.
-     * @param levelName       Current level identifier (e.g. "1-2", "8-4").
-     * @param timeRemaining   Remaining level time; <= 100 triggers hurry-up.
+     * Accepts a BGMTheme enum so no caller ever compares level-name strings
+     * against BGMName values (OCP: adding a new theme requires only a new
+     * enum value, not a grep across the codebase).
+     * @param theme          BGMTheme returned by Level::GetBGMTheme().
+     * @param timeRemaining  Remaining level time; <= 100 triggers hurry-up.
      */
-    virtual void PlayBGMForLevel(const std::string& levelName,
-                                 int timeRemaining) = 0;
+    virtual void PlayBGMForLevel(BGMTheme theme, int timeRemaining) = 0;
 };
 
 }  // namespace Mario

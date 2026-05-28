@@ -74,6 +74,17 @@ struct EntityDef {
     // This field keeps all level/name-specific scaling knowledge inside the
     // Factory (OCP): Entity.cpp reads the value and applies it blindly.
     float renderTargetWidth = 0.0f;
+
+    // When true, this entity is rendered at Z_BLOCK-1 (behind blocks) instead
+    // of Z_ENTITY.  Set by EntityFactory for PIRANHA_PLANT and COIN.
+    // Keeps EntityType out of Entity.cpp view logic (OCP / DIP).
+    bool rendersBehindBlocks = false;
+
+    // When > 0, the entity's hitbox is forced to (fixedHitboxTiles × TILE_SIZE)
+    // in both X and Y, regardless of sprite dimensions.
+    // Set by EntityFactory (e.g. 2 for PiranhaPlant).
+    // Entity.cpp reads this blindly — no EntityType comparison needed (OCP).
+    int fixedHitboxTiles = 0;
 };
 
 /**

@@ -1,16 +1,18 @@
 /**
  * @file StaticEntityBehaviors.cpp
- * @brief Implementations for AxeBehavior, PrincessBehavior, and AxeProjectileBehavior.
+ * @brief Implementations for AxeBehavior, PrincessBehavior, FlagBehavior,
+ *        and AxeProjectileBehavior.
  * @inheritance IEntityBehavior <- AxeBehavior
  *              IEntityBehavior <- PrincessBehavior
+ *              IEntityBehavior <- FlagBehavior
  *              IEntityBehavior <- AxeProjectileBehavior
  */
 #include "Mario/Behaviors/StaticEntityBehaviors.hpp"
 
-#include "Mario/Services/AudioManager.hpp"
 #include "Mario/Level/EntityState.hpp"
 #include "Mario/Level/Level.hpp"
 #include "Mario/Player/Player.hpp"
+#include "Mario/Services/AudioManager.hpp"
 
 namespace Mario {
 
@@ -75,9 +77,9 @@ void AxeProjectileBehavior::Update(EntityState& state,
     }
 }
 
-bool AxeProjectileBehavior::OnPlayerCollision(EntityState& state,
-                                              [[maybe_unused]] Player& player,
-                                              [[maybe_unused]] bool isFromAbove) {
+bool AxeProjectileBehavior::OnPlayerCollision(
+    EntityState& state, [[maybe_unused]] Player& player,
+    [[maybe_unused]] bool isFromAbove) {
     if (state.IsDead()) return false;
     state.Delete();  // Consume and destroy projectile on player hit
     return true;
@@ -85,6 +87,30 @@ bool AxeProjectileBehavior::OnPlayerCollision(EntityState& state,
 
 std::unique_ptr<IEntityBehavior> AxeProjectileBehavior::Clone() const {
     return std::make_unique<AxeProjectileBehavior>(*this);
+}
+
+// ============================================================================
+// FlagBehavior — passive animated flag on the flagpole
+// ============================================================================
+
+void FlagBehavior::Update(EntityState& state,
+                          [[maybe_unused]] const Level& level,
+                          [[maybe_unused]] const Player& player,
+                          int gameTimer) {
+    // Flag is animated but not autonomous — FlagpoleSceneHandler drives its Y.
+    if (state.IsAnimated() && gameTimer % 8 == 0) {
+        state.AdvanceAnimationFrame();
+    }
+}
+
+bool FlagBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
+                                     [[maybe_unused]] Player& player,
+                                     [[maybe_unused]] bool isFromAbove) {
+    return false;  // FlagpoleSceneHandler manages flag movement directly.
+}
+
+std::unique_ptr<IEntityBehavior> FlagBehavior::Clone() const {
+    return std::make_unique<FlagBehavior>(*this);
 }
 
 }  // namespace Mario

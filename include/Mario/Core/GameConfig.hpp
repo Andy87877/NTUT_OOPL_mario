@@ -172,6 +172,15 @@ struct GameConfig {
     }
 };
 
+// BGM theme classification for a level.
+// Defined here (alongside GameConfig) so both the Level layer and the Services
+// layer can reference it without creating a circular include dependency.
+enum class BGMTheme {
+    Ground,       // Overworld levels (1-1, etc.)
+    Underground,  // Underground levels (1-2, 1-1u, etc.)
+    Castle        // Castle levels (8-4)
+};
+
 }  // namespace Mario
 
 #endif  // MARIO_GAME_CONFIG_HPP

@@ -12,11 +12,11 @@
 #include <string>
 #include <unordered_map>
 
-#include "Mario/Core/Collider.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
+#include "Mario/Core/Collider.hpp"
+#include "Mario/Core/GameConfig.hpp"
 #include "Mario/Level/EntityDef.hpp"
 #include "Mario/Level/EntityState.hpp"
-#include "Mario/Core/GameConfig.hpp"
 #include "Util/GameObject.hpp"
 #include "Util/Image.hpp"
 #include "pch.hpp"  // IWYU pragma: export
@@ -91,6 +91,15 @@ class Entity : public Util::GameObject {
    private:
     std::string BuildSpritePath() const;
     std::shared_ptr<Util::Image> GetOrLoadSprite(const std::string& path);
+
+    /**
+     * One-time hitbox / size initialization triggered on first sprite load.
+     * Reads EntityDef data fields (fixedHitboxTiles, renderTargetWidth) and
+     * sets EntityState dimensions accordingly — called from UpdateView only
+     * when m_SizeInitialized is false.  Extracted from UpdateView to keep
+     * that method focused on per-frame transform updates (SRP).
+     */
+    void InitializeSizeOnce(const glm::vec2& spriteSize);
 
     EntityState m_State;
     EntityDef m_Def;

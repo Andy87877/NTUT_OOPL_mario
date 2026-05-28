@@ -216,17 +216,15 @@ std::string AudioPathResolver::GetSFXPath(const std::string& filename) {
 
 // ============================================================================
 // PlayBGMForLevel — selects and plays the correct BGM for a given level.
-// This is the single authoritative place that maps level names to BGM tracks,
-// so App and scene handlers never need level-name strings in audio logic.
+// Accepts a BGMTheme enum produced by Level::GetBGMTheme() so no level-name
+// string comparisons live here (OCP: new themes only need a new enum value).
 // ============================================================================
-void AudioManager::PlayBGMForLevel(const std::string& levelName,
-                                   int timeRemaining) {
+void AudioManager::PlayBGMForLevel(BGMTheme theme, int timeRemaining) {
     bool hurry = timeRemaining <= 100 && timeRemaining > 0;
     BGMName bgm;
-    if (levelName == "8-4" || levelName == "8-4_sub") {
+    if (theme == BGMTheme::Castle) {
         bgm = hurry ? BGMName::CastleThemeHurryUp : BGMName::CastleTheme;
-    } else if (levelName == "1-1u" || levelName == "1-2" ||
-               levelName == "1-2uu" || levelName == "1-2_sub") {
+    } else if (theme == BGMTheme::Underground) {
         bgm = hurry ? BGMName::UndergroundThemeHurryUp
                     : BGMName::UndergroundTheme;
     } else {

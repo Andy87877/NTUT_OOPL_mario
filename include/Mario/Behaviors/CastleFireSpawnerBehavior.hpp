@@ -7,15 +7,15 @@
 #ifndef MARIO_CASTLE_FIRE_SPAWNER_BEHAVIOR_HPP
 #define MARIO_CASTLE_FIRE_SPAWNER_BEHAVIOR_HPP
 
-#include "Mario/Behaviors/IEntityBehavior.hpp"
-
 #include <vector>
+
+#include "Mario/Behaviors/IEntityBehavior.hpp"
 
 namespace Mario {
 
 /**
  * Strategy class implementing the off-screen fire breath spawner for Stage 8-4.
- * Invisible entity spawned at level start. It monitors player distance and 
+ * Invisible entity spawned at level start. It monitors player distance and
  * periodically spawns hostile fireballs crossing from right to left.
  */
 class CastleFireSpawnerBehavior : public IEntityBehavior {
@@ -60,12 +60,20 @@ class CastleFireSpawnerBehavior : public IEntityBehavior {
      */
     bool AlwaysUpdate() const override { return true; }
 
+    /**
+     * CastleFireSpawner produces enemy fireballs.
+     * EntityFactory::SpawnProjectile uses this to configure projectile
+     * physics without comparing EntityType (OCP).
+     */
+    bool IsEnemySpawner() const override { return true; }
+
    private:
     int m_FireballTimer = 0;
     int m_AttackCounter = 0;
     std::vector<SpawnRequest> m_PendingSpawns;
 
-    static constexpr int FIREBALL_INTERVAL = 180;  // Spawns a fireball every 3 seconds (180 frames)
+    static constexpr int FIREBALL_INTERVAL =
+        180;  // Spawns a fireball every 3 seconds (180 frames)
 };
 
 }  // namespace Mario

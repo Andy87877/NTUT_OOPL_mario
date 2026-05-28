@@ -12,8 +12,8 @@
 #include "Mario/Behaviors/BowserBehavior.hpp"
 #include "Mario/Behaviors/CastleFireSpawnerBehavior.hpp"
 #include "Mario/Behaviors/DefaultEntityBehavior.hpp"
-#include "Mario/Behaviors/GoombaBehavior.hpp"
 #include "Mario/Behaviors/FireballBehavior.hpp"
+#include "Mario/Behaviors/GoombaBehavior.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
 #include "Mario/Behaviors/ItemBehaviors.hpp"
 #include "Mario/Behaviors/KoopaFamily.hpp"
@@ -21,8 +21,8 @@
 #include "Mario/Behaviors/PiranhaPlantBehavior.hpp"
 #include "Mario/Behaviors/PodobooBehavior.hpp"
 #include "Mario/Behaviors/StaticEntityBehaviors.hpp"
-#include "Mario/Level/EnemyDeathStyleFactory.hpp"
 #include "Mario/Core/GameConfig.hpp"
+#include "Mario/Level/EnemyDeathStyleFactory.hpp"
 #include "Mario/Player/Player.hpp"
 #include "Util/Logger.hpp"
 
@@ -194,6 +194,19 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
         localDef.renderTargetWidth = 64.0f;
     }
 
+    // Mark entities that must render behind blocks (Z_BLOCK-1 layer).
+    // Keeping this in the Factory preserves OCP: Entity.cpp never checks type.
+    if (localDef.type == EntityType::PIRANHA_PLANT ||
+        localDef.type == EntityType::COIN) {
+        localDef.rendersBehindBlocks = true;
+    }
+
+    // PiranhaPlant always has a 2×2 tile hitbox regardless of sprite size.
+    // Storing it here keeps the EntityType knowledge inside the Factory (OCP).
+    if (localDef.type == EntityType::PIRANHA_PLANT) {
+        localDef.fixedHitboxTiles = 2;
+    }
+
     auto entity = std::make_shared<Entity>(localDef, worldX, worldY, direction,
                                            fromBlock, levelName);
 
@@ -207,8 +220,14 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             behavior = std::make_unique<GoombaBehavior>();
             break;
         case EntityType::KOOPA_TROOPA:
+            // EntityList.csv has two KOOPA_TROOPA entries:
+            //   name="Koopa"      → red Koopa (turns at ledges)
+            //   name="KoopaTroopa"→ green Koopa (walks off cliffs)
+            // We distinguish them here once so KoopaBehavior::Update never
+            // needs a runtime string comparison (OCP / SRP).
             behavior = std::make_unique<KoopaBehavior>(
-                KoopaBehavior::KoopaType::TROOPA);
+                localDef.name == "Koopa" ? KoopaBehavior::KoopaType::RED_TROOPA
+                                         : KoopaBehavior::KoopaType::TROOPA);
             break;
         case EntityType::PARAKOOPA:
             behavior = std::make_unique<ParaKoopaBehavior>();
@@ -249,6 +268,10 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
         case EntityType::COIN:
             behavior = std::make_unique<CoinBehavior>();
             break;
+        case EntityType::FLAG:
+            // FlagBehavior: IsFlag() lets LevelManager find it polymorphically.
+            behavior = std::make_unique<FlagBehavior>();
+            break;
         case EntityType::PARTICLE_DEBRIS:
             behavior = std::make_unique<ParticleDebris>();
             break;
@@ -259,7 +282,8 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
             behavior = std::make_unique<AxeBehavior>();
             break;
         case EntityType::AXE_PROJECTILE:
-            // Thrown axe projectile: gravity + velocity applied by EntityState Tick()
+            // Thrown axe projectile: gravity + velocity applied by EntityState
+            // Tick()
             behavior = std::make_unique<AxeProjectileBehavior>();
             break;
         case EntityType::PIRANHA_PLANT:
@@ -350,10 +374,11 @@ std::shared_ptr<Entity> EntityFactory::SpawnProjectile(
     const std::string& levelName) {
     if (!spawner) return nullptr;
 
-    bool isEnemyProjectile =
-        spawner->GetDef().type == EntityType::BOWSER ||
-        spawner->GetDef().type == EntityType::AXE_KOOPA ||
-        spawner->GetDef().type == EntityType::CASTLE_FIRE_SPAWNER;
+    // Use polymorphic identity query — no EntityType switch needed here (OCP).
+    // Bowser, AxeKoopa, and CastleFireSpawner all override
+    // IsEnemySpawner()=true.
+    auto* spawnBehavior = spawner->GetBehavior();
+    bool isEnemyProjectile = spawnBehavior && spawnBehavior->IsEnemySpawner();
 
     EntityDef def = MakeProjectileDef(spawnType, isEnemyProjectile, level);
     if (def.name.empty()) return nullptr;

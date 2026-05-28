@@ -164,6 +164,22 @@ class Level {
      */
     bool IsUnderground() const;
 
+    /**
+     * Returns true when this is the final boss level (8-4).
+     * Use this instead of comparing GetLevelName() == "8-4" at call sites:
+     * all level-identity knowledge is encapsulated here (OCP / DRY).
+     */
+    bool IsBossLevel() const { return m_LevelName == "8-4"; }
+
+    /**
+     * Return the BGM theme for this level so callers (e.g. AudioManager) never
+     * need to compare level-name strings.  Encapsulates the mapping:
+     *   8-4        → BGMTheme::Castle
+     *   underground → BGMTheme::Underground
+     *   otherwise  → BGMTheme::Ground
+     */
+    BGMTheme GetBGMTheme() const;
+
    private:
     // -- Parsing --
     bool ParseLevelCSV(const std::string& path);

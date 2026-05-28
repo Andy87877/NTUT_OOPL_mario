@@ -1,7 +1,8 @@
 /**
  * @file PipeWarpSceneHandler.cpp
  * @brief Pipe warp transition handler (App::State::PIPE_WARP).
- *        Handles player descending or walking right into a warp pipe and transitioning levels.
+ *        Handles player descending or walking right into a warp pipe and
+ * transitioning levels.
  * @inheritance ISceneHandler <- PipeWarpSceneHandler
  */
 #include "Mario/Scenes/PipeWarpSceneHandler.hpp"
@@ -25,7 +26,9 @@ void PipeWarpSceneHandler::OnEnter(App& app) {
     }
 }
 
-void PipeWarpSceneHandler::SetupWarp(const std::string& direction, float pipeWorldX, float pipeWorldY, Player& player) {
+void PipeWarpSceneHandler::SetupWarp(const std::string& direction,
+                                     float pipeWorldX, float pipeWorldY,
+                                     Player& player) {
     m_pipe_direction = direction;
     m_pipe_x = pipeWorldX;
     m_pipe_y = pipeWorldY;
@@ -81,15 +84,22 @@ void PipeWarpSceneHandler::Update(App& app) {
         app.GetGameState().SavePowerState(player->GetState().GetState());
 
         if (app.GetGameState().HasNextLevelOverride()) {
+            // CheckPipeCollision set an explicit target (e.g. 1-1 bonus
+            // underground entry). AdvanceToNextLevel() consumes the override.
             app.AdvanceToNextLevel();
-        } else if (!app.GetGameState().IsUnderground()) {
+        } else if (!app.GetGameState().IsUnderground() && level &&
+                   level->HasSubLevel()) {
+            // Enter an underground sub-level from the overworld (e.g. 1-1
+            // overworld pipe → 1-1u bonus area).
             app.GetGameState().SetUnderground(true);
             std::string subLevel = level->GetSubLevelName();
             LOG_INFO("Loading sub-level: {}", subLevel);
             app.LoadLevel(subLevel);
             app.StartLevel();
             app.TransitionTo(App::State::PLAYING);
-        } else {
+        } else if (app.GetGameState().IsUnderground()) {
+            // Exit an underground bonus area back to the overworld
+            // (e.g. 1-1u → 1-1, resuming at pipe exit X).
             app.GetGameState().SetUnderground(false);
             std::string mainLevel = app.GetGameState().GetLevelName();
             LOG_INFO("Returning to main level: {}", mainLevel);
@@ -101,6 +111,12 @@ void PipeWarpSceneHandler::Update(App& app) {
                 player->SetVisible(true);
             }
             app.TransitionTo(App::State::PLAYING);
+        } else {
+            // Level-exit pipe: no sub-level and not in a bonus underground
+            // area → advance to the next level in sequence (e.g. 1-2 → 8-4).
+            app.GetGameState().SetUnderground(false);
+            LOG_INFO("Level-exit pipe: advancing to next level");
+            app.AdvanceToNextLevel();
         }
     }
 }

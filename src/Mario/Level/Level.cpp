@@ -56,13 +56,14 @@ bool Level::Load(const std::string& levelName) {
     m_PrevStartCol = -1;
     m_PrevEndCol = -1;
 
-    // Determine sub-level name
+    // Determine sub-level name.
+    // 1-1 has a bonus underground area accessed via its down-pipes.
+    // 1-2 IS the underground level; its exit pipe advances to the next level
+    // in sequence (8-4). No "1-2u" file exists.
     if (levelName == "1-1") {
         m_SubLevelName = "1-1u";  // Underground bonus area
-    } else if (levelName == "1-2") {
-        m_SubLevelName = "1-2u";  // 1-2 is underground -> above ground exit
     } else {
-        m_SubLevelName = "";
+        m_SubLevelName = "";  // No sub-level
     }
 
     std::string path =
@@ -364,24 +365,32 @@ void Level::CreateBlocksFromGrid() {
 
             std::shared_ptr<Block> block;
             if (def.isGoal) {
-                block = std::make_shared<GoalBlock>(blockID, x, y, def, m_LevelName);
+                block = std::make_shared<GoalBlock>(blockID, x, y, def,
+                                                    m_LevelName);
             } else if (def.name == "Bridge" || def.name == "BridgeBlock") {
-                block = std::make_shared<BridgeBlock>(blockID, x, y, def, m_LevelName);
+                block = std::make_shared<BridgeBlock>(blockID, x, y, def,
+                                                      m_LevelName);
                 m_BridgeBlocks.push_back(block.get());
             } else if (def.background) {
-                auto bgBlock = std::make_shared<BackgroundBlock>(blockID, x, y, def, m_LevelName);
+                auto bgBlock = std::make_shared<BackgroundBlock>(
+                    blockID, x, y, def, m_LevelName);
                 if (bgBlock->IsCastleDoor()) {
-                    m_CastleDoorX = static_cast<float>(x * GameConfig::TILE_SIZE);
+                    m_CastleDoorX =
+                        static_cast<float>(x * GameConfig::TILE_SIZE);
                 }
                 block = bgBlock;
             } else if (def.name == "InvisQuestionBlock") {
-                block = std::make_shared<InvisibleBlock>(blockID, x, y, def, m_LevelName);
+                block = std::make_shared<InvisibleBlock>(blockID, x, y, def,
+                                                         m_LevelName);
             } else if (def.isContainer) {
-                block = std::make_shared<QuestionBlock>(blockID, x, y, def, m_LevelName);
+                block = std::make_shared<QuestionBlock>(blockID, x, y, def,
+                                                        m_LevelName);
             } else if (def.breakable) {
-                block = std::make_shared<BrickBlock>(blockID, x, y, def, m_LevelName);
+                block = std::make_shared<BrickBlock>(blockID, x, y, def,
+                                                     m_LevelName);
             } else {
-                block = std::make_shared<StoneBlock>(blockID, x, y, def, m_LevelName);
+                block = std::make_shared<StoneBlock>(blockID, x, y, def,
+                                                     m_LevelName);
             }
             m_Blocks.push_back(block);
             m_GridBlocks[y * m_Width + x] = block.get();
@@ -397,8 +406,13 @@ void Level::IdentifySpawnPoints() {
 }
 
 void Level::UpdateBlocks(float cameraOffset) {
-    int startCol = std::max(0, static_cast<int>(cameraOffset - GameConfig::TILE_SIZE * 2) / GameConfig::TILE_SIZE);
-    int endCol = std::min(m_Width - 1, static_cast<int>(cameraOffset + GameConfig::WINDOW_WIDTH + GameConfig::TILE_SIZE * 2) / GameConfig::TILE_SIZE);
+    int startCol =
+        std::max(0, static_cast<int>(cameraOffset - GameConfig::TILE_SIZE * 2) /
+                        GameConfig::TILE_SIZE);
+    int endCol = std::min(
+        m_Width - 1, static_cast<int>(cameraOffset + GameConfig::WINDOW_WIDTH +
+                                      GameConfig::TILE_SIZE * 2) /
+                         GameConfig::TILE_SIZE);
 
     // Hide blocks in columns that just went off-screen
     if (m_PrevStartCol == -1) {
@@ -437,8 +451,10 @@ void Level::UpdateBlocks(float cameraOffset) {
         if (plat && !plat->IsBroken()) {
             float worldX = plat->GetWorldX();
             float screenX = worldX - cameraOffset;
-            bool visible = (screenX + GameConfig::TILE_SIZE > -GameConfig::TILE_SIZE * 2) &&
-                           (screenX < GameConfig::WINDOW_WIDTH + GameConfig::TILE_SIZE * 2);
+            bool visible = (screenX + GameConfig::TILE_SIZE >
+                            -GameConfig::TILE_SIZE * 2) &&
+                           (screenX < GameConfig::WINDOW_WIDTH +
+                                          GameConfig::TILE_SIZE * 2);
             plat->SetVisible(visible);
             if (visible) {
                 plat->Update(cameraOffset);
@@ -532,6 +548,16 @@ std::vector<std::string> Level::SplitCSVLine(const std::string& line) const {
 bool Level::IsUnderground() const {
     return m_LevelName.find('u') != std::string::npos || m_LevelName == "1-2" ||
            m_LevelName == "8-4";
+}
+
+// ============================================================================
+// GetBGMTheme
+// Maps the level to its BGM theme so callers never compare level-name strings.
+// ============================================================================
+BGMTheme Level::GetBGMTheme() const {
+    if (IsBossLevel()) return BGMTheme::Castle;
+    if (IsUnderground()) return BGMTheme::Underground;
+    return BGMTheme::Ground;
 }
 
 void Level::CollapseBridge() {

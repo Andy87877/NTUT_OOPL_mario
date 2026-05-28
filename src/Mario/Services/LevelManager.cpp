@@ -5,14 +5,15 @@
  * @inheritance ILevelService <- LevelManager
  */
 #include "Mario/Services/LevelManager.hpp"
+
+#include <GL/glew.h>
+
 #include "App.hpp"
 #include "Mario/Level/EntityDef.hpp"
 #include "Mario/Level/EntityFactory.hpp"
 #include "Mario/Services/AudioManager.hpp"
 #include "Mario/Services/ServiceLocator.hpp"
 #include "Util/Logger.hpp"
-
-#include <GL/glew.h>
 
 namespace Mario {
 
@@ -48,9 +49,11 @@ void LevelManager::LoadLevel(App& app, const std::string& levelName) {
     // Spawn entities (Goomba, KoopaTroopa, etc.) from level data
     m_Entities = Mario::EntityFactory::SpawnFromLevel(*m_Level);
 
-    // Look for the Flag entity in spawn list
+    // Look for the Flag entity using the polymorphic identity query —
+    // avoids EntityType comparison outside the Factory (OCP / DIP).
     for (auto& entity : m_Entities) {
-        if (entity && entity->GetDef().type == Mario::EntityType::FLAG) {
+        if (entity && entity->GetBehavior() &&
+            entity->GetBehavior()->IsFlag()) {
             m_FlagEntity = entity;
             break;
         }
@@ -103,9 +106,11 @@ void LevelManager::PlayCurrentBGM(App& app) {
             hurry ? Mario::BGMName::InvincibilityThemeHurryUp
                   : Mario::BGMName::InvincibilityTheme);
     } else {
-        // AudioManager is singleton,AudioManager manages BGM
+        // Delegate BGM selection to Level::GetBGMTheme() — no level-name
+        // string comparison here (OCP).
         Mario::AudioManager::GetInstance().PlayBGMForLevel(
-            m_CurrentLevelName, app.GetGameState().GetTimeRemaining());
+            m_Level ? m_Level->GetBGMTheme() : Mario::BGMTheme::Ground,
+            app.GetGameState().GetTimeRemaining());
     }
 }
 

@@ -29,8 +29,9 @@ namespace Mario {
 class KoopaBehavior : public IEntityBehavior {
    public:
     enum class KoopaType {
-        TROOPA,  // Living Koopa (patrol movement)
-        SHELL,   // Shell form (passive, moved only via external velocity)
+        TROOPA,      // Living green Koopa (walks off cliffs)
+        RED_TROOPA,  // Living red Koopa (turns around at ledges)
+        SHELL,       // Shell form (passive, moved only via external velocity)
     };
 
     explicit KoopaBehavior(KoopaType type = KoopaType::TROOPA);
@@ -72,6 +73,9 @@ class AxeKoopaBehavior : public IEntityBehavior {
                              int& outDir) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "AxeKoopaBehavior"; }
+
+    /** AxeKoopa spawns enemy axe projectiles (OCP — no EntityType check). */
+    bool IsEnemySpawner() const override { return true; }
 
    private:
     static constexpr float WALK_SPEED = 0.5f;

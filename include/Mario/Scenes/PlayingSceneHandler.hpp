@@ -9,11 +9,14 @@
 #define MARIO_PLAYING_SCENE_HANDLER_HPP
 
 #include <vector>
+
 #include "Mario/Scenes/ISceneHandler.hpp"
 
 namespace Mario {
 
 class Block;
+class Level;
+class PlayerState;
 
 /**
  * Handles the primary gameplay loop while App is in State::PLAYING.
@@ -77,7 +80,23 @@ class PlayingSceneHandler : public ISceneHandler {
     void CleanupDeadEntities(App& app) const;
 
     // -- BGM State Tracking --
-    /** Tracks whether the invincibility Star theme was active in the last frame. */
+    /**
+     * Shared flagpole-entry trigger logic (DRY helper).
+     * Plays SFX/BGM, stops the timer, transitions state, initialises the pole
+     * slide, and cancels star power.  Called from both the AABB-intersection
+     * path and the X-range fallback path in CheckFlagpoleCollision so the
+     * identical 12-line block is written exactly once.
+     *
+     * @param app  Game application reference
+     * @param ps   Player state to modify
+     * @param poleX  Snapped X position Mario should align to on the pole
+     * @param level  Current level (used for IsBossLevel() BGM selection)
+     */
+    void TriggerFlagpoleEntry(App& app, PlayerState& ps, float poleX,
+                              const Level& level) const;
+
+    /** Tracks whether the invincibility Star theme was active in the last
+     * frame. */
     bool m_WasStarActive;
 };
 

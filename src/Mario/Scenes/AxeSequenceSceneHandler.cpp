@@ -7,6 +7,7 @@
 #include "Mario/Scenes/AxeSequenceSceneHandler.hpp"
 
 #include <vector>
+
 #include "App.hpp"
 #include "Mario/Core/GameConfig.hpp"
 #include "Mario/Level/Block.hpp"
@@ -21,10 +22,12 @@ void AxeSequenceSceneHandler::OnEnter(App& app) {
     m_bowser = nullptr;
     m_princess = nullptr;
 
-    // Find Bowser and Princess in the entity list
+    // Find Bowser and Princess in the entity list using polymorphic queries
+    // — avoids EntityType comparisons outside the Factory (OCP / DIP).
     for (const auto& entity : app.GetEntities()) {
-        if (entity && entity->GetDef().type == EntityType::BOWSER) m_bowser = entity;
-        if (entity && entity->GetDef().type == EntityType::PRINCESS) m_princess = entity;
+        auto* b = entity ? entity->GetBehavior() : nullptr;
+        if (b && b->IsBowser()) m_bowser = entity;
+        if (b && b->IsPrincess()) m_princess = entity;
     }
 
     auto& player = app.GetPlayer();
@@ -83,10 +86,10 @@ void AxeSequenceSceneHandler::Update(App& app) {
 void AxeSequenceSceneHandler::OnRender(App& app) {
     app.ApplyBackground(true);  // Black background for ending cutscene
     app.GetRenderer().Update();
-    auto endPhase = (m_Phase == Phase::PRINCESS_DIALOG ||
-                     m_Phase == Phase::COMPLETED)
-                        ? Mario::UIManager::EndingTextPhase::CREDITS
-                        : Mario::UIManager::EndingTextPhase::NONE;
+    auto endPhase =
+        (m_Phase == Phase::PRINCESS_DIALOG || m_Phase == Phase::COMPLETED)
+            ? Mario::UIManager::EndingTextPhase::CREDITS
+            : Mario::UIManager::EndingTextPhase::NONE;
     app.GetUIManager().SetEndingPhase(endPhase);
     app.GetUIManager().Update(Mario::UIManager::State::AXE_SEQUENCE);
 }
@@ -131,7 +134,8 @@ void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
             PlayerState& ps = player.GetState();
             ps.SetMovingRight(true);
             ps.SetFacingRight(true);
-            ps.SetX(ps.GetX() + GameConfig::SCALED_SPEED * 0.5f);  // Walk slower
+            ps.SetX(ps.GetX() +
+                    GameConfig::SCALED_SPEED * 0.5f);  // Walk slower
 
             if (m_princess && m_princess->GetState().IsActive()) {
                 float princessX = m_princess->GetState().GetX();

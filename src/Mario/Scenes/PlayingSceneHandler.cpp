@@ -5,18 +5,18 @@
  * @inheritance ISceneHandler <- PlayingSceneHandler
  */
 #include "Mario/Scenes/PlayingSceneHandler.hpp"
-#include "Mario/Scenes/FlagpoleSceneHandler.hpp"
-#include "Mario/Scenes/PipeWarpSceneHandler.hpp"
-#include "Mario/Scenes/AxeSequenceSceneHandler.hpp"
 
 #include <cmath>
 #include <limits>
 
 #include "App.hpp"
-#include "Mario/Services/AudioManager.hpp"
 #include "Mario/Collision/BlockContactResolver.hpp"
-#include "Mario/Level/EntityFactory.hpp"
 #include "Mario/Core/GameConfig.hpp"
+#include "Mario/Level/EntityFactory.hpp"
+#include "Mario/Scenes/AxeSequenceSceneHandler.hpp"
+#include "Mario/Scenes/FlagpoleSceneHandler.hpp"
+#include "Mario/Scenes/PipeWarpSceneHandler.hpp"
+#include "Mario/Services/AudioManager.hpp"
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
 #include "Util/Logger.hpp"
@@ -114,12 +114,12 @@ void PlayingSceneHandler::Update(App& app) {
             (entityX + entityWidth >= leftBound && entityX <= rightBound);
 
         // Always update short-lived particles/debris, and only update regular
-        // entities when within viewport window. Also fireballs shot by the
-        // player should keep moving even if they go slightly off screen.
+        // entities when within viewport window.
+        // IsPlayerFireball() is resolved polymorphically via IEntityBehavior —
+        // no EntityType or IsEnemy() check here (OCP / Strategy Pattern).
         auto behavior = entity->GetBehavior();
         bool isParticle = behavior && behavior->AlwaysUpdate();
-        bool isPlayerFireball = (entity->GetDef().type == EntityType::FIRE &&
-                                 !entity->GetState().IsEnemy());
+        bool isPlayerFireball = behavior && behavior->IsPlayerFireball();
 
         if (inUpdateWindow || isParticle || isPlayerFireball) {
             if (behavior) {
@@ -166,7 +166,8 @@ void PlayingSceneHandler::Update(App& app) {
     CheckPlayerEntityCollision(app);
     CheckEntityEntityCollision(app);
 
-    if (app.GetCurrentLevelName() == "8-4") {
+    // IsBossLevel() encapsulates the "8-4" name inside Level (OCP/DRY).
+    if (level->IsBossLevel()) {
         CheckAxeCollision(app);
     }
 
@@ -175,8 +176,7 @@ void PlayingSceneHandler::Update(App& app) {
 
     // -- Camera + level blocks --
     app.GetCamera().Update(player->GetWorldX(), level->GetWidthPixels(),
-                           app.GetCurrentLevelName(),
-                           false);
+                           app.GetCurrentLevelName(), false);
     level->UpdateBlocks(app.GetCamera().GetOffset());
 
     // -- Brick-debris particles --
@@ -290,6 +290,39 @@ void PlayingSceneHandler::OnRender(App& app) {
 }
 
 // ============================================================================
+// TriggerFlagpoleEntry — shared helper (DRY)
+// Both the AABB-intersection path and the X-range fallback path in
+// CheckFlagpoleCollision need exactly the same state changes.
+// Extracting here removes ~12 lines of duplication and makes the BGM
+// selection (IsBossLevel) centralised in one place.
+// ============================================================================
+void PlayingSceneHandler::TriggerFlagpoleEntry(App& app, PlayerState& ps,
+                                               float poleX,
+                                               const Level& level) const {
+    Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Flagpole);
+    Mario::AudioManager::GetInstance().PlayBGM(
+        level.IsBossLevel() ? Mario::BGMName::CastleCompleteTheme
+                            : Mario::BGMName::LevelCompleteTheme);
+    app.GetGameState().StopTime();
+    app.TransitionTo(App::State::FLAGPOLE);
+
+    // Align Mario to the pole and stop movement.
+    ps.SetControllable(false);
+    ps.SetPoleSliding(true);
+    ps.SetX(poleX);
+    ps.SetVelX(0.0f);
+    ps.SetVelY(0.0f);
+
+    // Cancel star power — the level-complete theme replaces the star theme.
+    if (ps.GetPowerState() == PowerState::SMALL_STAR ||
+        ps.GetPowerState() == PowerState::BIG_STAR) {
+        ps.SetPowerState(ps.GetPowerState() == PowerState::BIG_STAR
+                             ? PowerState::BIG
+                             : PowerState::SMALL);
+    }
+}
+
+// ============================================================================
 // CheckFlagpoleCollision — owned by PlayingSceneHandler (PLAYING state only)
 // ============================================================================
 void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
@@ -298,35 +331,14 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
 
     Mario::PlayerState& ps = player->GetState();
     Mario::AABB playerBox = ps.GetHitbox();
-    const std::string& lvl = app.GetCurrentLevelName();
+    const auto& level = app.GetLevel();
 
-    for (const auto& block : app.GetLevel()->GetGoalBlocks()) {
+    for (const auto& block : level->GetGoalBlocks()) {
         if (!playerBox.Intersects(block->GetAABB())) continue;
-
         LOG_INFO("Flagpole reached at block ({}, {})", block->GetGridX(),
                  block->GetGridY());
-        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Flagpole);
-        Mario::AudioManager::GetInstance().PlayBGM(
-            lvl == "8-4" ? Mario::BGMName::CastleCompleteTheme
-                         : Mario::BGMName::LevelCompleteTheme);
-        app.GetGameState().StopTime();
-        app.TransitionTo(App::State::FLAGPOLE);
-        
-        // Initialize player state for flagpole slide
-        ps.SetControllable(false);
-        ps.SetPoleSliding(true);
         float poleX = block->GetWorldX() - GameConfig::TILE_SIZE * 0.4f;
-        ps.SetX(poleX);
-        ps.SetVelX(0.0f);
-        ps.SetVelY(0.0f);
-
-        // Stop star power
-        if (ps.GetPowerState() == PowerState::SMALL_STAR ||
-            ps.GetPowerState() == PowerState::BIG_STAR) {
-            ps.SetPowerState(ps.GetPowerState() == PowerState::BIG_STAR
-                                 ? PowerState::BIG
-                                 : PowerState::SMALL);
-        }
+        TriggerFlagpoleEntry(app, ps, poleX, *level);
         return;
     }
 
@@ -337,7 +349,7 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
     // explicit X-range check as a safety net.
     const Block* topmostGoal = nullptr;
     float topmostY = std::numeric_limits<float>::max();
-    for (const auto& block : app.GetLevel()->GetGoalBlocks()) {
+    for (const auto& block : level->GetGoalBlocks()) {
         Mario::AABB bBox = block->GetAABB();
         if (playerBox.right > bBox.left && playerBox.left < bBox.right) {
             if (block->GetWorldY() < topmostY) {
@@ -349,28 +361,8 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
     if (topmostGoal) {
         LOG_INFO("Flagpole X-range fallback at block ({}, {})",
                  topmostGoal->GetGridX(), topmostGoal->GetGridY());
-        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Flagpole);
-        Mario::AudioManager::GetInstance().PlayBGM(
-            lvl == "8-4" ? Mario::BGMName::CastleCompleteTheme
-                         : Mario::BGMName::LevelCompleteTheme);
-        app.GetGameState().StopTime();
-        app.TransitionTo(App::State::FLAGPOLE);
-
-        // Initialize player state for flagpole slide
-        ps.SetControllable(false);
-        ps.SetPoleSliding(true);
         float poleX = topmostGoal->GetWorldX() - GameConfig::TILE_SIZE * 0.4f;
-        ps.SetX(poleX);
-        ps.SetVelX(0.0f);
-        ps.SetVelY(0.0f);
-
-        // Stop star power
-        if (ps.GetPowerState() == PowerState::SMALL_STAR ||
-            ps.GetPowerState() == PowerState::BIG_STAR) {
-            ps.SetPowerState(ps.GetPowerState() == PowerState::BIG_STAR
-                                 ? PowerState::BIG
-                                 : PowerState::SMALL);
-        }
+        TriggerFlagpoleEntry(app, ps, poleX, *level);
     }
 }
 
@@ -455,8 +447,10 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
                 (time <= 100 && time > 0) ? Mario::BGMName::IntoThePipeHurryUp
                                           : Mario::BGMName::IntoThePipeTheme);
             app.GetGameState().StopTime();
-            if (app.GetGameState().GetLevelName() == "1-2") {
-                app.GetGameState().SetNextLevelOverride("8-4");
+            // Level knows its own sublevel name — no "1-2" hardcode here.
+            if (app.GetLevel()->HasSubLevel()) {
+                app.GetGameState().SetNextLevelOverride(
+                    app.GetLevel()->GetSubLevelName());
             }
             app.GetGameState().SetWarpInfo("Down", pipeDX, pipeDY);
             app.TransitionTo(App::State::PIPE_WARP);
@@ -477,8 +471,10 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
                 (time <= 100 && time > 0) ? Mario::BGMName::IntoThePipeHurryUp
                                           : Mario::BGMName::IntoThePipeTheme);
             app.GetGameState().StopTime();
-            if (app.GetGameState().GetLevelName() == "1-2") {
-                app.GetGameState().SetNextLevelOverride("8-4");
+            // Level knows its own sublevel name — no "1-2" hardcode here.
+            if (app.GetLevel()->HasSubLevel()) {
+                app.GetGameState().SetNextLevelOverride(
+                    app.GetLevel()->GetSubLevelName());
             }
             app.GetGameState().SetWarpInfo("Right", pipeRX, pipeRY);
             app.TransitionTo(App::State::PIPE_WARP);
@@ -496,7 +492,9 @@ void PlayingSceneHandler::CheckAxeCollision(App& app) const {
 
     Mario::AABB playerBox = player->GetState().GetHitbox();
     for (const auto& entity : app.GetEntities()) {
-        if (entity && entity->GetDef().type != EntityType::AXE) continue;
+        if (!entity || !entity->GetBehavior() ||
+            !entity->GetBehavior()->IsAxe())
+            continue;
         float axeX = entity->GetState().GetX();
         float axeY = entity->GetState().GetY();
         Mario::AABB extendedAxeBox{axeX - 5.0f, axeY, axeX + 55.0f,
@@ -509,7 +507,7 @@ void PlayingSceneHandler::CheckAxeCollision(App& app) const {
             // Princess is only spawned in the final boss room.
             bool hasPrincess = false;
             for (const auto& e : app.GetEntities()) {
-                if (e && e->GetDef().type == EntityType::PRINCESS &&
+                if (e && e->GetBehavior() && e->GetBehavior()->IsPrincess() &&
                     e->GetState().IsActive()) {
                     hasPrincess = true;
                     break;
