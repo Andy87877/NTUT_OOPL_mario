@@ -49,6 +49,10 @@ void App::Start() {
     m_InputHandler = std::make_unique<Mario::InputHandler>();
     m_UIManager = std::make_unique<Mario::UIManager>(&m_GameState);
 
+    // Register GameStateManager in ServiceLocator (DIP / Service Locator)
+    auto gameStateService = std::shared_ptr<Mario::GameStateManager>(&m_GameState, [](Mario::GameStateManager*) {});
+    Mario::ServiceLocator::GetInstance().RegisterService<Mario::GameStateManager>(gameStateService);
+
     // Register IAudioService singleton with the ServiceLocator (DIP / Service
     // Locator pattern)
     auto audioService = std::shared_ptr<Mario::IAudioService>(

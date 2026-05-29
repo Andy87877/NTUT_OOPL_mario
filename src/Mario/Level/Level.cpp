@@ -316,21 +316,34 @@ void Level::CreateBlocksFromGrid() {
 
             // Entity spawn points (via block spawner flag)
             if (it->second.spawner && !it->second.spawnEntity.empty()) {
-                SpawnPoint sp;
-                sp.entityName = it->second.spawnEntity;
-                sp.gridX = x;
-                sp.gridY = y;
-                sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE);
-                sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE);
-
-                auto eit = m_EntityNameToID.find(sp.entityName);
-                if (eit != m_EntityNameToID.end()) {
-                    sp.entityID = eit->second;
+                // To support multi-tile vertical spawners/pipes in an extensible way,
+                // if the block directly above also spawns the exact same entity,
+                // we treat the current block as the lower body of the spawner and skip spawning.
+                bool skipSpawn = false;
+                int blockAboveID = (y > 0) ? m_Grid[y - 1][x] : 0;
+                auto ait = m_BlockDefs.find(blockAboveID);
+                if (ait != m_BlockDefs.end() && ait->second.spawner &&
+                    ait->second.spawnEntity == it->second.spawnEntity) {
+                    skipSpawn = true;
                 }
 
-                m_SpawnPoints.push_back(sp);
-                LOG_DEBUG("Created spawner at ({},{}): {} (ID={})", x, y,
-                          sp.entityName, sp.entityID);
+                if (!skipSpawn) {
+                    SpawnPoint sp;
+                    sp.entityName = it->second.spawnEntity;
+                    sp.gridX = x;
+                    sp.gridY = y;
+                    sp.worldX = static_cast<float>(x * GameConfig::TILE_SIZE);
+                    sp.worldY = static_cast<float>(y * GameConfig::TILE_SIZE);
+
+                    auto eit = m_EntityNameToID.find(sp.entityName);
+                    if (eit != m_EntityNameToID.end()) {
+                        sp.entityID = eit->second;
+                    }
+
+                    m_SpawnPoints.push_back(sp);
+                    LOG_DEBUG("Created spawner at ({},{}): {} (ID={})", x, y,
+                              sp.entityName, sp.entityID);
+                }
 
                 // Non-solid spawners are invisible markers — skip block
                 // creation. Solid spawners (e.g. PiranhaPipeTop) also render as

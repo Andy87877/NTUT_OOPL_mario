@@ -102,6 +102,10 @@ class GameStateManager {
     bool IsGameWon() const { return m_GameWon; }
     void SetGameWon(bool v = true) { m_GameWon = v; }
 
+    // Cheat Mode (外掛模式)
+    bool IsCheatModeActive() const { return m_CheatModeActive; }
+    void SetCheatModeActive(bool active) { m_CheatModeActive = active; }
+
    private:
     // Score / coins / lives
     int m_Score = 0;
@@ -128,6 +132,7 @@ class GameStateManager {
     // Persistence across levels
     int m_SavedPowerState = 0;  // 0=small, 1=big, 2=fire
     bool m_GameWon = false;
+    bool m_CheatModeActive = false;
 
     static const std::vector<LevelEntry> LEVEL_SEQUENCE;
 };

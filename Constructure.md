@@ -1,6 +1,6 @@
 # Super Mario Bros. — PTSD C++ OOP 架構設計 (Constructure)
 
-> **Last synced:** 2026-05-28
+> **Last synced:** 2026-05-29
 > **關卡:** 1-1 (Ground) → 1-2 (Underground) → 8-4 (Castle + Boss)
 
 本專案將 C# 版本的 God Class (`Form1.cs`) 徹底解耦，轉換為符合現代 C++ 標準的  
@@ -66,6 +66,7 @@
    - 5.12 State Pattern — 零向下轉型狀態傳參
    - 5.13 State Pattern — IPlayerForm 力量型態
    - 5.14 MVC 完整運作序列圖
+   - 5.15 外掛模式 (Cheat Mode) 深度設計
 6. [深度行為與互動 UML 圖](#6-深度行為與互動-uml-圖)
    - 6.1 系統分層架構鳥瞰圖 (Layered Architecture)
    - 6.2 完整全系統依賴關係圖 (Full Dependency Map)
@@ -641,6 +642,8 @@ classDiagram
         -m_TransitionTimer: int
         -m_PrevPowerState: PowerState
         -m_DeathAnimation: unique_ptr~IPlayerDeathAnimation~
+        -m_LastJumpPoint: Position2D
+        -m_CheatStarActive: bool
         +Init()
         +Tick()
         +ApplyGravity() float
@@ -653,6 +656,8 @@ classDiagram
         +CanShootFire() bool
         +GetTransitionTimer() int
         +GetPrevPowerState() PowerState
+        +GetLastJumpPoint() Position2D
+        +SetLastJumpPoint(x, y)
     }
 
     class Player {
@@ -900,7 +905,7 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 | 移動平台載人 | `PlayingSceneHandler.cpp` | 每幀讀 `plat->GetLastDeltaX/Y()`；Y gap < 2px 且 X overlap 即同步 Mario 座標。 |
 | 無敵星星殺敵 | `CollisionManager.cpp` | `ps.GetStarTimer() > 0` 時直接刪敵、計分、顯示浮動文字。 |
 | 連續踩踏分數 | `CollisionManager.cpp` | `m_StompCombo`；落地重置；分數序列 100→200→400→800→1000。 |
-| 食人花安全半徑 | `PiranhaPlantBehavior.cpp` | Mario 進入 `MARIO_SAFE_RADIUS = 45px` 時植物立即開始縮回。 |
+| 食人花安全半徑 | `PiranhaPlantBehavior.cpp` | Mario 進入 `MARIO_SAFE_RADIUS = 112.5px` (2.5×TILE) 時，植物在 EMERGING 或 VISIBLE 階段會立即開始縮回（防偷襲機制）。 |
 | 磚塊粒子初速 | `ParticleDebris.cpp` | 左上(-3,-6)、右上(+3,-6)、左下(-3,-4)、右下(+3,-4)；後續由 PhysicsEngine 累積重力。 |
 
 ---
@@ -1227,6 +1232,64 @@ sequenceDiagram
 
 ---
 
+### 5.15 外掛模式 (Cheat Mode) 深度設計
+
+外掛模式（Cheat Mode）的加入為專案提供了絕佳的 OOP 擴充展示。在避免「上帝類別（God Class）污染」與「義大利麵條耦合」的原則下，本專案將外掛模式的狀態完全封裝於 MVC 結構中，並高度重用了現有的設計模式。
+
+#### 1. 服務定位器解耦 (Service Locator & DIP)
+- 外掛開關狀態 `m_CheatModeActive` 被儲存於全域 `GameStateManager` 服務中。
+- `App::Start()` 時，`m_GameState` 被註冊到型態安全的 `ServiceLocator`。
+- `PlayerState` 與 `UIManager` 不再需要向 `App` 進行深層反向依賴，而是直接從 `ServiceLocator` 取得 `GameStateManager` 服務，完美符合 **DIP（依賴反轉原則）**。
+
+#### 2. 多型狀態/策略的高度重用 (Strategy & State Reusability)
+- **無限無敵星星狀態** 並非透過在主角類別中硬編碼「若外掛開啟則無敵」的 `if-else` 分支來實現，而是直接操作現有的 `IPlayerForm` 策略模式！
+- 在 `PlayerState::Tick()` 中，若偵測到外掛已開啟：
+  1. 主角會自動調用 `StartStar()` 動態將自身的 Strategy 轉換為 `SmallStarPlayerForm` 或 `BigStarPlayerForm`。
+  2. **動態動畫色彩循環**：為了避免星星計時器固定於 500 導致無敵色彩 `(m_StarTimer / 10) % 4` 固定、使 Mario 看起來像是一張沒有動態閃爍效果的靜態圖片，Tick 邏輯在無敵外掛啟動時會允許 `m_StarTimer` 每幀自然遞減，並僅在計時器小於 100 時將其充能重置回 500。這使 `starState` 每 10 幀切換一次，呈現出極為生動且無限循環的經典無敵星星動態色彩效果。
+  3. 這使得無敵星星的物理免疫、無碰撞受傷、踩踏即死判定等功能**完全由現有的多型子類別自主運作**。
+- **火焰火球遠程攻擊 (Fire Mario Ability)**：`PlayerState::CanShootFire()` 進行了多型功能擴展，當外掛模式開啟時一律回傳 `true`。這使得馬力歐不論處於何種力量型態（小馬力歐或大馬力歐），都可以在無敵星星狀態下無限發射火球，直接具備火焰馬力歐（Fire Mario）的遠程火球擊殺能力，大幅提升了外掛模式的遊戲打擊體驗！
+- **無縫還原**：當玩家關閉外掛時，`PlayerState` 會自動清除 `m_StarTimer`，狀態機會極為安全地調用 `CreatePlayerForm(m_MemoryState)` 回退到玩家原本的形態（例如 `FIRE` 或 `BIG`），並自動還原背景音樂，程式結構清晰明瞭。
+
+#### 3. 虛空救援與安全點追蹤 (Void Rescuing & Jump Point Tracking)
+- **跳躍點追蹤**：當玩家正常進行遊戲並按下跳躍時（進入 `PlayerState::SetJumping`），Model 層會自動在原地記錄當前的坐標為 `m_LastJumpPoint`。
+- **虛空攔截與傳送**：當玩家掉入深淵或岩漿時，`PlayingSceneHandler::Update()` 會透過 `CollisionManager::CheckPitFall()` 進行偵測：
+  - **外掛關閉**：觸發常規的 `ps.StartDeathAnimation()` 死亡流程。
+  - **外掛開啟**：不觸發死亡，而是從 `ps.GetLastJumpPoint()` 獲取上一個起跳坐標，直接進行 Y 軸微調傳送，重置其各方向速度，播放 Warp 音效，並賦予 `60` 幀的無敵保護時間。
+
+#### 4. UI 擴充 (UI Panels Expansion)
+- `ESCMenuPanel`（Strategy）在 `Refresh(gs)` 中直接查詢 `gs.IsCheatModeActive()`，並將選單項從 5 個擴充至 6 個，以供玩家使用 UP/DOWN 導航並利用 RETURN 來自由切換外掛開關。
+- `UIManager` 中新增 `m_CheatModeText`，當偵測到外掛開啟時，會在螢幕底部中央位置繪製高質感的金色 `"CHEAT MODE ENABLED"` 英文通知，保證玩家視覺體驗的高級感。
+
+---
+
+### 5.16 未來 OOP 擴充性前瞻設計 — 暫停選單 Command 模式解耦
+
+**現狀分析：**
+目前在 `ESCMenuSceneHandler::Update` 中，選單動作（Resume、關卡切換、力量作弊、外掛開關）是透過一個硬編碼的 `switch(sel)` 進行分支處理。這在項目小巧時非常直白，但若未來要新增更多調試功能（例如：開啟重力倍率、一鍵清除畫面上所有敵人、倍速遊戲等），需要修改 `ESCMenuSceneHandler` 的 `MENU_ITEM_COUNT` 與 `switch-case` 核心邏輯，不符合開閉原則（OCP）。
+
+**前瞻 OOP 設計：**
+可以導入 **Command Pattern（命令模式）** 或 **Action Strategy（動作策略）**：
+1. **定義抽象命令介面 `IESCMenuItem`**：
+   ```cpp
+   class IESCMenuItem {
+      public:
+       virtual ~IESCMenuItem() = default;
+       virtual std::string GetDisplayText(const GameStateManager& gs) = 0;
+       virtual void Execute(App& app) = 0;
+   };
+   ```
+2. **實作具體命令類別**：
+   - `ResumeMenuItem`: `Execute(app)` 調用 `app.TransitionTo(PLAYING)`。
+   - `LevelWarpMenuItem`: 構造時傳入 world, level，`Execute` 時跳轉至該關卡。
+   - `PowerCheatMenuItem`: 循環玩家型態。
+   - `CheatToggleMenuItem`: 開關 `GameStateManager` 中的外掛狀態。
+3. **動態載入選單項**：
+   - `ESCMenuSceneHandler` 內部持有一個 `std::vector<std::unique_ptr<IESCMenuItem>> m_Items`。
+   - 這樣一來，`Update()` 只需要無腦執行 `m_Items[sel]->Execute(app)`，而 `Refresh()` 也只需迴圈調用 `GetDisplayText()`！
+   - 新增、修改或調整選單項目時，核心類別完全不需要任何修改，實現選單項的 100% 動態擴充與完美解耦。
+
+---
+
 ## 6. 深度行為與互動 UML 圖
 
 本節補充第 1 節繼承樹之外，更側重**跨系統互動、生命週期、動態行為**的 Mermaid 圖表，完整呈現本專案的 OOP 深度設計。
@@ -1347,6 +1410,7 @@ classDiagram
         -m_TimeCounter
         -m_LevelSequence
         -m_WarpInfo (DTO)
+        -m_CheatModeActive
     }
     class ServiceLocator {
         <<Singleton>>
@@ -1388,6 +1452,8 @@ classDiagram
         <<Model>>
         -m_Form IPlayerForm
         -m_DeathAnim IPlayerDeathAnimation
+        -m_LastJumpPoint Position2D
+        -m_CheatStarActive bool
     }
     class EntityState {
         <<Model>>
@@ -1730,7 +1796,7 @@ sequenceDiagram
 | `Mario/Core/SpritePathResolver.cpp` | 434 | 全靜態 mapping 表與 s_ResolvedPathCache 快取，避免磁碟每幀重複 I/O 開銷。 |
 | `Mario/Level/Block.cpp` | 423 | s_BlockSpriteCache 快取；實作 7 個 Block 子類別 HandleOnHit 多型。 |
 | `Mario/Level/MovingPlatform.cpp` | 114 | 移動平台（垂直/水平）移動物理與 Snap 載人邏輯。 |
-| `Mario/Level/Level.cpp` | 572 | CSV 載入與二維 Block 扁平陣列 O(1) 索引；視口 culling column 效率優化。 |
+| `Mario/Level/Level.cpp` | 586 | CSV 載入與二維 Block 扁平陣列 O(1) 索引；視口 culling column 效率優化；純資料驅動食人花重疊過濾（零硬編碼）。 |
 | `Mario/Player/PlayerState.cpp` | 374 | Player MVC Model；蹲下高度動態調整；自定義非內聯解構子。 |
 | `Mario/Player/PlayerForm.cpp` | 303 | IPlayerForm 及 5 種力量型態子類別多型升級與傷害退化轉換實作。 |
 | `Mario/Player/PlayerDeathAnimation.cpp` | 35 | ClassicPlayerDeathAnimation 死亡策略動畫（凍結➔起跳➔下墜）。 |
@@ -1745,13 +1811,13 @@ sequenceDiagram
 | `Mario/Collision/BlockContactResolver.cpp` | 116 | 靜態 Snap helpers（Down/Up/Right/Left）與 BodyRect 全高碰撞體建立。 |
 | `Mario/Collision/PlayerBlockHandler.cpp` | 315 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
 | `Mario/Collision/PlayerEntityHandler.cpp` | 271 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
-| `Mario/Collision/EntityBlockHandler.cpp` | 136 | 實體-方塊碰撞：處理反彈/反向/落坑/火球爆炸生成。 |
+| `Mario/Collision/EntityBlockHandler.cpp` | 137 | 實體-方塊碰撞：處理反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形。 |
 | `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
 | `Mario/Level/GameStateManager.cpp` | 107 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
 | `Mario/Scenes/MenuSceneHandlers.cpp` | 128 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
 | `Mario/Scenes/LoadingSceneHandler.cpp` | 47 | 加載畫面（預載貼圖，強制黑色背景）。 |
-| `Mario/Scenes/PlayingSceneHandler.cpp` | 574 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
-| `Mario/Scenes/FlagpoleSceneHandler.cpp` | 199 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
+| `Mario/Scenes/PlayingSceneHandler.cpp` | 582 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
+| `Mario/Scenes/FlagpoleSceneHandler.cpp` | 202 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
 | `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
 | `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 169 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
 | `Mario/Scenes/ESCMenuSceneHandler.cpp` | 129 | 暫停選單邏輯，包含 5-item（RESUME/1-1/1-2/8-4/POWER作弊變身切換）。 |
@@ -1770,12 +1836,12 @@ sequenceDiagram
 | `Mario/Behaviors/FireballBehavior.cpp` | 106 | 火球拋物線與碰撞爆炸物理。 |
 | `Mario/Behaviors/ItemBehaviors.cpp` | 154 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
 | `Mario/Behaviors/StaticEntityBehaviors.cpp` | 116 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（合併實作）。 |
-| `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 156 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 1.5×TILE 檢查。 |
+| `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 163 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 2.5×TILE 檢查與冒出取消（防偷襲）。 |
 | `Mario/Behaviors/PodobooBehavior.cpp` | 107 | 岩漿火球定時向上彈跳無視地形 AI。 |
 | `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 52 | 破碎磚塊碎屑粒子策略。 |
 
-**Total: 48 source files, 8,990 lines of C++17 OOP code** (排除 entry `main.cpp` 與孤兒 leftover `src/Mario/UIManager.cpp`)。
+**Total: 48 source files, 8,989 lines of C++17 OOP code** (排除 entry `main.cpp` 與孤兒 leftover `src/Mario/UIManager.cpp`)。
 
 ---
 

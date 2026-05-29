@@ -112,7 +112,8 @@ void Player::UpdateView(float cameraOffset) {
     // Y: crouch and transition fix — anchor sprite bottom to hitbox bottom so the sprite
     // never sinks into the floor when Big/Fire Mario crouches or alternates states.
     // The Big/Fire sprite canvas is always 2-tile tall; the Small sprite is 1-tile tall.
-    float spriteHeight = (spriteState == 0)
+    // spriteState == 0 (SMALL) and spriteState == 3 (SMALL_STAR) are both 1-tile tall.
+    float spriteHeight = (spriteState == 0 || spriteState == 3)
                              ? static_cast<float>(GameConfig::TILE_SIZE)
                              : static_cast<float>(GameConfig::TILE_SIZE * 2);
     float hitboxBottom = std::round(m_State.GetY()) + playerHeight;

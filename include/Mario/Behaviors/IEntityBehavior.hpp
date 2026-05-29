@@ -76,6 +76,13 @@ class IEntityBehavior {
     virtual bool IsImmuneToStomp() const { return false; }
 
     virtual bool IsEnemyProjectile() const { return false; }
+ 
+    /**
+     * Whether this entity ignores solid terrain block collisions (ground snap/walls).
+     * Default: returns IsEnemyProjectile() (Bowser fire & thrown axes ignore blocks).
+     * Override in concrete behaviors like PiranhaPlantBehavior and PodobooBehavior.
+     */
+    virtual bool IgnoresBlocks() const { return IsEnemyProjectile(); }
 
     /**
      * Whether this entity is immune to player's star power (invincible).

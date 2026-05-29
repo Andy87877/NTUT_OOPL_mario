@@ -106,6 +106,12 @@ void ESCMenuSceneHandler::Update(App& app) {
                 }
                 break;
             }
+            case 5: {  // Toggle Cheat Mode
+                auto& gs = app.GetGameState();
+                gs.SetCheatModeActive(!gs.IsCheatModeActive());
+                LOG_INFO("Cheat Mode toggled: {}", gs.IsCheatModeActive() ? "ON" : "OFF");
+                break;
+            }
         }
     }
 

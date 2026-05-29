@@ -106,6 +106,11 @@ struct GameConfig {
         50;                                    // Ticks before next level loads
     static constexpr int PIPE_ANIM_SPEED = 5;  // Mario descend speed in pipe
 
+    // -- Cheat Mode Configuration (外掛模式) --
+    static constexpr int CHEAT_STAR_TIMER_MAX = 500;
+    static constexpr int CHEAT_STAR_TIMER_RESET_THRESHOLD = 100;
+    static constexpr int CHEAT_RESCUE_INV_FRAMES = 60;
+
     // -- Coordinate Conversion Helpers (Unified Systems) --
     /**
      * Convert world X coordinates to PTSD screen X coordinates (centered).

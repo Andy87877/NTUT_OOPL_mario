@@ -115,6 +115,9 @@ class UIManager {
 
     // Copyright text (always visible)
     std::shared_ptr<UIText> m_CopyrightText;
+
+    // Cheat Mode label
+    std::shared_ptr<UIText> m_CheatModeText;
 };
 
 }  // namespace Mario

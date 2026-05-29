@@ -26,9 +26,9 @@ class ESCMenuSceneHandler : public ISceneHandler {
 
     /**
      * Total number of items in the ESC menu.
-     * 0=RESUME  1=1-1  2=1-2  3=8-4  4=POWER CHEAT
+     * 0=RESUME  1=1-1  2=1-2  3=8-4  4=POWER CHEAT  5=CHEAT MODE
      */
-    static constexpr int MENU_ITEM_COUNT = 5;
+    static constexpr int MENU_ITEM_COUNT = 6;
 
     /**
      * Returns the display name for the cheat power-cycle slot.

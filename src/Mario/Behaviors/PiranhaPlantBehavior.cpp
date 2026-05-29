@@ -29,6 +29,8 @@ void PiranhaPlantBehavior::Update(EntityState& state,
                                   [[maybe_unused]] int gameTimer) {
     if (state.IsDead()) return;
 
+    float plantHeight = static_cast<float>(state.GetHeight());
+
     // Record the pipe opening Y on the very first frame
     if (!m_BaseYSet) {
         // Record the pipe mouth Y coordinate (spawn position).
@@ -41,8 +43,8 @@ void PiranhaPlantBehavior::Update(EntityState& state,
         state.SetX(state.GetX() - static_cast<float>(GameConfig::TILE_SIZE));
         
         m_BaseYSet = true;
-        // Start fully hidden inside the pipe (HIDE_HEIGHT below adjusted base)
-        state.SetY(m_BaseY + HIDE_HEIGHT);
+        // Start fully hidden inside the pipe (plantHeight below adjusted base)
+        state.SetY(m_BaseY + plantHeight);
         state.SetHidden(true);
     }
 
@@ -58,10 +60,9 @@ void PiranhaPlantBehavior::Update(EntityState& state,
     float plantX = state.GetX();
     // Since state.GetX() is shifted left by 1 tile (so it is the left edge of the pipe),
     // the pipe center is plantX + TILE_SIZE.
-    // We suppress the plant if Mario is standing anywhere on the 2-tile-wide pipe
-    // (within 1.5 tile widths of the pipe center).
+    // We suppress the plant if Mario is standing anywhere within the safe zone of the pipe.
     float pipeCenterX = plantX + static_cast<float>(GameConfig::TILE_SIZE);
-    bool marioNearby = std::abs(marioX - pipeCenterX) < (static_cast<float>(GameConfig::TILE_SIZE) * 1.5f);
+    bool marioNearby = std::abs(marioX - pipeCenterX) < MARIO_SAFE_RADIUS;
 
     switch (m_Phase) {
         case Phase::HIDING: {
@@ -79,7 +80,13 @@ void PiranhaPlantBehavior::Update(EntityState& state,
         }
 
         case Phase::EMERGING: {
-            float targetY = m_BaseY - EXTEND_HEIGHT;
+            // Cancel emergence and retreat immediately if Mario gets close (prevent sneak attack)
+            if (marioNearby) {
+                m_Phase = Phase::RETREATING;
+                m_PhaseTimer = 0;
+                break;
+            }
+            float targetY = m_BaseY - plantHeight;
             float currentY = state.GetY();
             if (currentY > targetY) {
                 state.SetY(currentY - EMERGE_SPEED);
@@ -109,10 +116,10 @@ void PiranhaPlantBehavior::Update(EntityState& state,
 
         case Phase::RETREATING: {
             float currentY = state.GetY();
-            if (currentY < m_BaseY + HIDE_HEIGHT) {
+            if (currentY < m_BaseY + plantHeight) {
                 state.SetY(currentY + EMERGE_SPEED);
             } else {
-                state.SetY(m_BaseY + HIDE_HEIGHT);  // reset to hidden pos
+                state.SetY(m_BaseY + plantHeight);  // reset to hidden pos
                 m_Phase = Phase::HIDING;
                 m_PhaseTimer = 0;
             }

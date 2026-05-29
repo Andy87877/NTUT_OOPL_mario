@@ -13,6 +13,8 @@
 
 #include "Mario/Services/AudioManager.hpp"
 #include "Mario/Core/PhysicsEngine.hpp"
+#include "Mario/Services/ServiceLocator.hpp"
+#include "Mario/Level/GameStateManager.hpp"
 
 namespace Mario {
 
@@ -30,6 +32,7 @@ void PlayerState::Init(float worldX, float worldY, int startState) {
     m_FallHeight = 0.0;
     m_PowerState = static_cast<PowerState>(startState);
     m_Form = CreatePlayerForm(m_PowerState);
+    m_LastJumpPoint = {worldX, worldY};
     m_Grounded = false;
     m_Crouching = false;
     m_MovingRight = false;
@@ -47,6 +50,7 @@ void PlayerState::Init(float worldX, float worldY, int startState) {
     m_MemoryState = PowerState::SMALL;
     m_TransitionTimer = 0;
     m_PrevPowerState = PowerState::SMALL;
+    m_CheatStarActive = false;
     m_DeathAnimation = std::make_unique<ClassicPlayerDeathAnimation>();
 }
 
@@ -66,6 +70,34 @@ void PlayerState::Tick() {
     }
 
     // Star timer
+    bool cheatActive = false;
+    if (ServiceLocator::GetInstance().HasService<GameStateManager>()) {
+        auto gs = ServiceLocator::GetInstance().GetService<GameStateManager>();
+        if (gs && gs->IsCheatModeActive()) {
+            cheatActive = true;
+        }
+    }
+
+    if (cheatActive) {
+        if (m_Form->GetPowerState() != PowerState::SMALL_STAR &&
+            m_Form->GetPowerState() != PowerState::BIG_STAR) {
+            StartStar();
+        }
+        if (m_StarTimer < GameConfig::CHEAT_STAR_TIMER_RESET_THRESHOLD) {
+            m_StarTimer = GameConfig::CHEAT_STAR_TIMER_MAX; // Keep it high to remain infinite but let it count down for animation cycling
+        }
+        m_CheatStarActive = true;
+    } else if (m_CheatStarActive) {
+        // Cheat was just disabled -> immediately end star state
+        m_StarTimer = 0;
+        m_CheatStarActive = false;
+        if (m_Form->GetPowerState() == PowerState::SMALL_STAR ||
+            m_Form->GetPowerState() == PowerState::BIG_STAR) {
+            m_Form = CreatePlayerForm(m_MemoryState);
+            m_PowerState = m_MemoryState;
+        }
+    }
+
     if (m_StarTimer > 0) {
         m_StarTimer--;
         if (m_StarTimer <= 0) {
@@ -138,6 +170,7 @@ void PlayerState::Tick() {
 
 void PlayerState::SetJumping(bool v) {
     if (v && m_Grounded && !m_Dead) {
+        m_LastJumpPoint = {m_PosX, m_PosY};
         m_Grounded = false;
         m_FallHeight = PhysicsEngine::GetJumpHeight(0);
         if (m_PowerState == PowerState::SMALL) {
@@ -311,7 +344,14 @@ int PlayerState::GetHeight() const {
 }
 
 bool PlayerState::CanShootFire() const {
-    return m_Form->CanShootFire();
+    bool cheatActive = false;
+    if (ServiceLocator::GetInstance().HasService<GameStateManager>()) {
+        auto gs = ServiceLocator::GetInstance().GetService<GameStateManager>();
+        if (gs && gs->IsCheatModeActive()) {
+            cheatActive = true;
+        }
+    }
+    return cheatActive || m_Form->CanShootFire();
 }
 
 AABB PlayerState::GetHitbox() const {

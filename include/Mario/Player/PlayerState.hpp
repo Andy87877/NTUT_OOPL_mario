@@ -187,6 +187,11 @@ class PlayerState {
     double GetFallHeight() const { return m_FallHeight; }
     void SetFallHeight(double h) { m_FallHeight = h; }
 
+    // -- Last Jump Point for Cheat Mode --
+    struct Position2D { float x; float y; };
+    Position2D GetLastJumpPoint() const { return m_LastJumpPoint; }
+    void SetLastJumpPoint(float x, float y) { m_LastJumpPoint = {x, y}; }
+
     // -- Invincibility --
     int GetInvTimer() const { return m_InvTimer; }
     int GetStarTimer() const { return m_StarTimer; }
@@ -245,6 +250,10 @@ class PlayerState {
 
     // Active power-up form strategy
     std::unique_ptr<IPlayerForm> m_Form;
+
+    // Last jump point for cheat mode void rescuing
+    Position2D m_LastJumpPoint = {0.0f, 0.0f};
+    bool m_CheatStarActive = false;
 };
 
 }  // namespace Mario

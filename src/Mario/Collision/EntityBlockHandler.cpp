@@ -20,9 +20,9 @@ namespace Mario {
 void EntityBlockHandler::Resolve(
     Entity& entity, Level& level,
     std::vector<std::shared_ptr<Entity>>* outNewEntities) {
-    // Bowser's fireball and thrown axes ignore blocks/walls completely in the original game
+    // Bypasses block collision resolution if flagged by the behavior (e.g. projectiles, plants, lava bubbles)
     auto* behavior = entity.GetBehavior();
-    bool ignoreBlocks = behavior && behavior->IsEnemyProjectile();
+    bool ignoreBlocks = behavior && behavior->IgnoresBlocks();
 
     if (ignoreBlocks) {
         // Pit fall: deactivate entities that fall below the level floor.

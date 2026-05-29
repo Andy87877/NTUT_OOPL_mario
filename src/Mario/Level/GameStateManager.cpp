@@ -33,6 +33,7 @@ void GameStateManager::NewGame() {
     m_LevelIndex = 0;
     m_SavedPowerState = 0;
     m_GameWon = false;
+    m_CheatModeActive = false;
     m_WarpDirection = "";
     m_WarpX = 0.0f;
     m_WarpY = 0.0f;

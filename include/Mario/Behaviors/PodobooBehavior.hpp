@@ -62,6 +62,9 @@ class PodobooBehavior : public IEntityBehavior {
      * Star power still defeats it via the handler's star-kill path.
      */
     bool IsImmuneToStomp() const override { return true; }
+ 
+    /** Podoboos ignore solid block terrain snapping. */
+    bool IgnoresBlocks() const override { return true; }
 
     std::unique_ptr<IEntityBehavior> Clone() const override;
 

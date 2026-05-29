@@ -278,7 +278,7 @@ ESCMenuPanel::ESCMenuPanel(const std::string& fontPath, int fontSize) {
     m_PausedLabel->SetVisible(false);
 
     std::vector<std::string> options = {"RESUME", "1-1", "1-2", "8-4",
-                                        "POWER: SMALL"};
+                                        "POWER: SMALL", "CHEAT: OFF"};
     for (const auto& opt : options) {
         auto text = std::make_shared<UIText>(fontPath, fontSize, opt, white);
         text->SetVisible(false);
@@ -313,18 +313,19 @@ void ESCMenuPanel::Hide() {
     }
 }
 
-void ESCMenuPanel::Refresh([[maybe_unused]] const GameStateManager& gs) {
+void ESCMenuPanel::Refresh(const GameStateManager& gs) {
     m_PausedLabel->SetPosition(0.0f, 280.0f);
 
     // Update the POWER cheat item text to reflect the current state.
-    if (m_MenuTexts.size() >= 5) {
+    if (m_MenuTexts.size() >= 6) {
         m_MenuTexts[4]->SetTextContent("POWER: " + m_PowerStateName);
+        m_MenuTexts[5]->SetTextContent(std::string("CHEAT: ") + (gs.IsCheatModeActive() ? "ON" : "OFF"));
     }
 
-    float startY = 100.0f;
+    float startY = 120.0f;
     for (size_t i = 0; i < m_MenuTexts.size(); ++i) {
         m_MenuTexts[i]->SetPosition(0.0f,
-                                    startY - static_cast<float>(i) * 60.0f);
+                                    startY - static_cast<float>(i) * 55.0f);
         auto color = (static_cast<int>(i) == m_Selection)
                          ? Util::Color::FromRGB(255, 0, 0)       // highlighted
                          : Util::Color::FromRGB(255, 255, 255);  // normal
@@ -429,6 +430,13 @@ UIManager::UIManager(GameStateManager* gameState)
         chineseFontPath, m_FontSize, "113820033 電資二 謝奕宏", white);
     m_CopyrightText->SetPosition(-620.0f, -340.0f);
     m_UIRenderer.AddChild(m_CopyrightText);
+
+    // Construct gold-colored Cheat Mode text centered at the bottom of the screen
+    m_CheatModeText = std::make_shared<UIText>(
+        m_FontPath, m_FontSize, "CHEAT MODE ENABLED", Util::Color::FromRGB(255, 215, 0));
+    m_CheatModeText->SetPosition(0.0f, -340.0f);
+    m_CheatModeText->SetVisible(false);
+    m_UIRenderer.AddChild(m_CheatModeText);
 }
 
 void UIManager::HideAllScenePanels() {
@@ -464,6 +472,13 @@ void UIManager::Update(State currentState, int escMenuSelection,
         m_HUDPanel.Refresh(*m_GameState);
     } else {
         m_HUDPanel.Hide();
+    }
+
+    // --- Cheat Mode bottom UI visibility ---
+    if (m_GameState && m_GameState->IsCheatModeActive() && showHUD) {
+        m_CheatModeText->SetVisible(true);
+    } else {
+        m_CheatModeText->SetVisible(false);
     }
 
     // --- Scene panel dispatch ---

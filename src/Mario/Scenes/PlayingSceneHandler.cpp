@@ -152,8 +152,6 @@ void PlayingSceneHandler::Update(App& app) {
                     *entity, *level, &newEntities);
             }
         }
-
-        entity->UpdateView(app.GetCamera().GetOffset());
     }
 
     if (!newEntities.empty()) {
@@ -182,6 +180,13 @@ void PlayingSceneHandler::Update(App& app) {
     // -- Brick-debris particles --
     SpawnBrickDebris(app);
 
+    // -- Synchronize all entity visual positions with the updated camera offset --
+    for (auto& entity : app.GetEntities()) {
+        if (entity) {
+            entity->UpdateView(app.GetCamera().GetOffset());
+        }
+    }
+
     // -- Player view --
     player->UpdateView(app.GetCamera().GetOffset());
 
@@ -200,7 +205,20 @@ void PlayingSceneHandler::Update(App& app) {
 
     // -- Pit-fall check --
     if (app.GetCollisionManager().CheckPitFall(*player)) {
-        ps.StartDeathAnimation();
+        if (app.GetGameState().IsCheatModeActive()) {
+            // Rescue! Teleport to the last jump point
+            auto lastJump = ps.GetLastJumpPoint();
+            ps.SetPosition(lastJump.x, lastJump.y);
+            ps.SetVelX(0.0f);
+            ps.SetVelY(0.0);
+            ps.SetFallHeight(0.0);
+            ps.SetGrounded(true);
+            ps.SetInvTimer(GameConfig::CHEAT_RESCUE_INV_FRAMES); // brief invincibility frames
+            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
+            LOG_INFO("Cheat: Rescued from pit fall! Teleported to last jump point: ({}, {})", lastJump.x, lastJump.y);
+        } else {
+            ps.StartDeathAnimation();
+        }
     }
 
     // -- Death transition --
@@ -310,8 +328,10 @@ void PlayingSceneHandler::TriggerFlagpoleEntry(App& app, PlayerState& ps,
     ps.SetControllable(false);
     ps.SetPoleSliding(true);
     ps.SetX(poleX);
+    ps.SetFacingRight(true);
     ps.SetVelX(0.0f);
     ps.SetVelY(0.0f);
+    ps.SetFallHeight(0.0);
 
     // Cancel star power — the level-complete theme replaces the star theme.
     if (ps.GetPowerState() == PowerState::SMALL_STAR ||

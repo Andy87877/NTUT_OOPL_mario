@@ -64,6 +64,9 @@ class PiranhaPlantBehavior : public IEntityBehavior {
 
     /** Piranha Plants cannot be stomped. */
     bool IsImmuneToStomp() const override { return true; }
+ 
+    /** Piranha Plants ignore solid block terrain snapping. */
+    bool IgnoresBlocks() const override { return true; }
 
     /** Deep copy for factory use. */
     std::unique_ptr<IEntityBehavior> Clone() const override;
@@ -83,9 +86,7 @@ class PiranhaPlantBehavior : public IEntityBehavior {
     static constexpr int HIDE_FRAMES = 90;             // 1.5 s hidden
     static constexpr int VISIBLE_FRAMES = 45;          // 0.75 s at full height
     static constexpr float EMERGE_SPEED = 2.0f;        // px/frame up or down
-    static constexpr float HIDE_HEIGHT = 90.0f;        // Fully below pipe mouth
-    static constexpr float EXTEND_HEIGHT = 64.0f;      // Emerging 1.4 tiles, leaving 26px inside pipe mouth
-    static constexpr float MARIO_SAFE_RADIUS = 45.0f;  // 1 tile width
+    static constexpr float MARIO_SAFE_RADIUS = 112.5f; // 2.5 tiles (1.5 tiles from pipe edge to prevent sneak attack)
 };
 
 }  // namespace Mario

@@ -33,6 +33,8 @@ void FlagpoleSceneHandler::OnEnter(App& app) {
     if (player) {
         player->GetState().SetGrounded(false);
         player->GetState().SetVelY(0.0f);
+        player->GetState().SetFacingRight(true);
+        player->GetState().SetFallHeight(0.0);
     }
 }
 
