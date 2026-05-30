@@ -14,10 +14,7 @@ namespace Mario {
 
 void ClassicEnemyDeathAnimation::Start(EnemyDeathCause cause,
                                        EnemyDeathRuntime& runtime) {
-    if (cause == EnemyDeathCause::STOMP ||
-        cause == EnemyDeathCause::SHELL_HIT ||
-        cause == EnemyDeathCause::STAR_HIT ||
-        cause == EnemyDeathCause::GENERIC) {
+    if (cause == EnemyDeathCause::STOMP || cause == EnemyDeathCause::GENERIC) {
         runtime.isEnemy = false;
         runtime.isSquashed = true;
         runtime.applyGravity = false;
@@ -28,7 +25,7 @@ void ClassicEnemyDeathAnimation::Start(EnemyDeathCause cause,
         return;
     }
 
-    // FIREBALL-style fallback
+    // FIREBALL/SHELL/STAR-style flip fallback
     runtime.isEnemy = false;
     runtime.isSquashed = false;
     runtime.applyGravity = true;
@@ -50,11 +47,8 @@ void ClassicEnemyDeathAnimation::Tick(EnemyDeathRuntime& runtime, float gravity,
 }
 
 void GoombaSquishDeathAnimation::Start(EnemyDeathCause cause,
-                                       EnemyDeathRuntime& runtime) {
-    if (cause == EnemyDeathCause::STOMP ||
-        cause == EnemyDeathCause::SHELL_HIT ||
-        cause == EnemyDeathCause::STAR_HIT ||
-        cause == EnemyDeathCause::GENERIC) {
+                                        EnemyDeathRuntime& runtime) {
+    if (cause == EnemyDeathCause::STOMP || cause == EnemyDeathCause::GENERIC) {
         runtime.isEnemy = false;
         runtime.isSquashed = true;
         runtime.applyGravity = false;
@@ -65,7 +59,7 @@ void GoombaSquishDeathAnimation::Start(EnemyDeathCause cause,
         return;
     }
 
-    // Fireball cause falls back to flip style in-place.
+    // Fireball/Shell/Star cause falls back to flip style in-place.
     runtime.isEnemy = false;
     runtime.isSquashed = false;
     runtime.applyGravity = true;

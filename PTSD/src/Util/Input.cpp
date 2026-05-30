@@ -40,6 +40,16 @@ bool Input::IsKeyUp(const Keycode &key) {
     return !s_KeyState[key].second && s_KeyState[key].first;
 }
 
+bool Input::IsAnyKeyDown() {
+    for (const auto &[key, state] : s_KeyState) {
+        // Keyboard keys have scancodes less than 512.
+        if (static_cast<int>(key) < 512 && state.second && !state.first) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool Input::IsMouseMoving() {
 
     return s_MouseMoving;

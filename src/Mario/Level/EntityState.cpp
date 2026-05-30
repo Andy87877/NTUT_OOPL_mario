@@ -123,9 +123,13 @@ void EntityState::Tick() {
     if (!m_IsStatic && (!m_Squashed || m_KoopaSquash)) {
         m_PosX += m_VelX;
 
-        // Apply gravity
-        float yDelta = ApplyGravity();
-        m_PosY += yDelta;
+        // Apply gravity if enabled; otherwise, allow gravity-free diagonal movement via VelY
+        if (m_ApplyGravity) {
+            float yDelta = ApplyGravity();
+            m_PosY += yDelta;
+        } else {
+            m_PosY += static_cast<float>(m_VelY);
+        }
     }
 }
 
@@ -151,6 +155,12 @@ void EntityState::TriggerDeath(EnemyDeathCause cause) {
         }
         m_SizeX = GameConfig::TILE_SIZE;
         m_SizeY = GameConfig::TILE_SIZE;
+    }
+
+    // If it's not a Koopa squishing in-place into a shell, the enemy is completely
+    // dead and should fall through blocks off the screen. Disable collision!
+    if (!(cause == EnemyDeathCause::STOMP && m_KoopaSquash)) {
+        m_DoesCollide = false;
     }
 
     EnemyDeathRuntime runtime{m_ActiveCounter, m_IsEnemy, m_Squashed,

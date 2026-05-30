@@ -388,19 +388,27 @@ std::shared_ptr<Entity> EntityFactory::SpawnProjectile(
 
     if (spawnType == EntityType::FIRE) {
         float speed = isEnemyProjectile ? 3.0f : 4.0f;
+        
+        // Randomize speed and add diagonal angles if spawned by the 8-4 off-screen CastleFireSpawner
+        if (spawnBehavior && std::string(spawnBehavior->GetName()) == "CastleFireSpawnerBehavior") {
+            // Speed varies dynamically between 2.5f (slow) and 6.0f (extremely fast)
+            speed = 2.5f + static_cast<float>(std::rand() % 350) / 100.0f;
+            
+            // Allow vertical slope trajectory (diagonal movement): -0.8f to +0.8f
+            float velY = (static_cast<float>(std::rand() % 200) - 100.0f) / 100.0f * 0.8f;
+            spawned->GetState().SetVelY(velY);
+        }
+        
         if (isEnemyProjectile) {
             spawned->GetState().SetGravity(false);
         }
         spawned->GetState().SetVelX(spawnDir == 1 ? speed : -speed);
     } else if (spawnType == EntityType::AXE_PROJECTILE) {
-        // Parabolic arc targeted at Mario's current position
-        float dx = std::abs(player.GetWorldX() - spawnX);
-        float launchVelY =
-            std::max(8.0f, std::min(15.0f, 8.0f + (dx / 100.0f) * 1.5f));
-        float flightTime = launchVelY * 7.5f;
-        float throwSpeed = std::max(1.5f, std::min(6.5f, dx / flightTime));
-        spawned->GetState().SetVelX(spawnDir == 1 ? throwSpeed : -throwSpeed);
-        spawned->GetState().SetFallHeight(launchVelY);
+        // High-force, punchy parabolic arc authentic to classic NES SMB
+        constexpr float kThrowSpeed = 3.5f;
+        constexpr float kLaunchVelY = 10.0f;
+        spawned->GetState().SetVelX(spawnDir == 1 ? kThrowSpeed : -kThrowSpeed);
+        spawned->GetState().SetFallHeight(kLaunchVelY);
     }
 
     return spawned;

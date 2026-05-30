@@ -129,7 +129,16 @@ void Entity::UpdateView(float cameraOffset) {
     } else {
         m_Transform.scale.x = absScaleX;
     }
-    m_Transform.scale.y = absScaleY;
+
+    // Flip vertically and rotate (spin) if dying in flipped death animation
+    if (m_State.IsDeathActive() && !m_State.IsSquished()) {
+        m_Transform.scale.y = -absScaleY;
+        // Spin by 0.15 radians (approx 8.6 degrees) per frame for a graceful tumble
+        m_Transform.rotation += 0.15f;
+    } else {
+        m_Transform.scale.y = absScaleY;
+        m_Transform.rotation = 0.0f; // Reset rotation for normal active states
+    }
 
     // Per-frame X-scale modifier (e.g. coin rotation) — delegated to behavior
     // so Entity.cpp stays free of entity-specific visual logic (OCP).
@@ -168,8 +177,8 @@ void Entity::InitializeSizeOnce(const glm::vec2& spriteSize) {
 std::string Entity::BuildSpritePath() const {
     const std::string& name = m_State.GetName();
 
-    // Squished sprite
-    if (m_State.IsSquished()) {
+    // Squished or dead Koopa family members use the Shell sprite
+    if (m_State.IsSquished() || (m_State.IsDead() && m_State.IsKoopaSquash())) {
         if (m_State.IsKoopaSquash()) {
             // Koopa/ParaKoopa shells use KoopaShell sprite
             return SpritePathResolver::GetEntitySpritePath("KoopaShell", -1,

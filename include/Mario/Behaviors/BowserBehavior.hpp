@@ -131,7 +131,7 @@ class BowserBehavior : public IEntityBehavior {
 
     int m_FireballTimer = 0;
     static constexpr int FIREBALL_INTERVAL =
-        72;  // Spits a fireball every 72 frames (1.2x slower)!
+        120;  // Spits a fireball every 120 frames (slower CD)!
 
     static constexpr int PATROL_PHASE_LENGTH = 180;   // 3 seconds at 60fps
     static constexpr int FIRE_ATTACK_LENGTH = 120;    // 2 seconds

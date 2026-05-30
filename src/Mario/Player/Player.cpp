@@ -38,6 +38,10 @@ Player::Player(float worldX, float worldY, int startState) {
             m_CurrentSpritePath = initialPath;
         }
     }
+
+    // Call UpdateView with 0.0f camera offset to initialize translation and scale immediately
+    // to prevent the player from briefly appearing at the center of the screen (0,0) before spawning.
+    UpdateView(0.0f);
 }
 
 Player::~Player() = default;

@@ -188,10 +188,9 @@ LoadingPanel::LoadingPanel(const std::string& fontPath, int fontSize) {
     std::string marioSpritePath =
         std::string(RESOURCE_DIR) + "/Sprites/MarioIdle.png";
     m_MarioPreview = std::make_shared<UIImage>(marioSpritePath);
-    m_MarioPreview->SetPosition(-65.0f, -10.0f);
-    m_MarioPreview->m_Transform.scale = {GameConfig::DRAW_SCALE,
-                                         GameConfig::DRAW_SCALE};
-    m_MarioPreview->SetZIndex(101.0f);
+    m_MarioPreview->SetPosition(-30.0f, -10.0f);
+    m_MarioPreview->m_Transform.scale = {GameConfig::DRAW_SCALE, GameConfig::DRAW_SCALE};
+    m_MarioPreview->SetZIndex(100.0f);  // Set ZIndex to 100.0f to match UIText and be on the exact same UI layer
 
     m_WorldLabel->SetVisible(false);
     m_LivesText->SetVisible(false);
@@ -225,6 +224,10 @@ void LoadingPanel::Refresh(const GameStateManager& gs) {
         "x " + std::string(lives < 10 ? "0" : "") + std::to_string(lives);
     m_LivesText->SetTextContent(livesStr);
     m_LivesText->SetPosition(30.0f, -10.0f);
+
+    // Ensure the Mario preview is placed exactly inside the blue box on the left of "x 03"
+    m_MarioPreview->SetPosition(-30.0f, -10.0f);
+    m_MarioPreview->m_Transform.scale = {GameConfig::DRAW_SCALE, GameConfig::DRAW_SCALE};
 }
 
 // ============================================================================

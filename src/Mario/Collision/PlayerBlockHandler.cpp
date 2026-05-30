@@ -113,7 +113,9 @@ void PlayerBlockHandler::StepCeilingTrigger(
     for (int row = headRow - 1; row <= headRow && !triggered; row++) {
         for (int gx = htLeft; gx <= htRight && !triggered; gx++) {
             Block* blk = level.GetBlockAt(gx, row);
-            if (!blk || !blk->IsSolid()) continue;
+            if (!blk) continue;
+            bool isSolidOrUnhitInvisible = blk->IsSolid() || (!blk->IsVisibleBeforeHit() && !blk->IsHit());
+            if (!isSolidOrUnhitInvisible) continue;
 
             AABB bb = blk->GetAABB();
             // Velocity-adaptive threshold: scales up at high speeds (e.g. max jump speed 27.59px/frame)

@@ -31,6 +31,16 @@ void PiranhaPlantBehavior::Update(EntityState& state,
 
     float plantHeight = static_cast<float>(state.GetHeight());
 
+    // Proximity check: prevent the Piranha Plant from emerging if Mario is standing on or near the pipe mouth
+    float marioX = player.GetState().GetX();
+    float marioWidth = static_cast<float>(player.GetState().GetWidth());
+    float marioCenterX = marioX + marioWidth / 2.0f;
+
+    float plantWidth = static_cast<float>(state.GetWidth());
+    float plantCenterX = state.GetX() + plantWidth / 2.0f;
+
+    float distH = std::abs(marioCenterX - plantCenterX);
+
     // Record the pipe opening Y on the very first frame
     if (!m_BaseYSet) {
         // Record the pipe mouth Y coordinate (spawn position).
@@ -55,23 +65,15 @@ void PiranhaPlantBehavior::Update(EntityState& state,
         state.AdvanceAnimationFrame();
     }
 
-    // --- Is Mario close enough to suppress emergence? ---
-    float marioX = player.GetWorldX();
-    float plantX = state.GetX();
-    // Since state.GetX() is shifted left by 1 tile (so it is the left edge of the pipe),
-    // the pipe center is plantX + TILE_SIZE.
-    // We suppress the plant if Mario is standing anywhere within the safe zone of the pipe.
-    float pipeCenterX = plantX + static_cast<float>(GameConfig::TILE_SIZE);
-    bool marioNearby = std::abs(marioX - pipeCenterX) < MARIO_SAFE_RADIUS;
-
     switch (m_Phase) {
         case Phase::HIDING: {
             state.SetHidden(true);
-            // Reset timer while Mario stays close
-            if (marioNearby) {
+            
+            // If Mario is too close to the pipe, reset the timer to keep the plant hidden
+            if (distH < MARIO_SAFE_RADIUS) {
                 m_PhaseTimer = 0;
-                break;
             }
+            
             if (m_PhaseTimer >= HIDE_FRAMES) {
                 m_Phase = Phase::EMERGING;
                 m_PhaseTimer = 0;
@@ -80,12 +82,6 @@ void PiranhaPlantBehavior::Update(EntityState& state,
         }
 
         case Phase::EMERGING: {
-            // Cancel emergence and retreat immediately if Mario gets close (prevent sneak attack)
-            if (marioNearby) {
-                m_Phase = Phase::RETREATING;
-                m_PhaseTimer = 0;
-                break;
-            }
             float targetY = m_BaseY - plantHeight;
             float currentY = state.GetY();
             if (currentY > targetY) {
@@ -103,11 +99,7 @@ void PiranhaPlantBehavior::Update(EntityState& state,
 
         case Phase::VISIBLE: {
             state.SetHidden(false);
-            // Retreat immediately if Mario enters the pipe proximity radius.
-            // This prevents the plant from damaging Mario during pipe entry,
-            // matching NES behavior where the plant cannot hurt Mario while
-            // he is standing directly over the pipe opening.
-            if (marioNearby || m_PhaseTimer >= VISIBLE_FRAMES) {
+            if (m_PhaseTimer >= VISIBLE_FRAMES) {
                 m_Phase = Phase::RETREATING;
                 m_PhaseTimer = 0;
             }

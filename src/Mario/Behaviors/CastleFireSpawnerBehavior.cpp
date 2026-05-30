@@ -5,6 +5,8 @@
  */
 #include "Mario/Behaviors/CastleFireSpawnerBehavior.hpp"
 
+#include <cstdlib>
+
 #include "Mario/Services/AudioManager.hpp"
 #include "Mario/Level/EntityState.hpp"
 #include "Mario/Core/GameConfig.hpp"
@@ -32,21 +34,15 @@ void CastleFireSpawnerBehavior::Update(EntityState& state, const Level& /*level*
         // Determine spawn coordinates (just off-screen to the right of Mario)
         float spawnX = player.GetWorldX() + static_cast<float>(GameConfig::WINDOW_WIDTH) / 2.0f + 100.0f;
 
-        // Cycle through three heights: 0 = high, 1 = medium, 2 = low
-        int heightChoice = m_AttackCounter % 3;
+        // Dynamic player height targeting with randomized offset to keep it highly unpredictable
+        float targetY = player.GetWorldY();
+        float randomOffset = (static_cast<float>(std::rand() % 300) - 150.0f) / 100.0f * static_cast<float>(GameConfig::TILE_SIZE);
+        float spawnY = targetY + randomOffset;
+
+        // Clamp to visible visible play bounds so fires do not spawn too high in the ceiling or in deep lava
+        spawnY = std::max(180.0f, std::min(550.0f, spawnY));
+
         m_AttackCounter++;
-
-        // Base spawner row height = 9 * TILE_SIZE = 405.0f
-        float baseSpawnY = 9.0f * static_cast<float>(GameConfig::TILE_SIZE);
-        float spawnY = baseSpawnY;
-
-        if (heightChoice == 0) {
-            spawnY += 0.2f * static_cast<float>(GameConfig::TILE_SIZE);  // High fire (414.0f)
-        } else if (heightChoice == 1) {
-            spawnY += 1.0f * static_cast<float>(GameConfig::TILE_SIZE);  // Medium fire (450.0f)
-        } else {
-            spawnY += 1.8f * static_cast<float>(GameConfig::TILE_SIZE);  // Low fire (486.0f)
-        }
 
         // Add spawn request to queue: EntityType::FIRE, direction 0 = Left
         m_PendingSpawns.push_back({EntityType::FIRE, spawnX, spawnY, 0});

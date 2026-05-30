@@ -76,7 +76,7 @@ class Block : public Util::GameObject {
     int GetGridY() const { return m_GridY; }
     const std::string& GetName() const { return m_Def.name; }
 
-    bool IsSolid() const { return m_Solid; }
+    virtual bool IsSolid() const { return m_Solid; }
     bool IsBreakable() const { return m_Def.breakable; }
     bool IsBackground() const { return m_Def.background; }
     bool IsGoal() const { return m_Def.isGoal; }
@@ -210,6 +210,7 @@ class InvisibleBlock : public Block {
     void HandleOnHit(int playerState) override;
     void LoadSpriteOnDemand() override;
     bool IsVisibleBeforeHit() const override { return false; }
+    bool IsSolid() const override { return m_IsHit; }
 };
 
 class GoalBlock : public Block {

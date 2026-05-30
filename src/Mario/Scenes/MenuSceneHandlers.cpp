@@ -97,7 +97,7 @@ void DeathSceneHandler::OnRender(App& app) {
 // ============================================================================
 
 void GameOverSceneHandler::Update(App& app) {
-    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
+    if (Util::Input::IsAnyKeyDown()) {
         app.TransitionTo(App::State::TITLE);
         LOG_INFO("Game Over - returning to TITLE");
     }
@@ -114,7 +114,7 @@ void GameOverSceneHandler::OnRender(App& app) {
 // ============================================================================
 
 void GameWonSceneHandler::Update(App& app) {
-    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
+    if (Util::Input::IsAnyKeyDown()) {
         app.TransitionTo(App::State::TITLE);
         LOG_INFO("Game Won! Returning to TITLE screen.");
     }

@@ -92,6 +92,12 @@ public:
     static bool IsKeyUp(const Keycode &key);
 
     /**
+     * @brief Check if any keyboard key is currently being pressed down in this frame.
+     * @return true if any keyboard key is down, false otherwise.
+     */
+    static bool IsAnyKeyDown();
+
+    /**
      * @brief Checks if the mouse wheel is currently being scrolled.
      * @return  A bool value representing the current state of the mouse
      * wheel.

@@ -86,6 +86,9 @@ class AxeKoopaBehavior : public IEntityBehavior {
     float m_AxeX = 0.0f;
     float m_AxeY = 0.0f;
     int m_AxeDir = 0;
+    int m_PatrolDirection = -1;  // -1 for Left, 1 for Right
+    bool m_PatrolInitialized = false;
+    int m_HopTimer = 0;
 };
 
 // ============================================================================

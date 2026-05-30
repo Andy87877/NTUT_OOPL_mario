@@ -50,7 +50,10 @@ class GameStateManager {
 
     // -- Lives --
     void AddLife() { m_Lives++; }
-    void LoseLife() { m_Lives--; }
+    void LoseLife() {
+        m_Lives--;
+        m_SavedPowerState = 0;  // Reset power state to SMALL (0) on death
+    }
     int GetLives() const { return m_Lives; }
     bool IsGameOver() const { return m_Lives <= 0; }
 

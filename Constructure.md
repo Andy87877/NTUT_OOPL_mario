@@ -244,6 +244,7 @@ classDiagram
 ```
 
 > **各場景職責簡述：**
+>
 > - `TitleSceneHandler`: 標題畫面，等待玩家按下 Enter 開始。
 > - `LoadingSceneHandler`: 黑色過場畫面，預載紋理並顯示世界關卡數與剩餘命數。
 > - `PlayingSceneHandler`: 主遊戲進行狀態，處理核心 17-Phase 的每幀物理、AI 與碰撞分派。
@@ -292,7 +293,16 @@ classDiagram
     class ParaKoopaBehavior {
         -m_FloatPhase: float
     }
-    class AxeKoopaBehavior
+    class AxeKoopaBehavior {
+        -m_ThrowTimer: int
+        -m_AxePending: bool
+        -m_AxeX: float
+        -m_AxeY: float
+        -m_AxeDir: int
+        -m_PatrolDirection: int
+        -m_PatrolInitialized: bool
+        -m_HopTimer: int
+    }
     class BowserBehavior {
         -m_Phase: BowserPhase
         -m_HealthPoints: int
@@ -894,6 +904,7 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 ```
 
 **重要原則：**
+
 - Physics (PHASE 2-3) 在 Collision (PHASE 4) 之前 — 確保位置更新後才做碰撞解析。
 - Entity AI (PHASE 7) 在 Physics 之後 — AI 計算時看到的是本幀已更新的 Player 位置。
 - BrickDebris spawn (PHASE 13) 在 Ceiling collision (PHASE 4) 之後 — `JustBroken()` 旗標不被提前消費。
@@ -905,7 +916,8 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 | 移動平台載人 | `PlayingSceneHandler.cpp` | 每幀讀 `plat->GetLastDeltaX/Y()`；Y gap < 2px 且 X overlap 即同步 Mario 座標。 |
 | 無敵星星殺敵 | `CollisionManager.cpp` | `ps.GetStarTimer() > 0` 時直接刪敵、計分、顯示浮動文字。 |
 | 連續踩踏分數 | `CollisionManager.cpp` | `m_StompCombo`；落地重置；分數序列 100→200→400→800→1000。 |
-| 食人花安全半徑 | `PiranhaPlantBehavior.cpp` | Mario 進入 `MARIO_SAFE_RADIUS = 112.5px` (2.5×TILE) 時，植物在 EMERGING 或 VISIBLE 階段會立即開始縮回（防偷襲機制）。 |
+| 食人花安全半徑 | `PiranhaPlantBehavior.cpp` | Mario 進入 `MARIO_SAFE_RADIUS = 112.5px` (2.5×TILE) 時，若植物處於 HIDING 階段，將會鎖定並保持隱藏狀態，直到玩家離開水管範圍（防偷襲機制）。 |
+| 出生點閃爍修復 | `Player.cpp` 核心建構子 | 建構子最後立即呼叫 `UpdateView(0.0f)` 計算初始 PTSD 坐標與 scale，杜絕因預設 `translation` 為 `(0,0)` 導致玩家在螢幕正中心短暫閃爍跳動的 Bug。 |
 | 磚塊粒子初速 | `ParticleDebris.cpp` | 左上(-3,-6)、右上(+3,-6)、左下(-3,-4)、右下(+3,-4)；後續由 PhysicsEngine 累積重力。 |
 
 ---
@@ -936,6 +948,7 @@ stateDiagram-v2
 ```
 
 **Level sequence** (`GameStateManager::m_LevelSequence`):
+
 ```
 "1-1" (ground) -> "1-2" (underground) -> "8-4" (castle + Boss) -> IsGameWon() = true
 ```
@@ -957,12 +970,14 @@ Transition: App::TransitionTo(State) → OnExit → CreateSceneHandler() → OnE
 ```
 
 `App::Update()` 永遠只有兩行：
+
 ```cpp
 m_CurrentHandler->Update(*this);    // game logic
 m_CurrentHandler->OnRender(*this);  // drawing
 ```
 
 **新增遊戲狀態只需：**
+
 1. 新增一個 ISceneHandler 子類 (.hpp + .cpp)
 2. 一個 `CreateSceneHandler()` case
 3. 一個 `App::State` enum 值  
@@ -981,7 +996,7 @@ m_CurrentHandler->OnRender(*this);  // drawing
 | KOOPA_TROOPA | KoopaBehavior (TROOPA) | 烏龜兵 | 巡邏->Shell |
 | KOOPA_SHELL | KoopaBehavior (SHELL) | 龜殼 | 靜止或反彈 |
 | PARAKOOPA | ParaKoopaBehavior | 飛翔烏龜 | 正弦波浮動->著陸 |
-| AXE_KOOPA | AxeKoopaBehavior | 斧頭烏龜 | 巡邏 + 定期拋斧 (ConsumeSpawnRequest) |
+| AXE_KOOPA | AxeKoopaBehavior | 斧頭烏龜 | 巡邏(具備避坑/避熔岩之 ledge-awareness) + 主動面向玩家(Face-Player) + 定期朝玩家拋斧 (ConsumeSpawnRequest) |
 | BOWSER | BowserBehavior | Boss 庫巴 | 5-Phase AI + HP |
 | (castle fire) | CastleFireSpawnerBehavior | 8-4 隱形噴火器 | AlwaysUpdate；越屏持續向左射出火球 |
 | FIRE | FireballBehavior | 玩家火球 | 拋物線軌跡 |
@@ -1009,6 +1024,7 @@ Controller -> InputHandler               (讀鍵盤 -> 寫 PlayerState)
 ```
 
 關鍵分離原則：
+
 - `PlayerState` / `EntityState` 不依賴 any PTSD 渲染 API。
 - `Player` / `Entity` 不包含遊戲邏輯，只根據 Model 選擇 Sprite。
 - 碰撞解析由 `CollisionManager` 處理，不放在 View 層。
@@ -1237,11 +1253,13 @@ sequenceDiagram
 外掛模式（Cheat Mode）的加入為專案提供了絕佳的 OOP 擴充展示。在避免「上帝類別（God Class）污染」與「義大利麵條耦合」的原則下，本專案將外掛模式的狀態完全封裝於 MVC 結構中，並高度重用了現有的設計模式。
 
 #### 1. 服務定位器解耦 (Service Locator & DIP)
+
 - 外掛開關狀態 `m_CheatModeActive` 被儲存於全域 `GameStateManager` 服務中。
 - `App::Start()` 時，`m_GameState` 被註冊到型態安全的 `ServiceLocator`。
 - `PlayerState` 與 `UIManager` 不再需要向 `App` 進行深層反向依賴，而是直接從 `ServiceLocator` 取得 `GameStateManager` 服務，完美符合 **DIP（依賴反轉原則）**。
 
 #### 2. 多型狀態/策略的高度重用 (Strategy & State Reusability)
+
 - **無限無敵星星狀態** 並非透過在主角類別中硬編碼「若外掛開啟則無敵」的 `if-else` 分支來實現，而是直接操作現有的 `IPlayerForm` 策略模式！
 - 在 `PlayerState::Tick()` 中，若偵測到外掛已開啟：
   1. 主角會自動調用 `StartStar()` 動態將自身的 Strategy 轉換為 `SmallStarPlayerForm` 或 `BigStarPlayerForm`。
@@ -1251,12 +1269,14 @@ sequenceDiagram
 - **無縫還原**：當玩家關閉外掛時，`PlayerState` 會自動清除 `m_StarTimer`，狀態機會極為安全地調用 `CreatePlayerForm(m_MemoryState)` 回退到玩家原本的形態（例如 `FIRE` 或 `BIG`），並自動還原背景音樂，程式結構清晰明瞭。
 
 #### 3. 虛空救援與安全點追蹤 (Void Rescuing & Jump Point Tracking)
+
 - **跳躍點追蹤**：當玩家正常進行遊戲並按下跳躍時（進入 `PlayerState::SetJumping`），Model 層會自動在原地記錄當前的坐標為 `m_LastJumpPoint`。
 - **虛空攔截與傳送**：當玩家掉入深淵或岩漿時，`PlayingSceneHandler::Update()` 會透過 `CollisionManager::CheckPitFall()` 進行偵測：
   - **外掛關閉**：觸發常規的 `ps.StartDeathAnimation()` 死亡流程。
   - **外掛開啟**：不觸發死亡，而是從 `ps.GetLastJumpPoint()` 獲取上一個起跳坐標，直接進行 Y 軸微調傳送，重置其各方向速度，播放 Warp 音效，並賦予 `60` 幀的無敵保護時間。
 
 #### 4. UI 擴充 (UI Panels Expansion)
+
 - `ESCMenuPanel`（Strategy）在 `Refresh(gs)` 中直接查詢 `gs.IsCheatModeActive()`，並將選單項從 5 個擴充至 6 個，以供玩家使用 UP/DOWN 導航並利用 RETURN 來自由切換外掛開關。
 - `UIManager` 中新增 `m_CheatModeText`，當偵測到外掛開啟時，會在螢幕底部中央位置繪製高質感的金色 `"CHEAT MODE ENABLED"` 英文通知，保證玩家視覺體驗的高級感。
 
@@ -1269,7 +1289,9 @@ sequenceDiagram
 
 **前瞻 OOP 設計：**
 可以導入 **Command Pattern（命令模式）** 或 **Action Strategy（動作策略）**：
+
 1. **定義抽象命令介面 `IESCMenuItem`**：
+
    ```cpp
    class IESCMenuItem {
       public:
@@ -1278,6 +1300,7 @@ sequenceDiagram
        virtual void Execute(App& app) = 0;
    };
    ```
+
 2. **實作具體命令類別**：
    - `ResumeMenuItem`: `Execute(app)` 調用 `app.TransitionTo(PLAYING)`。
    - `LevelWarpMenuItem`: 構造時傳入 world, level，`Execute` 時跳轉至該關卡。
@@ -1841,7 +1864,7 @@ sequenceDiagram
 | `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 52 | 破碎磚塊碎屑粒子策略。 |
 
-**Total: 48 source files, 8,989 lines of C++17 OOP code** (排除 entry `main.cpp` 與孤兒 leftover `src/Mario/UIManager.cpp`)。
+**Total: 47 source files, 8,989 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
 
 ---
 
@@ -1973,3 +1996,12 @@ sequenceDiagram
 | SPAGHETTI FIX | ✅ DONE | `Entity.cpp` 完全消除 `m_LevelName=="8-4"` 與 `GetName()` 字串比較，改以 def 屬性驅動。 |
 | STAR FIRE | ✅ DONE | `PlayerState::CanShootFire()` 整合，實現星星無敵與火瑪莉型態記憶切換精靈修正。 |
 | FORM REFACTOR | ✅ DONE | 導入多型 `IPlayerForm` (State Pattern) 力量型態，徹底消除 `PlayerState` 中所有變身 enum 分支。 |
+| GAME OVER & DEATH | ✅ DONE | Added general-purpose `Util::Input::IsAnyKeyDown()` to support restarting on any key press in both GameOver and GameWon screens; Death resets saved power state to Small. |
+| ENEMY DEATH FLIP | ✅ DONE | Added vertical flip and smooth spin visual scaling in `Entity::UpdateView` for non-squished dying enemies; Fixed Goomba/Classic death strategy to flip on shell/star hits instead of squishing; Disabled block collisions for dead flipped enemies to let them fall off-screen; Fixed `ParaKoopa` flying patrol override and shell sprite rendering. |
+| INVISIBLE BLOCKS | ✅ DONE | Made `Block::IsSolid` virtual and overrode in `InvisibleBlock` to return `m_IsHit` (only solid after headbutt); Updated `PlayerBlockHandler::StepCeilingTrigger` to allow headbutt hits on unhit invisible blocks. |
+| AXE KOOPA AI | ✅ DONE | Implemented ledge-awareness and pit/lava avoidance check in `AxeKoopaBehavior::Update` to prevent AxeKoopa from falling into lava; Implemented active player-tracking direction logic so it always faces Mario and throws axes in his direction; Decoupled patrol movement from facing direction. |
+| AI BALANCING UPGRADES | ✅ DONE | Increased AxeKoopa movement speed to standard walking Koopa Troopa speed; Increased Bowser fireball spit cooldown by 1.25x (from 72 to 90 frames); Upgraded 8-4 Castle Fire Spawner to dynamically target player height with a randomized offset for predictive off-screen fires. |
+| AI PREMIUM FEEL FIXES | ✅ DONE | Upgraded AxeKoopa with periodic lively hopping behavior and high-force NES-accurate projectile throw physics; Upgraded 8-4 Castle Spawner fireballs with randomized speeds and diagonal vertical-slope movement paths for extreme unpredictability. |
+| CD TUNING & PIRANHA PLANT FIX | ✅ DONE | Shortened 8-4 Castle Spawner fireball CD (from 180 to 100 frames) and lengthened Bowser's fireball CD (from 90 to 120 frames); Re-implemented the classic player proximity check in `PiranhaPlantBehavior` to stay hidden in the pipe when Mario is standing on or near it, preventing sneak attacks. |
+| LOADING SCREEN MARIO PREVIEW | ✅ DONE | Scaled loading screen Small Mario preview sprite to `GameConfig::DRAW_SCALE` (matching in-game size) and positioned it at `(-30.0f, -10.0f)` next to `"x 03"` for perfect NES SMB proportions; Aligned Z-Index to `100.0f` (matching UIText) and permanently purged the legacy duplicate `src/Mario/UIManager.cpp` to eliminate project synchronization issues. |
+

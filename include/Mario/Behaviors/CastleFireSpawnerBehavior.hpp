@@ -73,7 +73,7 @@ class CastleFireSpawnerBehavior : public IEntityBehavior {
     std::vector<SpawnRequest> m_PendingSpawns;
 
     static constexpr int FIREBALL_INTERVAL =
-        180;  // Spawns a fireball every 3 seconds (180 frames)
+        100;  // Spawns a fireball every 100 frames (2 seconds)
 };
 
 }  // namespace Mario

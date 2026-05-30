@@ -11,6 +11,7 @@
 #include "Mario/Behaviors/KoopaFamily.hpp"
 
 #include <cmath>
+#include <cstdlib>
 
 #include "Mario/Core/Collider.hpp"
 #include "Mario/Core/GameConfig.hpp"
@@ -107,12 +108,22 @@ float KoopaBehavior::GetVisualYOffset(const std::string& levelName) const {
 // ============================================================================
 
 void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
-                              [[maybe_unused]] const Player& player,
+                              const Player& player,
                               int gameTimer) {
     if (state.IsSquished() || state.IsDead()) return;
 
-    m_ThrowTimer++;
+    // 1. Initialize decoupled patrol movement direction
+    if (!m_PatrolInitialized) {
+        m_PatrolDirection = (state.GetDirection() == 0) ? -1 : 1;
+        m_PatrolInitialized = true;
+    }
 
+    // 2. Active player tracking (Always face the player like Bowser)
+    int facingDir = (player.GetWorldX() < state.GetWorldX()) ? 0 : 1;
+    state.SetDirection(facingDir);
+
+    // 3. Periodic axe-throw projectile attack
+    m_ThrowTimer++;
     if (m_ThrowTimer >= AXE_THROW_INTERVAL) {
         // Set pending spawn — consumed by PlayingSceneHandler via
         // ConsumeSpawnRequest(), same pattern as BowserBehavior.
@@ -120,18 +131,45 @@ void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
         m_AxeX = state.GetX() + state.GetWidth() * 0.5f;
         // Throw upward: spawn 1 tile above AxeKoopa's top edge
         m_AxeY = state.GetY() - GameConfig::TILE_SIZE;
-        m_AxeDir = state.GetDirection();
+        m_AxeDir = state.GetDirection();  // Faces player
         m_ThrowTimer = 0;
     }
 
-    // Wall bounce (grid-based)
+    // 3b. Periodic hopping behavior (every ~3 seconds, hop up/down to feel smart and lively)
+    m_HopTimer++;
+    if (m_HopTimer >= 150) {
+        m_HopTimer = 0;
+        if (state.IsGrounded() && (std::rand() % 2 == 0)) {
+            state.SetGrounded(false);
+            state.SetFallHeight(12.0f);  // Energetic jump to land on platforms or jump in place
+        }
+    }
+
+    // 4. Ledge/Cliff awareness and pit/lava avoidance
+    if (state.IsGrounded()) {
+        float checkX = (m_PatrolDirection > 0)
+                           ? state.GetWorldX() + state.GetWidth() + 4.0f
+                           : state.GetWorldX() - 4.0f;
+        float checkY = state.GetWorldY() + state.GetHeight() + 4.0f;
+
+        const Block* nextGround = level.GetBlockAtWorld(checkX, checkY);
+        if (!nextGround || !nextGround->IsSolid()) {
+            m_PatrolDirection *= -1;
+        }
+    }
+
+    // 5. Decoupled patrol movement
+    float walkSpeed = GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
+    state.SetVelX(static_cast<float>(m_PatrolDirection) * walkSpeed);
+
+    // 6. Grid-based wall bounce collision checking
     AABB enemyBox = state.GetCollider();
     int topTile = static_cast<int>(enemyBox.top) / GameConfig::TILE_SIZE;
     int bottomTile =
         static_cast<int>(enemyBox.bottom - 1) / GameConfig::TILE_SIZE;
     bool hitWall = false;
 
-    if (state.GetDirection() == 1) {
+    if (m_PatrolDirection > 0) {
         int rightTile =
             static_cast<int>(enemyBox.right) / GameConfig::TILE_SIZE;
         for (int y = topTile; y <= bottomTile && !hitWall; y++) {
@@ -151,8 +189,8 @@ void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
     }
 
     if (hitWall) {
-        state.SetDirection(state.GetDirection() == 1 ? 0 : 1);
-        state.SetVelX(-state.GetVelX());
+        m_PatrolDirection *= -1;
+        state.SetVelX(static_cast<float>(m_PatrolDirection) * walkSpeed);
     }
 
     if (state.IsAnimated() && gameTimer % 10 == 0) {
@@ -190,6 +228,9 @@ void ParaKoopaBehavior::Update(EntityState& state,
                                [[maybe_unused]] const Level& level,
                                [[maybe_unused]] const Player& player,
                                int gameTimer) {
+    if (state.IsSquished() || state.IsDead()) {
+        return;
+    }
     if (m_Mode != Mode::SHELL && state.IsInShellMode()) {
         m_Mode = Mode::SHELL;
         state.SetCollidable(true);
