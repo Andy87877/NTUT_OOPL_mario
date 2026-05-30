@@ -928,23 +928,23 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 stateDiagram-v2
     direction LR
     [*] --> START
-    START --> TITLE : App::Start()
-    TITLE --> LOADING : PRESS ENTER (Select World)
-    LOADING --> PLAYING : LEVEL_TRANSITION_DELAY (3.0s) timer expires
-    PLAYING --> ESC_MENU : PRESS ESC (Pause Game)
-    ESC_MENU --> PLAYING : SELECT RESUME / PRESS ESC
-    ESC_MENU --> TITLE : SELECT QUIT
-    PLAYING --> FLAGPOLE : Collide with flagpole column (1-1 / 1-2)
-    FLAGPOLE --> LOADING : Castle entering animation finishes
-    PLAYING --> PIPE_WARP : Stand on Pipe + press DOWN or RIGHT (1-2)
-    PIPE_WARP --> LOADING : Descend/rightwalk sequence completes
-    PLAYING --> AXE_SEQUENCE : Collide with bridge Axe (8-4)
-    AXE_SEQUENCE --> GAME_WON : Bowser defeat sequence completes
-    PLAYING --> DEATH : Mario dies (damage, pit fall, time up)
-    DEATH --> LOADING : Lives > 0 -> Retry same level
-    DEATH --> GAME_OVER : Lives == 0
-    GAME_OVER --> TITLE : PRESS ENTER
-    GAME_WON --> TITLE : PRESS ENTER
+    START --> TITLE : "App::Start()"
+    TITLE --> LOADING : "PRESS ENTER" (Select World)
+    LOADING --> PLAYING : "LEVEL_TRANSITION_DELAY (3.0s) timer expires"
+    PLAYING --> ESC_MENU : "PRESS ESC" (Pause Game)
+    ESC_MENU --> PLAYING : "SELECT RESUME / PRESS ESC"
+    ESC_MENU --> TITLE : "SELECT QUIT"
+    PLAYING --> FLAGPOLE : "Collide with flagpole column (1-1 / 1-2)"
+    FLAGPOLE --> LOADING : "Castle entering animation finishes"
+    PLAYING --> PIPE_WARP : "Stand on Pipe + press DOWN or RIGHT (1-2)"
+    PIPE_WARP --> LOADING : "Descend/rightwalk sequence completes"
+    PLAYING --> AXE_SEQUENCE : "Collide with bridge Axe (8-4)"
+    AXE_SEQUENCE --> GAME_WON : "Bowser defeat sequence completes"
+    PLAYING --> DEATH : "Mario dies (damage, pit fall, time up)"
+    DEATH --> LOADING : "Lives > 0 -> Retry same level"
+    DEATH --> GAME_OVER : "Lives == 0"
+    GAME_OVER --> TITLE : "PRESS ENTER"
+    GAME_WON --> TITLE : "PRESS ENTER"
 ```
 
 **Level sequence** (`GameStateManager::m_LevelSequence`):
