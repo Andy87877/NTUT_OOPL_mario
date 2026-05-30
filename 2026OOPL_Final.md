@@ -1,6 +1,6 @@
 # 2026 OOPL Final Report
 
-> **組別：T43　｜　繳交日期：2026.05.30　｜　復刻遊戲：Super Mario Bros.**
+> **組別：T43｜　復刻遊戲：Super Mario Bros.**
 
 ---
 
