@@ -437,12 +437,12 @@ classDiagram
 stateDiagram-v2
     direction LR
     [*] --> START
-    START --> TITLE : "App::Start()"
-    TITLE --> LOADING : "PRESS ENTER"
+    START --> TITLE_STATE : "App::Start()"
+    TITLE_STATE --> LOADING : "PRESS ENTER"
     LOADING --> PLAYING : "3.0s 過場計時"
     PLAYING --> ESC_MENU : "PRESS ESC"
     ESC_MENU --> PLAYING : "選擇 RESUME"
-    ESC_MENU --> TITLE : "選擇 QUIT"
+    ESC_MENU --> TITLE_STATE : "選擇 QUIT"
     PLAYING --> FLAGPOLE : "碰觸旗桿 (1-1 / 1-2)"
     FLAGPOLE --> LOADING : "進城堡動畫完成"
     PLAYING --> PIPE_WARP : "站在水管上 + 按下方向鍵"
@@ -452,8 +452,8 @@ stateDiagram-v2
     PLAYING --> DEATH : "Mario 死亡"
     DEATH --> LOADING : "剩餘命數 > 0"
     DEATH --> GAME_OVER : "剩餘命數 = 0"
-    GAME_OVER --> TITLE : "PRESS ENTER"
-    GAME_WON --> TITLE : "PRESS ENTER"
+    GAME_OVER --> TITLE_STATE : "PRESS ENTER"
+    GAME_WON --> TITLE_STATE : "PRESS ENTER"
 ```
 
 #### 遊戲主迴圈 — 17 Phase 架構
