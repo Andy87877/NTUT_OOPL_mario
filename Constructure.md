@@ -536,9 +536,16 @@ classDiagram
         -m_FlashCounter: int
     }
     class TitlePanel {
+        +SetMenuContext(selection) void
         +Refresh(gs) void
-        -m_TitleLabel: UIText
+        -m_Selection: int
+        -m_FrameCount: int
+        -m_Logo: UIImage
+        -m_OnePlayerLabel: UIText
+        -m_QuitLabel: UIText
+        -m_Cursor: UIImage
         -m_SubLabel: UIText
+        -m_CreditLabel: UIText
     }
     class LoadingPanel {
         +Refresh(gs) void
@@ -2037,7 +2044,7 @@ sequenceDiagram
 | `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
 | `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 169 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
 | `Mario/Scenes/ESCMenuSceneHandler.cpp` | 136 | 暫停選單邏輯，包含 5-item（RESUME/1-1/1-2/8-4/POWER作弊變身切換）。 |
-| `Mario/UI/UIManager.cpp` | 135 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
+| `Mario/UI/UIManager.cpp` | 169 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
 | `Mario/Services/AudioManager.cpp` | 236 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
 | `Mario/Services/AudioPathResolver.cpp` | 8 | 音效與音樂路徑靜態解析 helper。 |
 | `Mario/Services/InputHandler.cpp` | 111 | 鍵盤輸入實作。 |
@@ -2045,7 +2052,7 @@ sequenceDiagram
 | `Mario/Services/KeyboardInputProfile.cpp` | 78 | 預設鍵盤按鍵映射策略實作。 |
 | `Mario/Services/LevelManager.cpp` | 154 | ILevelService 實作：LoadLevel, StartLevel, BGM 播放；StartLevel 消除 inline 旗幟尋找。 |
 | `Mario/UI/HUDPanel.cpp` | 115 | HUD 面板實作，處理計分、金幣動畫更新及時間警告閃爍。 |
-| `Mario/UI/TitlePanel.cpp` | 32 | 標題畫面面板實作。 |
+| `Mario/UI/TitlePanel.cpp` | 108 | 標題畫面面板實作。 |
 | `Mario/UI/LoadingPanel.cpp` | 46 | 關卡加載畫面面板實作，載入並擺放角色預覽精靈。 |
 | `Mario/UI/SimpleTextPanel.cpp` | 32 | 通用文字結算面板實作。 |
 | `Mario/UI/ESCMenuPanel.cpp` | 56 | 暫停選單面板實作，渲染選項列表並標示紅色高亮。 |
@@ -2064,7 +2071,7 @@ sequenceDiagram
 | `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 52 | 破碎磚塊碎屑粒子策略。 |
 
-**Total: 47 source files, 9,060 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
+**Total: 47 source files, 9,170 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
 
 ---
 

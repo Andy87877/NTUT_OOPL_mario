@@ -1,11 +1,15 @@
+/**
+ * @file config.hpp
+ * @brief Global configuration parameters for the PTSD engine.
+ * @inheritance None
+ */
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include "pch.hpp" // IWYU pragma: export
-
 #include "Util/Logger.hpp"
+#include "pch.hpp"  // IWYU pragma: export
 
-constexpr const char *TITLE = "Practical Tools for Simple Design";
+constexpr const char* TITLE = "PTSD - 113820033_電資二_謝奕宏 - SuperMarioBros";
 
 constexpr int WINDOW_POS_X = SDL_WINDOWPOS_UNDEFINED;
 constexpr int WINDOW_POS_Y = SDL_WINDOWPOS_UNDEFINED;

@@ -56,7 +56,7 @@ UIManager::UIManager(GameStateManager* gameState)
     std::string chineseFontPath = GameConfig::GetChineseFontPath(m_FontPath);
     m_CopyrightText = std::make_shared<UIText>(
         chineseFontPath, m_FontSize, "113820033 電資二 謝奕宏", white);
-    m_CopyrightText->SetPosition(-620.0f, -340.0f);
+    m_CopyrightText->SetPosition(-500.0f, -340.0f);
     m_UIRenderer.AddChild(m_CopyrightText);
 
     // Construct gold-colored Cheat Mode text centered at the bottom of the screen

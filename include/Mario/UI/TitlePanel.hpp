@@ -40,6 +40,7 @@ class TitlePanel : public IUIPanel {
     std::shared_ptr<UIText> m_QuitLabel;
     std::shared_ptr<UIImage> m_Cursor;
     std::shared_ptr<UIText> m_SubLabel;
+    std::shared_ptr<UIText> m_CreditLabel;
 };
 
 }  // namespace Mario

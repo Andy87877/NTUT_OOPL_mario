@@ -1,3 +1,8 @@
+/**
+ * @file TitlePanel.cpp
+ * @brief Title panel for the start menu.
+ * @inheritance IUIPanel <- TitlePanel
+ */
 #include "Mario/UI/TitlePanel.hpp"
 
 #include "Mario/Core/GameConfig.hpp"
@@ -33,6 +38,12 @@ TitlePanel::TitlePanel(const std::string& fontPath, int fontSize) {
         fontPath, fontSize, "PRESS W/S TO CHOOSE - ENTER TO START", white);
     m_SubLabel->SetZIndex(GameConfig::Z_UI);
 
+    // Traditional Chinese developer credit label
+    std::string chineseFontPath = GameConfig::GetChineseFontPath(fontPath);
+    m_CreditLabel = std::make_shared<UIText>(
+        chineseFontPath, fontSize, "開發者: 113820033 電資二 謝奕宏", white);
+    m_CreditLabel->SetZIndex(GameConfig::Z_UI);
+
     Hide();
 }
 
@@ -46,6 +57,7 @@ void TitlePanel::Register(Util::Renderer& renderer) {
     renderer.AddChild(m_QuitLabel);
     renderer.AddChild(m_Cursor);
     renderer.AddChild(m_SubLabel);
+    renderer.AddChild(m_CreditLabel);
 }
 
 void TitlePanel::Show() {
@@ -54,6 +66,7 @@ void TitlePanel::Show() {
     m_QuitLabel->SetVisible(true);
     m_Cursor->SetVisible(true);
     m_SubLabel->SetVisible(true);
+    m_CreditLabel->SetVisible(true);
 }
 
 void TitlePanel::Hide() {
@@ -62,6 +75,7 @@ void TitlePanel::Hide() {
     m_QuitLabel->SetVisible(false);
     m_Cursor->SetVisible(false);
     m_SubLabel->SetVisible(false);
+    m_CreditLabel->SetVisible(false);
 }
 
 void TitlePanel::Refresh([[maybe_unused]] const GameStateManager& gs) {
@@ -78,6 +92,9 @@ void TitlePanel::Refresh([[maybe_unused]] const GameStateManager& gs) {
     // Dynamic retro blinking prompt
     m_FrameCount++;
     m_SubLabel->SetVisible((m_FrameCount % 60) < 35);
+
+    // Position credit label centered nicely at the bottom
+    m_CreditLabel->SetPosition(0.0f, -240.0f);
 
     // Position cursor precisely to the left of the selected label
     if (m_Selection == 0) {
