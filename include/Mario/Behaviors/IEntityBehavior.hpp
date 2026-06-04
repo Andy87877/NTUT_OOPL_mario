@@ -76,7 +76,16 @@ class IEntityBehavior {
     virtual bool IsImmuneToStomp() const { return false; }
 
     virtual bool IsEnemyProjectile() const { return false; }
- 
+
+    /**
+     * Whether this entity should immediately disappear (be deleted) when
+     * a level goal (like flagpole or axe) is reached.
+     * Default: true for enemy projectiles and player fireballs.
+     * Special hazards (like Podoboo) can override to return true.
+     */
+    virtual bool ShouldDisappearOnGoal() const {
+        return IsEnemyProjectile() || IsPlayerFireball();
+    }
     /**
      * Whether this entity ignores solid terrain block collisions (ground snap/walls).
      * Default: returns IsEnemyProjectile() (Bowser fire & thrown axes ignore blocks).

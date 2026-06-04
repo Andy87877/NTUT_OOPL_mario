@@ -69,6 +69,8 @@ class MovingPlatform : public Block {
     void TryCarryPlayer(PlayerState& ps, const AABB& prevAABB,
                         bool onStaticBlock) override;
 
+    bool IsMovingPlatform() const override { return true; }
+
     /**
      * Update visual position to match live world coords.
      * Calls Block::Update() for sprite/animation, then overrides screen pos.

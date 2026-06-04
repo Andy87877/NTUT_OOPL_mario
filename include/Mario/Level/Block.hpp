@@ -111,6 +111,11 @@ class Block : public Util::GameObject {
                                  bool onStaticBlock);
 
     /**
+     * Determine if this block is a moving platform (for dynamic categorization).
+     */
+    virtual bool IsMovingPlatform() const { return false; }
+
+    /**
      * Get the contents/entity to spawn when this block is hit.
      * If the player is big/fire and contents = "Mushroom", returns
      * "FireFlower".

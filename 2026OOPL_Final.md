@@ -26,6 +26,7 @@
 - **操作**：控制主角 Mario 進行左右移動、跳躍、踩踏敵人、收集金幣與道具
 - **目標**：穿越三個關卡，最終擊敗 Boss 庫巴拯救公主
 - **參考畫面**：[遊戲畫面連結](https://www.youtube.com/watch?v=rLl9XBg7wSs)
+- **實際遊戲畫面**： 還沒拍
 
 ### 組別分工
 
@@ -53,7 +54,7 @@
 |------|------|
 | ← → 或 A / D | 左右移動 |
 | ↑ / W / Space / Z | 跳躍（長按跳更高） |
-| ↓ / S | 蹲下 (大馬力歐) |
+| ↓ / S | 蹲下 (大瑪利歐) |
 | E / LShift | 加速奔跑 / 發射火球 |
 | ESC | 暫停選單 |
 | Enter | 確認 / 開始遊戲 |
@@ -62,9 +63,9 @@
 
 1. **生命系統**：Mario 初始擁有 3 條命。掉入深淵、被敵人碰觸（非踩踏）、或時間歸零皆會損失一條命。命數歸零即 Game Over。
 2. **力量型態系統（Power State）**：
-   - **小馬力歐 (Small)**：初始狀態，碰敵即死
-   - **大馬力歐 (Big)**：吃紅香菇變大，可碎磚塊，受傷退化為小馬力歐
-   - **火焰馬力歐 (Fire)**：吃火焰花，可發射火球遠程攻擊敵人
+   - **小瑪利歐 (Small)**：初始狀態，碰敵即死
+   - **大瑪利歐 (Big)**：吃紅香菇變大，可碎磚塊，受傷退化為小瑪利歐
+   - **火焰瑪利歐 (Fire)**：吃火焰花，可發射火球遠程攻擊敵人
    - **無敵星星 (Star)**：吃星星後限時無敵，碰觸敵人直接擊殺
 3. **金幣系統**：收集金幣增加分數，每收集 100 枚金幣獲得額外一條命。
 4. **計時系統**：每關限時 400 秒。時間低於 100 秒時自動切換為加速版 BGM 警告玩家。
@@ -99,8 +100,8 @@
 
 | 道具 | 名稱 | 效果 |
 |------|------|------|
-| Mushroom | 紅香菇 | 小馬力歐 → 大馬力歐 |
-| Fire Flower | 火焰花 | 升級為火焰馬力歐，可發射火球 |
+| Mushroom | 紅香菇 | 小瑪利歐 → 大瑪利歐 |
+| Fire Flower | 火焰花 | 升級為火焰瑪利歐，可發射火球 |
 | Star | 無敵星星 | 限時無敵，碰敵即殺 |
 | 1-UP Mushroom | 綠香菇 | 增加一條命 |
 | Coin | 金幣 | 增加分數，100 枚換一命 |
@@ -877,24 +878,24 @@ AI Agent 嚴格遵循 `Agent.md` 中定義的開發規範：
 
 | 原則 | 實現方式 | 狀態 |
 |------|---------|------|
-| 所有實體繼承 Util::GameObject | Player, Entity, Block, UIImage, UIText 全部繼承 | ✅ |
-| 沒有 God Class | App 只負責 TransitionTo()；邏輯分散到各 Handler/Manager | ✅ |
-| MVC 架構 | PlayerState(M) → Player(V) → InputHandler(C) | ✅ |
-| State Pattern | 10 個 ISceneHandler + 5 個 IPlayerForm | ✅ |
-| Strategy Pattern | 19 個 IEntityBehavior + 4 個 IEnemyDeathAnimation + 6 個 IUIPanel | ✅ |
-| Factory Pattern | EntityFactory + EnemyDeathStyleFactory 唯一入口 | ✅ |
-| DIP | IAudioService / IInputHandler / ILevelService 介面隔離 | ✅ |
-| OCP 原則 | 新增怪物/狀態/UI面板不修改現有核心類別 | ✅ |
-| DRY 原則 | GameConfig 統一座標轉換；靜態 Sprite Cache | ✅ |
-| 零 dynamic_cast | 狀態間透過 DTO 或 Self-Configuring 傳遞參數 | ✅ |
+| 所有實體繼承 Util::GameObject | Player, Entity, Block, UIImage, UIText 全部繼承 | V |
+| 沒有 God Class | App 只負責 TransitionTo()；邏輯分散到各 Handler/Manager | V |
+| MVC 架構 | PlayerState(M) → Player(V) → InputHandler(C) | V |
+| State Pattern | 10 個 ISceneHandler + 5 個 IPlayerForm | V |
+| Strategy Pattern | 19 個 IEntityBehavior + 4 個 IEnemyDeathAnimation + 6 個 IUIPanel | V |
+| Factory Pattern | EntityFactory + EnemyDeathStyleFactory 唯一入口 | V |
+| DIP | IAudioService / IInputHandler / ILevelService 介面隔離 | V |
+| OCP 原則 | 新增怪物/狀態/UI面板不修改現有核心類別 | V |
+| DRY 原則 | GameConfig 統一座標轉換；靜態 Sprite Cache | V |
+| 零 dynamic_cast | 狀態間透過 DTO 或 Self-Configuring 傳遞參數 | V |
 
 ### 心得
 
-這學期的物件導向程式設計實習（OOPL）對我而言，是一次極為震撼且深刻的程式心路歷程。這不僅僅是完成了復刻超級瑪利歐這款遊戲本身，這次實習更讓我深刻翻轉了對「物件導向設計」與「人機協作（Human-AI Collaboration）」的認知。
+這學期的物件導向程式設計實習（OOPL）對我而言，是一次極為震撼且深刻的程式心路歷程。這不僅僅是完成了復刻超級瑪利歐這款遊戲本身，更讓我深刻翻轉了對「物件導向設計」與「人機協作（Human-AI Collaboration）」的認知。
 
 #### 1. 甜蜜的蜜月期與突如其來的「義大利麵地獄」
 
-剛開始寫這個馬力歐專案時，我心裡其實非常放鬆，甚至有點小得意。我想著：「反正現在有 **VS Code Copilot** 和 **Antigravity** 這些超強的 AI 工具，我只要用口語講一下需求，程式碼不就劈哩啪啦生出來了，寫專案超輕鬆的吧！」（想起來，這簡直是沒受過扎實資工系課程洗禮才會講出來的幼稚發言）。
+剛開始寫這個瑪利歐專案時，我心裡其實非常放鬆，甚至有點小得意。我想著：「反正現在有 **VS Code Copilot** 和 **Antigravity** 這些超強的 AI 工具，我只要用口語講一下需求，程式碼不就劈哩啪啦生出來了，寫專案超輕鬆的吧！」（想起來，這簡直是沒受過扎實資工系課程洗禮才會講出來的幼稚發言）。
 
 確實，前幾天開發過程簡直像蜜月期一樣爽快。AI 寫程式碼的速度飛快，給個指令就產出一大堆代碼，遊戲也真的能跑能動了，Mario 會跑、會跳，看起來有模有樣。但因為我當時太過依賴 AI 的即時產出，完全沒有靜下心來規劃整體的 OOP 架構。結果，代碼不知不覺塞成一團，程式裡充斥著幾百個 if-else 和硬編碼，不知不覺寫出了一大坨令人頭疼的義大利麵代碼。
 
@@ -932,7 +933,7 @@ AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「�
 
 #### 總結
 
-這個OOP馬力歐專案對我而言，最珍貴的收穫不僅僅是利用 C++ 成功復刻了我從小就夢想挑戰的超級瑪利歐，更重要的是，我從中學會了如何當一個掌控全局的「系統架構師」，而不是被 AI 牽著鼻子走的碼農。這絕對是我大學生涯目前為止做過最有趣、也成就感最大的一個專案！
+這個OOP瑪利歐專案對我而言，最珍貴的收穫不僅僅是利用 C++ 成功復刻了我從小就想做的遊戲，更重要的是，我從中學會了如何當一個掌控全局的「系統架構師」，而不是被 AI 牽著鼻子走的碼農(不然未來工作也可能被AI取代)。這是我大學生涯目前為止做過最有趣、也成就感最大的一個專案！
 
 ### 貢獻比例
 

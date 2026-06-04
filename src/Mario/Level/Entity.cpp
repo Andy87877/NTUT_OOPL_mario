@@ -157,7 +157,7 @@ void Entity::InitializeSizeOnce(const glm::vec2& spriteSize) {
     } else if (m_Def.renderTargetWidth > 0.0f && spriteSize.x > 0.0f) {
         // Width-override entity: EntityFactory set renderTargetWidth (e.g. 8-4
         // enemy scaling).  Height is derived proportionally from the sprite.
-        float tw = m_Def.renderTargetWidth;
+        float tw = m_Def.renderTargetWidth * GameConfig::DRAW_SCALE;
         m_State.SetSizeX(static_cast<int>(tw));
         if (spriteSize.y > spriteSize.x) {
             float heightScale = spriteSize.y / spriteSize.x;

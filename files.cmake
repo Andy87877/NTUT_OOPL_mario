@@ -16,12 +16,14 @@ set(SRC_FILES
     # Level & Block
     Mario/Level/Level.cpp
     Mario/Level/Block.cpp
+    Mario/Level/BlockFactory.cpp
     Mario/Level/MovingPlatform.cpp
     Mario/Level/EntityState.cpp
     Mario/Level/EnemyDeathAnimation.cpp
     Mario/Level/EnemyDeathStyleFactory.cpp
     Mario/Level/Entity.cpp
     Mario/Level/EntityFactory.cpp
+    Mario/Level/LevelConfig.cpp
     Mario/Level/GameStateManager.cpp
 
     # Behaviors (Phase 4 - Strategy Pattern)
@@ -56,8 +58,15 @@ set(SRC_FILES
 
     # UI & Panels
     Mario/UI/UIManager.cpp
+    Mario/UI/HUDPanel.cpp
+    Mario/UI/TitlePanel.cpp
+    Mario/UI/LoadingPanel.cpp
+    Mario/UI/SimpleTextPanel.cpp
+    Mario/UI/ESCMenuPanel.cpp
+    Mario/UI/AxeEndingPanel.cpp
     Mario/UI/CoinUI.cpp
     Mario/UI/FloatingText.cpp
+
 
     # Services (DIP & Services)
     Mario/Services/InputHandler.cpp
@@ -87,11 +96,13 @@ set(INCLUDE_FILES
     # Level & Block
     Mario/Level/Level.hpp
     Mario/Level/Block.hpp
+    Mario/Level/BlockFactory.hpp
     Mario/Level/MovingPlatform.hpp
     Mario/Level/EntityDef.hpp
     Mario/Level/Entity.hpp
     Mario/Level/EntityFactory.hpp
     Mario/Level/EntityState.hpp
+    Mario/Level/LevelConfig.hpp
     Mario/Level/EnemyDeathAnimation.hpp
     Mario/Level/EnemyDeathStyleFactory.hpp
     Mario/Level/GameStateManager.hpp
@@ -131,10 +142,17 @@ set(INCLUDE_FILES
 
     # UI & Panels
     Mario/UI/UIPanel.hpp
+    Mario/UI/HUDPanel.hpp
+    Mario/UI/TitlePanel.hpp
+    Mario/UI/LoadingPanel.hpp
+    Mario/UI/SimpleTextPanel.hpp
+    Mario/UI/ESCMenuPanel.hpp
+    Mario/UI/AxeEndingPanel.hpp
     Mario/UI/UIManager.hpp
     Mario/UI/UIWidgets.hpp
     Mario/UI/CoinUI.hpp
     Mario/UI/FloatingText.hpp
+
 
     # Services (DIP & Services)
     Mario/Services/ServiceLocator.hpp

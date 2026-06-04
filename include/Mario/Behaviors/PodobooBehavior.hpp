@@ -66,6 +66,8 @@ class PodobooBehavior : public IEntityBehavior {
     /** Podoboos ignore solid block terrain snapping. */
     bool IgnoresBlocks() const override { return true; }
 
+    bool ShouldDisappearOnGoal() const override { return true; }
+
     std::unique_ptr<IEntityBehavior> Clone() const override;
 
     const char* GetName() const override { return "PodobooBehavior"; }

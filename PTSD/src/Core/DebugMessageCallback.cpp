@@ -1,13 +1,19 @@
+/**
+ * @file DebugMessageCallback.cpp
+ * @brief Implementation of OpenGL debug message callback to handle and log
+ * driver/API messages.
+ * @inheritance None
+ */
 #include "Core/DebugMessageCallback.hpp"
 
 #include "Util/Logger.hpp"
 
 namespace Core {
 void GLAPIENTRY OpenGLDebugMessageCallback(GLenum source, GLenum type,
-                                           GLuint id, // NOLINT
+                                           GLuint id,  // NOLINT
                                            GLenum severity, GLsizei length,
-                                           const GLchar *message,
-                                           const void *data) {
+                                           const GLchar* message,
+                                           const void* data) {
     std::string sourceString;
     std::string typeString;
     std::string severityString;
@@ -43,49 +49,50 @@ void GLAPIENTRY OpenGLDebugMessageCallback(GLenum source, GLenum type,
     // clang-format on
 
     switch (severity) {
-    case GL_DEBUG_SEVERITY_HIGH:
-        LOG_ERROR("OpenGL Severity: {}", severityString);
-        LOG_ERROR(" ID: {}", id);
-        LOG_ERROR(" Source: {}", sourceString);
-        LOG_ERROR(" Type: {}", typeString);
-        LOG_ERROR(" Message: {}", message);
-        break;
+        case GL_DEBUG_SEVERITY_HIGH:
+            LOG_ERROR("OpenGL Severity: {}", severityString);
+            LOG_ERROR(" ID: {}", id);
+            LOG_ERROR(" Source: {}", sourceString);
+            LOG_ERROR(" Type: {}", typeString);
+            LOG_ERROR(" Message: {}", message);
+            break;
 
-    case GL_DEBUG_SEVERITY_MEDIUM:
-        LOG_WARN("OpenGL Severity: {}", severityString);
-        LOG_WARN(" ID: {}", id);
-        LOG_WARN(" Source: {}", sourceString);
-        LOG_WARN(" Type: {}", typeString);
-        LOG_WARN(" Message: {}", message);
-        break;
+        case GL_DEBUG_SEVERITY_MEDIUM:
+            LOG_WARN("OpenGL Severity: {}", severityString);
+            LOG_WARN(" ID: {}", id);
+            LOG_WARN(" Source: {}", sourceString);
+            LOG_WARN(" Type: {}", typeString);
+            LOG_WARN(" Message: {}", message);
+            break;
 
-    case GL_DEBUG_SEVERITY_LOW:
-        LOG_INFO("OpenGL Severity {}", severityString);
-        LOG_INFO(" ID: {}", id);
-        LOG_INFO(" Source: {}", sourceString);
-        LOG_INFO(" Type: {}", typeString);
-        LOG_INFO(" Message: {}", message);
-        break;
+        case GL_DEBUG_SEVERITY_LOW:
+            LOG_INFO("OpenGL Severity {}", severityString);
+            LOG_INFO(" ID: {}", id);
+            LOG_INFO(" Source: {}", sourceString);
+            LOG_INFO(" Type: {}", typeString);
+            LOG_INFO(" Message: {}", message);
+            break;
 
-    case GL_DEBUG_SEVERITY_NOTIFICATION:
-        LOG_DEBUG("OpenGL Severity {}", severityString);
-        LOG_DEBUG(" ID: {}", id);
-        LOG_DEBUG(" Source: {}", sourceString);
-        LOG_DEBUG(" Type: {}", typeString);
-        LOG_DEBUG(" Message: {}", message);
-        break;
+        // OpenGL notification messages are ignored to prevent console spam
+        case GL_DEBUG_SEVERITY_NOTIFICATION:
+            // LOG_DEBUG("OpenGL Severity {}", severityString);
+            // LOG_DEBUG(" ID: {}", id);
+            // LOG_DEBUG(" Source: {}", sourceString);
+            // LOG_DEBUG(" Type: {}", typeString);
+            // LOG_DEBUG(" Message: {}", message);
+            break;
 
-    default:
-        LOG_DEBUG("OpenGL Severity Unknown");
-        LOG_DEBUG(" ID: {}", id);
-        LOG_DEBUG(" Source: {}", sourceString);
-        LOG_DEBUG(" Type: {}", typeString);
-        LOG_DEBUG(" Message: {}", message);
-        break;
+        default:
+            LOG_DEBUG("OpenGL Severity Unknown");
+            LOG_DEBUG(" ID: {}", id);
+            LOG_DEBUG(" Source: {}", sourceString);
+            LOG_DEBUG(" Type: {}", typeString);
+            LOG_DEBUG(" Message: {}", message);
+            break;
     }
 
     // unused variable, this is for silencing warnings
     (void)length;
     (void)data;
 }
-} // namespace Core
+}  // namespace Core

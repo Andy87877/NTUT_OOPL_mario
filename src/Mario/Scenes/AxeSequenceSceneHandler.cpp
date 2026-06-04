@@ -30,6 +30,18 @@ void AxeSequenceSceneHandler::OnEnter(App& app) {
         if (b && b->IsPrincess()) m_princess = entity;
     }
 
+    // Freeze active entities or delete hazards (like fireballs/Podoboos) during the cutscene.
+    for (auto& entity : app.GetEntities()) {
+        if (entity) {
+            auto* b = entity->GetBehavior();
+            if (b && b->ShouldDisappearOnGoal()) {
+                entity->GetState().Delete();
+            } else if (entity != m_bowser) {
+                entity->GetState().SetFrozen(true);
+            }
+        }
+    }
+
     auto& player = app.GetPlayer();
     if (player) {
         player->GetState().SetControllable(false);
@@ -69,7 +81,7 @@ void AxeSequenceSceneHandler::Update(App& app) {
     level->UpdateBlocks(app.GetCamera().GetOffset());
 
     for (auto& entity : app.GetEntities()) {
-        if (entity->GetState().IsActive()) {
+        if (entity && entity->GetState().IsActive()) {
             entity->GetState().Tick();
             entity->UpdateView(app.GetCamera().GetOffset());
         }

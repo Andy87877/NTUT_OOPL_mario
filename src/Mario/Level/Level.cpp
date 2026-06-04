@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include "Mario/Core/SpritePathResolver.hpp"
+#include "Mario/Level/BlockFactory.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {
@@ -354,60 +355,30 @@ void Level::CreateBlocksFromGrid() {
                 // Fall through to create a visible solid block below.
             }
 
-            // Create the block
+            // Create the block using BlockFactory (Factory Pattern / OOP Decoupling)
             const BlockDef& def = it->second;
+            auto block = BlockFactory::CreateBlock(blockID, x, y, def, m_LevelName);
+            if (!block) continue;
 
-            // Moving platforms (IDs 960/961) — stored separately, not in
-            // m_BlockMap
-            if (blockID == 960) {
-                auto plat = std::make_shared<MovingPlatform>(
-                    blockID, x, y, def, MovingPlatform::Direction::VERTICAL,
-                    m_LevelName);
-                m_Blocks.push_back(plat);
-                m_MovingPlatforms.push_back(plat.get());
-                continue;
-            }
-            if (blockID == 961) {
-                auto plat = std::make_shared<MovingPlatform>(
-                    blockID, x, y, def, MovingPlatform::Direction::HORIZONTAL,
-                    m_LevelName);
-                m_Blocks.push_back(plat);
-                m_MovingPlatforms.push_back(plat.get());
-                continue;
-            }
-
-            std::shared_ptr<Block> block;
-            if (def.isGoal) {
-                block = std::make_shared<GoalBlock>(blockID, x, y, def,
-                                                    m_LevelName);
-            } else if (def.name == "Bridge" || def.name == "BridgeBlock") {
-                block = std::make_shared<BridgeBlock>(blockID, x, y, def,
-                                                      m_LevelName);
-                m_BridgeBlocks.push_back(block.get());
-            } else if (def.background) {
-                auto bgBlock = std::make_shared<BackgroundBlock>(
-                    blockID, x, y, def, m_LevelName);
-                if (bgBlock->IsCastleDoor()) {
-                    m_CastleDoorX =
-                        static_cast<float>(x * GameConfig::TILE_SIZE);
-                }
-                block = bgBlock;
-            } else if (def.name == "InvisQuestionBlock") {
-                block = std::make_shared<InvisibleBlock>(blockID, x, y, def,
-                                                         m_LevelName);
-            } else if (def.isContainer) {
-                block = std::make_shared<QuestionBlock>(blockID, x, y, def,
-                                                        m_LevelName);
-            } else if (def.breakable) {
-                block = std::make_shared<BrickBlock>(blockID, x, y, def,
-                                                     m_LevelName);
-            } else {
-                block = std::make_shared<StoneBlock>(blockID, x, y, def,
-                                                     m_LevelName);
-            }
             m_Blocks.push_back(block);
-            m_GridBlocks[y * m_Width + x] = block.get();
-            if (def.isGoal) m_GoalBlocks.push_back(block.get());
+
+            if (block->IsMovingPlatform()) {
+                m_MovingPlatforms.push_back(static_cast<MovingPlatform*>(block.get()));
+            } else {
+                m_GridBlocks[y * m_Width + x] = block.get();
+                if (block->IsGoal()) {
+                    m_GoalBlocks.push_back(block.get());
+                }
+                if (block->IsBridge()) {
+                    m_BridgeBlocks.push_back(block.get());
+                }
+                if (block->IsBackground()) {
+                    auto* bgBlock = static_cast<BackgroundBlock*>(block.get());
+                    if (bgBlock->IsCastleDoor()) {
+                        m_CastleDoorX = static_cast<float>(x * GameConfig::TILE_SIZE);
+                    }
+                }
+            }
         }
     }
 }

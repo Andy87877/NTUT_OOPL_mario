@@ -44,12 +44,9 @@ bool AxeBehavior::OnPlayerCollision(EntityState& state,
 void PrincessBehavior::Update(EntityState& state,
                               [[maybe_unused]] const Level& level,
                               [[maybe_unused]] const Player& player,
-                              int gameTimer) {
-    state.SetVelX(0);
-    state.SetVelY(0);
-    if (state.IsAnimated() && gameTimer % 30 == 0) {
-        state.AdvanceAnimationFrame();
-    }
+                              [[maybe_unused]] int gameTimer) {
+    state.SetVelX(0.0f);
+    state.SetVelY(0.0);
 }
 
 bool PrincessBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,

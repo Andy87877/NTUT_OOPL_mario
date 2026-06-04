@@ -9,6 +9,8 @@
 
 #include <cmath>
 
+#include "Mario/Level/LevelConfig.hpp"
+
 #include "Mario/Behaviors/BowserBehavior.hpp"
 #include "Mario/Behaviors/CastleFireSpawnerBehavior.hpp"
 #include "Mario/Behaviors/DefaultEntityBehavior.hpp"
@@ -37,11 +39,9 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
     float bowserAnchorY = -1.0f;
 
     for (const auto& sp : level.GetSpawnPoints()) {
-        // Handle Flag entity - should only appear in 1-1
+        // Handle Flag entity - only created if flagpole sequence exists in this level
         if (sp.entityName == "Flag") {
-            // Only create Flag in 1-1 level
-            if (levelName == "1-1" ||
-                levelName.find("1-1") != std::string::npos) {
+            if (LevelConfig::HasFlag(levelName)) {
                 const EntityDef& def = level.GetEntityDefByName("Flag");
                 if (!def.name.empty()) {
                     auto flag = SpawnEntity(def, sp.worldX, sp.worldY, 0, false,
@@ -77,34 +77,30 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
                       sp.worldX, sp.worldY);
             entities.push_back(entity);
 
-            if (levelName == "8-4") {
+            if (LevelConfig::HasBoss(levelName)) {
                 if (sp.entityName == "Bowser") {
                     hasBowser = true;
                 }
                 if (sp.entityName == "Axe" && bowserAnchorX < 0.0f) {
                     bowserAnchorX = sp.worldX - static_cast<float>(
-                                                    GameConfig::TILE_SIZE * 7);
+                                                     GameConfig::TILE_SIZE * 7);
                     bowserAnchorY = sp.worldY;
                 }
                 if (sp.entityName == "Princess" && bowserAnchorX < 0.0f) {
                     bowserAnchorX = sp.worldX - static_cast<float>(
-                                                    GameConfig::TILE_SIZE * 7);
+                                                     GameConfig::TILE_SIZE * 7);
                     bowserAnchorY = sp.worldY;
                 }
             }
         }
     }
 
-    // 8-4 castle: Spawn Podoboos at hardcoded lava pit positions.
-    // Not in CSV spawn data — baked into 8-4 level design.
-    // row 13 = main castle lava (y = 13 * TILE_SIZE)
-    // row 11 = boss pit lava   (y = 11 * TILE_SIZE)
-    if (levelName == "8-4") {
+    // Spawn Podoboos based on configuration data (decoupled from hardcoded level checks)
+    auto podobooSpawns = LevelConfig::GetPodobooSpawns(levelName);
+    if (!podobooSpawns.empty()) {
         const EntityDef& podobooDef = level.GetEntityDefByName("Podoboo");
         if (!podobooDef.name.empty()) {
-            static constexpr std::pair<int, int> kPodobooTiles[] = {
-                {68, 13}, {145, 13}, {222, 13}, {336, 11}};
-            for (auto [col, row] : kPodobooTiles) {
+            for (auto [col, row] : podobooSpawns) {
                 float wx = static_cast<float>(col * GameConfig::TILE_SIZE);
                 float wy = static_cast<float>(row * GameConfig::TILE_SIZE);
                 auto pb = SpawnEntity(podobooDef, wx, wy, 2, false, levelName);
@@ -116,7 +112,9 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
         } else {
             LOG_WARN("Podoboo entity definition not found in EntityList.csv");
         }
+    }
 
+    if (LevelConfig::HasBoss(levelName)) {
         if (!hasBowser) {
             const EntityDef& bowserDef = level.GetEntityDefByName("Bowser");
             if (!bowserDef.name.empty()) {
@@ -139,8 +137,10 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
                 }
             }
         }
+    }
 
-        // Automatically spawn off-screen CastleFireSpawner at the start of 8-4
+    if (LevelConfig::SpawnCastleFireSpawner(levelName)) {
+        // Automatically spawn off-screen CastleFireSpawner if configured
         EntityDef spawnerDef;
         spawnerDef.id = -1;
         spawnerDef.name = "CastleFireSpawner";
@@ -151,7 +151,7 @@ std::vector<std::shared_ptr<Entity>> EntityFactory::SpawnFromLevel(
         auto spawner = SpawnEntity(spawnerDef, 0.0f, 0.0f, 0, false, levelName);
         if (spawner) {
             LOG_INFO(
-                "8-4 Castle: Automatically spawned off-screen "
+                "Castle: Automatically spawned off-screen "
                 "CastleFireSpawner.");
             entities.push_back(spawner);
         }
@@ -172,26 +172,9 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
     // This is the single place where "8-4 needs bigger Bowser" knowledge lives.
     // -------------------------------------------------------------------------
     EntityDef localDef = def;
-    if (levelName == "8-4") {
-        // Default for all 8-4 entities: 1-tile-wide sprite scaling.
-        localDef.renderTargetWidth = 32.0f;
-        switch (localDef.type) {
-            case EntityType::BOWSER:
-                localDef.renderTargetWidth = 64.0f;  // 2-tile boss
-                break;
-            case EntityType::FIRE:
-                // Bowser's fire is larger than a player fireball.
-                if (localDef.isEnemy) localDef.renderTargetWidth = 48.0f;
-                break;
-            case EntityType::PIRANHA_PLANT:
-                localDef.renderTargetWidth = 64.0f;  // 2-tile-wide pipe plant
-                break;
-            default:
-                break;  // stays at 32.0f
-        }
-    } else if (localDef.type == EntityType::PIRANHA_PLANT) {
-        // PiranhaPlant in 1-1/1-2: same visual scale as the 8-4 path.
-        localDef.renderTargetWidth = 64.0f;
+    float widthOverride = LevelConfig::GetRenderTargetWidthOverride(levelName, localDef.type, localDef.isEnemy);
+    if (widthOverride > 0.0f) {
+        localDef.renderTargetWidth = widthOverride;
     }
 
     // Mark entities that must render behind blocks (Z_BLOCK-1 layer).
@@ -205,6 +188,11 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
     // Storing it here keeps the EntityType knowledge inside the Factory (OCP).
     if (localDef.type == EntityType::PIRANHA_PLANT) {
         localDef.fixedHitboxTiles = 2;
+    }
+
+    // Dynamic config overrides for Princess
+    if (localDef.type == EntityType::PRINCESS) {
+        localDef.animBuffer = 30; // Slow down Princess animation rate (once every 30 ticks)
     }
 
     auto entity = std::make_shared<Entity>(localDef, worldX, worldY, direction,

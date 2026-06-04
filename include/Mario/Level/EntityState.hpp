@@ -96,6 +96,8 @@ class EntityState {
     // Used by PiranhaPlantBehavior when the plant is inside the pipe.
     void SetHidden(bool hidden) { m_Hidden = hidden; }
     bool IsHidden() const { return m_Hidden; }
+    void SetFrozen(bool frozen) { m_Frozen = frozen; }
+    bool IsFrozen() const { return m_Frozen; }
 
     // -- Actions --
     void FlipDirection();
@@ -154,6 +156,7 @@ class EntityState {
     std::unique_ptr<IEnemyDeathAnimation> m_DeathAnimation;
     int m_ActiveCounter = 0;
     bool m_Hidden = false;  // Set by PiranhaPlantBehavior to suppress rendering
+    bool m_Frozen = false;
 };
 
 }  // namespace Mario

@@ -1,3 +1,8 @@
+/**
+ * @file DebugMessageCallback.hpp
+ * @brief Declaration of OpenGL debug message callback to handle and log driver/API messages.
+ * @inheritance None
+ */
 #ifndef CORE_DEBUG_MESSAGE_CALLBACK_HPP
 #define CORE_DEBUG_MESSAGE_CALLBACK_HPP
 

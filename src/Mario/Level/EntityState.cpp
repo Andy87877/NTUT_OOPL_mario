@@ -53,6 +53,7 @@ void EntityState::Init(const std::string& name, float worldX, float worldY,
     m_AnimBufferCount = 0;
     m_ActiveCounter = 0;
     m_Hidden = false;
+    m_Frozen = false;
     m_VelY = 0.0;
     m_FallHeight = 0.0;
     m_DeathAnimation = std::make_unique<ClassicEnemyDeathAnimation>();
@@ -89,6 +90,7 @@ void EntityState::Init(const std::string& name, float worldX, float worldY,
 
 void EntityState::Tick() {
     if (!m_Active) return;
+    if (m_Frozen) return;
 
     m_ActiveCounter++;
 
