@@ -976,7 +976,7 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 stateDiagram-v2
     direction LR
     [*] --> START
-    START --> WELCOME_STATE : "App::Start()"
+    START --> WELCOME_STATE : "App.Start()"
     WELCOME_STATE --> LOADING : "PRESS ENTER" (Select World)
     LOADING --> PLAYING : "LEVEL_TRANSITION_DELAY (3.0s) timer expires"
     PLAYING --> ESC_MENU : "PRESS ESC" (Pause Game)
@@ -1615,15 +1615,15 @@ stateDiagram-v2
     [*] --> BIG   : Init(state=1)
     [*] --> FIRE  : Init(state=2)
 
-    SMALL --> BIG        : Collect Mushroom\nMushroomBehavior::OnPlayerCollision
-    SMALL --> FIRE       : Collect Fire Flower\nFireFlowerBehavior::OnPlayerCollision
-    SMALL --> SMALL_STAR : Collect Star\nStarBehavior::OnPlayerCollision
+    SMALL --> BIG        : Collect Mushroom\nMushroomBehavior.OnPlayerCollision
+    SMALL --> FIRE       : Collect Fire Flower\nFireFlowerBehavior.OnPlayerCollision
+    SMALL --> SMALL_STAR : Collect Star\nStarBehavior.OnPlayerCollision
     BIG   --> FIRE       : Collect Fire Flower
     BIG   --> BIG_STAR   : Collect Star
     FIRE  --> BIG_STAR   : Collect Star
 
-    SMALL_STAR --> SMALL : StarTimer == 0\n(PowerState::SMALL_STAR → SMALL)
-    BIG_STAR   --> BIG   : StarTimer == 0\n(PowerState::BIG_STAR → BIG)
+    SMALL_STAR --> SMALL : StarTimer == 0\n(PowerState.SMALL_STAR → SMALL)
+    BIG_STAR   --> BIG   : StarTimer == 0\n(PowerState.BIG_STAR → BIG)
 
     BIG   --> SMALL : TakeDamage()\nStage-down
     FIRE  --> BIG   : TakeDamage()\nStage-down
@@ -1667,7 +1667,7 @@ stateDiagram-v2
 stateDiagram-v2
     direction TB
 
-    [*] --> Spawned : EntityFactory::SpawnEntity()\nor SpawnFromLevel()
+    [*] --> Spawned : EntityFactory.SpawnEntity()\nor SpawnFromLevel()
 
     Spawned --> Inactive : worldX < cameraLeft - CULL_MARGIN\n(outside viewport, not AlwaysUpdate)
     Spawned --> Active   : worldX in viewport\nor AlwaysUpdate()==true
@@ -1709,7 +1709,7 @@ Bowser 的 5 個 `BowserPhase` 透過 `EntityState` 由 `BowserBehavior::Update(
 stateDiagram-v2
     direction TB
 
-    [*] --> PATROL : AxeSequenceSceneHandler::OnEnter\ninitialises Bowser entity
+    [*] --> PATROL : AxeSequenceSceneHandler.OnEnter\ninitialises Bowser entity
 
     PATROL      --> FIRE_ATTACK  : patrol_timer >= FIRE_INTERVAL\n(enqueue SpawnRequest fireballs)
     FIRE_ATTACK --> PATROL       : shots_fired >= MAX_SHOTS\n(reset patrol timer)
@@ -1725,7 +1725,7 @@ stateDiagram-v2
     FIRE_ATTACK --> DEFEATED     : OnFireballHit() [hp == 0]
     DAMAGED     --> DEFEATED     : [hp == 0]
 
-    DEFEATED    --> [*]          : App::TransitionTo(AXE_SEQUENCE)\nAxeSequenceSceneHandler takes over
+    DEFEATED    --> [*]          : App.TransitionTo(AXE_SEQUENCE)\nAxeSequenceSceneHandler takes over
 
     note right of PATROL
         Walk left-right at patrol speed

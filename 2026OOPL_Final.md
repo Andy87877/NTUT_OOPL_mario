@@ -216,7 +216,7 @@ classDiagram
 stateDiagram-v2
     direction LR
     [*] --> START
-    START --> WELCOME_STATE : "App::Start()"
+    START --> WELCOME_STATE : "App.Start()"
     WELCOME_STATE --> LOADING : "按下 Enter 鍵"
     LOADING --> PLAYING : "過場計時完成"
     PLAYING --> ESC_MENU : "按下 ESC 鍵"
