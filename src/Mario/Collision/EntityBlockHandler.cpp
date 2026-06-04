@@ -6,6 +6,9 @@
  */
 #include "Mario/Collision/EntityBlockHandler.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include "Mario/Level/EntityDef.hpp"
 #include "Mario/Level/EntityFactory.hpp"
 #include "Mario/Core/GameConfig.hpp"
@@ -48,13 +51,31 @@ void EntityBlockHandler::Resolve(
 // Snaps the entity to the top of any solid block it sinks into.
 // ============================================================================
 void EntityBlockHandler::CheckGround(Entity& entity, Level& level) {
-    AABB box = entity.GetHitbox();
     EntityState& state = entity.GetState();
+
+    // If the entity is currently rising (e.g. bouncing fireball, jumping Koopa),
+    // skip grounding resolution to prevent upward snapping and allow natural arc.
+    if (state.GetFallHeight() > 0.0) {
+        if (state.IsGrounded()) {
+            state.SetGrounded(false);
+        }
+        return;
+    }
+
+    AABB box = entity.GetHitbox();
     const int tileSize = GameConfig::TILE_SIZE;
 
+    // Shift 1.0f downward to check the block directly below the entity.
+    // This removes the 1-frame oscillation bug when resting exactly on block tops.
+    float checkY = box.bottom + 1.0f;
     int leftTile = static_cast<int>(box.left) / tileSize;
     int rightTile = static_cast<int>(box.right - 1) / tileSize;
-    int bottomTile = static_cast<int>(box.bottom) / tileSize;
+    int bottomTile = static_cast<int>(checkY) / tileSize;
+
+    // Velocity-adaptive threshold: scales with downward velocity to prevent
+    // fast-falling projectiles (fireballs) or kicked shells from clipping through the floor.
+    float threshold = std::max(static_cast<float>(tileSize) * 0.75f,
+                               static_cast<float>(std::abs(state.GetVelY()) + 2.0f));
 
     bool onGround = false;
     for (int x = leftTile; x <= rightTile; x++) {
@@ -62,11 +83,13 @@ void EntityBlockHandler::CheckGround(Entity& entity, Level& level) {
         if (block && block->IsSolid()) {
             AABB bb = block->GetAABB();
             float overlap = box.bottom - bb.top;
-            if (overlap > 0 && overlap < tileSize * 0.75f) {
+            if (overlap >= 0.0f && overlap < threshold) {
                 state.SetY(bb.top - state.GetHeight());
-                state.SetVelY(0.0f);
+                state.SetVelY(0.0);
+                state.SetFallHeight(0.0);
                 state.SetGrounded(true);
                 onGround = true;
+                break;
             }
         }
     }

@@ -216,8 +216,8 @@ classDiagram
 stateDiagram-v2
     direction LR
     [*] --> START
-    START --> TITLE_STATE : "App::Start()"
-    TITLE_STATE --> LOADING : "按下 Enter 鍵"
+    START --> WELCOME_STATE : "App::Start()"
+    WELCOME_STATE --> LOADING : "按下 Enter 鍵"
     LOADING --> PLAYING : "過場計時完成"
     PLAYING --> ESC_MENU : "按下 ESC 鍵"
     ESC_MENU --> PLAYING : "選擇繼續遊戲"
@@ -365,7 +365,7 @@ sequenceDiagram
 
 這學期的物件導向程式設計實習（OOPL）對我而言，是一次極為震撼且深刻的程式心路歷程。這不僅僅是完成了復刻超級瑪利歐這款遊戲本身，更讓我深刻翻轉了對「物件導向設計」與「人機協作（Human-AI Collaboration）」的認知。
 
-#### 1. 甜蜜的蜜月期與突如其來的「義大利麵地獄」
+#### 1. 以為的「AI魔法」與突如其來的「義大利麵地獄」
 
 剛開始寫這個瑪利歐專案時，我心裡其實非常放鬆，甚至有點小得意。我想著：「反正現在有 VS Code Copilot 和 Antigravity 這些超強的 AI 工具，我只要用口語講一下需求，程式碼不就劈哩啪啦生出來了，寫專案超輕鬆的吧！」（想起來，這簡直是沒受過扎實資工系課程洗禮才會講出來的幼稚發言）。
 
@@ -375,7 +375,7 @@ sequenceDiagram
 
 #### 2. 痛定思痛的「架構大洗牌」與覺醒
 
-在那段痛苦的 Debug 地獄中，我突然停下鍵盤，徹底頓悟了：**我本末倒置了！**
+在那段痛苦的 Debug 地獄中，我突然停下鍵盤，徹底頓悟了：**我本末倒置了！！！**
 
 AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「架構遠見」。如果我身為開發者，沒有先在腦中把物件的繼承關係、介面合約、工廠模式等藍圖給規劃好，直接叫 AI 開始寫，那 AI 產出來的只會是「能跑的精美垃圾」。
 

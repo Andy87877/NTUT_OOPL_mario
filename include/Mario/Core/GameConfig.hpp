@@ -70,6 +70,7 @@ struct GameConfig {
     // Fireball configuration
     static constexpr float FIREBALL_SPEED = SCALED_SPEED;
     static constexpr int MAX_FIREBALLS = 2;
+    static constexpr float FIREBALL_BOUNCE_VELOCITY = 6.0f;
 
     // -- Collision --
     static constexpr float INTERSECT_STRICTNESS = 0.35f;

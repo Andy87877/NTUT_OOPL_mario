@@ -32,8 +32,8 @@ void PlayerBlockHandler::Resolve(Player& player, Level& level, Camera& camera,
     //              movingUp  : still on the jump arc (fallHeight > 0).
     bool movingDown = !state.IsGrounded() && state.GetFallHeight() <= 0.0;
     bool movingUp = state.GetFallHeight() > 0.0;
-    bool movingRight = state.GetVelX() > 0.0f;
-    bool movingLeft = state.GetVelX() < 0.0f;
+    bool movingRight = state.IsMovingRight() || state.GetVelX() > 0.0f;
+    bool movingLeft = state.IsMovingLeft() || state.GetVelX() < 0.0f;
 
     StepFallDetect(state, level);
     StepCeilingTrigger(state, level, camera, gameState, uiManager, outSpawns,
@@ -188,14 +188,15 @@ void PlayerBlockHandler::ProcessSingleBlock(PlayerState& state, Block* blk,
     AABB body = BlockContactResolver::BodyRect(state);
     if (!body.Intersects(bb)) return;
 
-    // OOP Extensibility check: vertical platforms can self-determine if they
-    // should be snapped vertically first.
-    if (blk->ShouldResolveVerticallyFirst(body)) {
-        state.SetY(bb.top - static_cast<float>(state.GetHeight()));
-        state.SetGrounded(true);
-        state.SetVelY(0.0);
-        state.SetFallHeight(0.0);
-        movingDown = false;
+    // Moving platforms are one-way: only solid from the top, only when landing from above.
+    if (blk->IsMovingPlatform()) {
+        if (state.GetVelY() >= 0.0f && state.GetFallHeight() <= 0.0 && blk->ShouldResolveVerticallyFirst(body)) {
+            state.SetY(bb.top - static_cast<float>(state.GetHeight()));
+            state.SetGrounded(true);
+            state.SetVelY(0.0);
+            state.SetFallHeight(0.0);
+            movingDown = false;
+        }
         return;
     }
 
@@ -257,6 +258,17 @@ void PlayerBlockHandler::ProcessSingleBlock(PlayerState& state, Block* blk,
                 BlockContactResolver::ResolveRight(state, bb, mr);
             else
                 BlockContactResolver::ResolveLeft(state, bb, ml);
+        }
+
+        // Resolve ceiling collision even if grounded (e.g. carried by platform into ceiling)
+        body = BlockContactResolver::BodyRect(state);
+        if (body.Intersects(bb)) {
+            bool tempMovingUp = true;
+            BlockContactResolver::ResolveUp(state, bb, tempMovingUp);
+            if (!tempMovingUp) {
+                // Snapped to ceiling bottom -> player is no longer grounded
+                state.SetGrounded(false);
+            }
         }
     }
 }

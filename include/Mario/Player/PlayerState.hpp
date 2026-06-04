@@ -105,6 +105,8 @@ class PlayerState {
     /** True when Mario is in a 2-tile-tall state (Big, Fire, or Big_Star). */
     bool IsBigOrFire() const;
     bool IsMoving() const { return m_MovingRight || m_MovingLeft; }
+    bool IsMovingRight() const { return m_MovingRight; }
+    bool IsMovingLeft() const { return m_MovingLeft; }
     bool IsJumping() const { return !m_Grounded; }
     bool IsFacingRight() const { return m_FacingRight; }
     void SetFacingRight(bool v) { m_FacingRight = v; }
@@ -182,6 +184,15 @@ class PlayerState {
     const IPlayerForm* GetForm() const { return m_Form.get(); }
 
     void SetFireShooting(bool v);
+
+    /**
+     * Checks and consumes a pending player fireball spawn request.
+     * @param outX Receives the computed spawn world X coordinate (aligned with Mario's width/direction)
+     * @param outY Receives the computed spawn world Y coordinate (aligned with Mario's mid-height/hands)
+     * @param outDir Receives the spawn direction (1 = right, 0 = left)
+     * @return True if a fireball should be spawned this frame
+     */
+    bool ConsumeFireballSpawn(float& outX, float& outY, int& outDir);
 
     // -- Jump Height --
     double GetFallHeight() const { return m_FallHeight; }

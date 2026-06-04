@@ -242,22 +242,20 @@ void PlayingSceneHandler::SpawnPlayerFireball(App& app) const {
     auto& player = app.GetPlayer();
     auto& ps = player->GetState();
 
-    if (!ps.IsFireShooting() || ps.GetSpecialCounter() != 1) return;
+    float fbX = 0.0f;
+    float fbY = 0.0f;
+    int dir = 1;
 
-    int dir = ps.IsFacingRight() ? 1 : -1;
-    float fbX = player->GetWorldX() + (dir == 1 ? ps.GetWidth() / 2.0f : 0.0f);
-    float fbY = player->GetWorldY() + ps.GetHeight() / 4.0f;
+    // Delegate trigger checking and coordinate math entirely to PlayerState (Model)
+    if (ps.ConsumeFireballSpawn(fbX, fbY, dir)) {
+        auto fb = Mario::EntityFactory::SpawnFromPlayer(
+            *player, Mario::EntityType::FIRE, fbX, fbY, dir,
+            *app.GetLevel(), app.GetCurrentLevelName());
 
-    // Delegate all EntityDef construction and velocity assignment to the
-    // factory. PlayingSceneHandler only computes the spawn position from player
-    // state.
-    auto fb = Mario::EntityFactory::SpawnFromPlayer(
-        *player, Mario::EntityType::FIRE, fbX, fbY, dir == 1 ? 1 : 0,
-        *app.GetLevel(), app.GetCurrentLevelName());
-
-    if (fb) {
-        app.AddEntityToGame(fb);
-        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::FireBall);
+        if (fb) {
+            app.AddEntityToGame(fb);
+            // Note: Fireball SFX is played inside PlayerState::SetFireShooting when shooting is initiated.
+        }
     }
 }
 

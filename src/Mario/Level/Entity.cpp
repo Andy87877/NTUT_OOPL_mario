@@ -123,11 +123,11 @@ void Entity::UpdateView(float cameraOffset) {
     float screenY =
         GameConfig::TopLeftToPTSDY(std::round(m_State.GetY()), entityHeight);
 
-    // Anchored bottom-alignment correction for width-override entities:
+    // Anchored bottom-alignment correction for all entities:
     // Ensures the bottom of the drawn sprite (spriteSize.y * absScaleY)
     // aligns exactly with the bottom of the logical hitbox (entityHeight),
-    // preventing the sprite from sinking into solid blocks when scaled.
-    if (m_Def.renderTargetWidth > 0.0f && m_Drawable) {
+    // preventing the sprite from sinking into solid blocks or floating.
+    if (m_Drawable) {
         glm::vec2 spriteSize = m_Drawable->GetSize();
         if (spriteSize.y > 0.0f) {
             float drawnHeight = spriteSize.y * absScaleY;
@@ -172,6 +172,10 @@ void Entity::InitializeSizeOnce(const glm::vec2& spriteSize) {
         int sz = m_Def.fixedHitboxTiles * GameConfig::TILE_SIZE;
         m_State.SetSizeX(sz);
         m_State.SetSizeY(sz);
+    } else if (m_Def.type == EntityType::FIRE) {
+        // Projectiles (fireballs) are smaller: half of tile size (approx 22px)
+        m_State.SetSizeX(GameConfig::TILE_SIZE / 2);
+        m_State.SetSizeY(GameConfig::TILE_SIZE / 2);
     } else if (m_Def.renderTargetWidth > 0.0f && spriteSize.x > 0.0f) {
         // Width-override entity: EntityFactory set renderTargetWidth (e.g. 8-4
         // enemy scaling).  Height is derived proportionally from the sprite.

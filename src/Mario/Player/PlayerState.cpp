@@ -388,6 +388,18 @@ void PlayerState::SetFireShooting(bool v) {
     }
 }
 
+bool PlayerState::ConsumeFireballSpawn(float& outX, float& outY, int& outDir) {
+    if (m_SpecialActive && m_SpecialCounter == 1) {
+        outDir = m_FacingRight ? 1 : 0;
+        // Align spawning X: facing right spawns at center, facing left at left edge (matches C# positioning logic)
+        outX = m_PosX + (m_FacingRight ? GetWidth() / 2.0f : 0.0f);
+        // Align spawning Y: half height (aligned with hands/chest, matches C# half-height logic)
+        outY = m_PosY + GetHeight() / 2.0f;
+        return true;
+    }
+    return false;
+}
+
 void PlayerState::StartDeathAnimation() {
     if (m_DeathAnimation && m_DeathAnimation->IsActive()) return;
 

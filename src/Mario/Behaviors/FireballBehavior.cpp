@@ -52,7 +52,7 @@ void FireballBehavior::Update(EntityState& state,
     if (m_Type == FireballType::PLAYER && state.IsGrounded()) {
         // Bounce logic (bounce forever like C# reference)
         state.SetGrounded(false);  // jump up
-        state.SetFallHeight(GameConfig::JUMP_LOW_VELOCITY);
+        state.SetFallHeight(GameConfig::FIREBALL_BOUNCE_VELOCITY);
     }
 
     // All collision checking (ground, wall, entities) is handled by App.cpp

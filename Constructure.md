@@ -976,12 +976,12 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 stateDiagram-v2
     direction LR
     [*] --> START
-    START --> TITLE_STATE : "App::Start()"
-    TITLE_STATE --> LOADING : "PRESS ENTER" (Select World)
+    START --> WELCOME_STATE : "App::Start()"
+    WELCOME_STATE --> LOADING : "PRESS ENTER" (Select World)
     LOADING --> PLAYING : "LEVEL_TRANSITION_DELAY (3.0s) timer expires"
     PLAYING --> ESC_MENU : "PRESS ESC" (Pause Game)
     ESC_MENU --> PLAYING : "SELECT RESUME / PRESS ESC"
-    ESC_MENU --> TITLE_STATE : "SELECT QUIT"
+    ESC_MENU --> WELCOME_STATE : "SELECT QUIT"
     PLAYING --> FLAGPOLE : "Collide with flagpole column (1-1 / 1-2)"
     FLAGPOLE --> LOADING : "Castle entering animation finishes"
     PLAYING --> PIPE_WARP : "Stand on Pipe + press DOWN or RIGHT (1-2)"
@@ -991,8 +991,8 @@ stateDiagram-v2
     PLAYING --> DEATH : "Mario dies (damage, pit fall, time up)"
     DEATH --> LOADING : "Lives > 0 -> Retry same level"
     DEATH --> GAME_OVER : "Lives == 0"
-    GAME_OVER --> TITLE_STATE : "PRESS ENTER"
-    GAME_WON --> TITLE_STATE : "PRESS ENTER"
+    GAME_OVER --> WELCOME_STATE : "PRESS ENTER"
+    GAME_WON --> WELCOME_STATE : "PRESS ENTER"
 ```
 
 **Level sequence** (`GameStateManager::m_LevelSequence`):
@@ -2012,7 +2012,7 @@ sequenceDiagram
 | `Mario/Level/BlockFactory.cpp` | 33 | 磚塊生成工廠，實作多型 Block 子類別建立。 |
 | `Mario/Level/MovingPlatform.cpp` | 114 | 移動平台（垂直/水平）移動物理與 Snap 載人邏輯。 |
 | `Mario/Level/Level.cpp` | 586 | CSV 載入與二維 Block 扁平陣列 O(1) 索引；視口 culling column 效率優化；純資料驅動食人花重疊過濾（零硬編碼）。 |
-| `Mario/Player/PlayerState.cpp` | 374 | Player MVC Model；蹲下高度動態調整；自定義非內聯解構子。 |
+| `Mario/Player/PlayerState.cpp` | 427 | Player MVC Model；蹲下高度動態調整；自定義非內聯解構子。 |
 | `Mario/Player/PlayerForm.cpp` | 303 | IPlayerForm 及 5 種力量型態子類別多型升級與傷害退化轉換實作。 |
 | `Mario/Player/PlayerDeathAnimation.cpp` | 35 | ClassicPlayerDeathAnimation 死亡策略動畫（凍結➔起跳➔下墜）。 |
 | `Mario/Player/Player.cpp` | 180 | Player View；像素對齊；crouch sprite anchored to hitbox bottom（修正下陷問題）。 |
@@ -2020,19 +2020,19 @@ sequenceDiagram
 | `Mario/Level/EntityState.cpp` | 206 | Entity MVC Model；死亡動畫策略整合；GetHitbox 零硬編碼 AABB 運算。 |
 | `Mario/Level/EnemyDeathAnimation.cpp` | 162 | 四種死亡動畫策略（Squish壓扁/Retreat龜殼/Flip擊飛/Classic通用）具體實作。 |
 | `Mario/Level/EnemyDeathStyleFactory.cpp` | 30 | 依 EntityType 與 Cause 動態建立死亡動畫策略。 |
-| `Mario/Level/Entity.cpp` | 241 | Entity View；s_EntitySpriteCache 快取；Z-index 與維度由 EntityDef 資料驅動（OCP）。 |
+| `Mario/Level/Entity.cpp` | 231 | Entity View；s_EntitySpriteCache 快取；Z-index 與維度由 EntityDef 資料驅動（OCP）；所有實體精靈支援底部對齊（防止漂浮）。 |
 | `Mario/Level/EntityFactory.cpp` | 449 | 唯一 Entity 建立入口；設定 renderTargetWidth；SpawnProjectile 與 SpawnFromPlayer 投射物工廠。 |
 | `Mario/Level/LevelConfig.cpp` | 60 | 關卡特定屬性配置（8-4 熔岩泡泡坐標、Boss相機鎖偏移量、castle fire spawner 數量等資料驅動）。 |
 | Mario/CollisionManager.cpp | 65 | **Facade門面**：公開 API 將碰撞分派給 Collision/ 目錄下的 4 個 Strategy Handler。 |
 | `Mario/Collision/BlockContactResolver.cpp` | 116 | 靜態 Snap helpers（Down/Up/Right/Left）與 BodyRect 全高碰撞體建立。 |
-| `Mario/Collision/PlayerBlockHandler.cpp` | 315 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
+| `Mario/Collision/PlayerBlockHandler.cpp` | 330 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
 | `Mario/Collision/PlayerEntityHandler.cpp` | 271 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
-| `Mario/Collision/EntityBlockHandler.cpp` | 137 | 實體-方塊碰撞：處理反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形。 |
+| `Mario/Collision/EntityBlockHandler.cpp` | 160 | 實體-方塊碰撞：處理反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
 | `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
 | `Mario/Level/GameStateManager.cpp` | 107 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
 | `Mario/Scenes/MenuSceneHandlers.cpp` | 147 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
 | `Mario/Scenes/LoadingSceneHandler.cpp` | 47 | 加載畫面（預載貼圖，強制黑色背景）。 |
-| `Mario/Scenes/PlayingSceneHandler.cpp` | 598 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
+| `Mario/Scenes/PlayingSceneHandler.cpp` | 596 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
 | `Mario/Scenes/FlagpoleSceneHandler.cpp` | 202 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
 | `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
 | `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 169 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
@@ -2056,7 +2056,7 @@ sequenceDiagram
 | `Mario/Behaviors/KoopaFamily.cpp` | 296 | 紅綠烏龜兵、飛龜、擲斧龜多型 AI；以 KoopaType 區分，消除 string 逐幀比較。 |
 | `Mario/Behaviors/BowserBehavior.cpp` | 363 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
 | `Mario/Behaviors/CastleFireSpawnerBehavior.cpp` | 81 | 隱形越屏定時向左發射火球 AI。 |
-| `Mario/Behaviors/FireballBehavior.cpp` | 106 | 火球拋物線與碰撞爆炸物理。 |
+| `Mario/Behaviors/FireballBehavior.cpp` | 107 | 火球拋物線與碰撞爆炸物理。 |
 | `Mario/Behaviors/ItemBehaviors.cpp` | 154 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
 | `Mario/Behaviors/StaticEntityBehaviors.cpp` | 116 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（合併實作）。 |
 | `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 163 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 2.5×TILE 檢查與冒出取消（防偷襲）。 |
@@ -2064,7 +2064,7 @@ sequenceDiagram
 | `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 52 | 破碎磚塊碎屑粒子策略。 |
 
-**Total: 47 source files, 8,993 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
+**Total: 47 source files, 9,060 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
 
 ---
 

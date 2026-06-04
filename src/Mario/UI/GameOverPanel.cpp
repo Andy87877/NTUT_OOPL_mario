@@ -20,7 +20,7 @@ GameOverPanel::GameOverPanel(const std::string& fontPath, int fontSize) {
     // Load game logo
     std::string logoPath = std::string(RESOURCE_DIR) + "/Sprites/logo.png";
     m_Logo = std::make_shared<UIImage>(logoPath);
-    m_Logo->m_Transform.scale = {0.4f, 0.4f};
+    m_Logo->m_Transform.scale = {0.35f, 0.35f};
     m_Logo->SetZIndex(GameConfig::Z_UI);
 
     // GameOver Label
@@ -62,10 +62,10 @@ void GameOverPanel::Hide() {
 
 void GameOverPanel::Refresh(const GameStateManager& gs) {
     // Logo position
-    m_Logo->SetPosition(0.0f, 160.0f);
+    m_Logo->SetPosition(0.0f, 180.0f);
 
     // "GAME OVER" label position
-    m_GameOverLabel->SetPosition(0.0f, 30.0f);
+    m_GameOverLabel->SetPosition(0.0f, 10.0f);
 
     // Score display position
     char scoreStr[64];

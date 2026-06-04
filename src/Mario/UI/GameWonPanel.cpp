@@ -20,7 +20,7 @@ GameWonPanel::GameWonPanel(const std::string& fontPath, int fontSize) {
     // Load game logo
     std::string logoPath = std::string(RESOURCE_DIR) + "/Sprites/logo.png";
     m_Logo = std::make_shared<UIImage>(logoPath);
-    m_Logo->m_Transform.scale = {0.4f, 0.4f};
+    m_Logo->m_Transform.scale = {0.35f, 0.35f};
     m_Logo->SetZIndex(GameConfig::Z_UI);
 
     // Victory Title
@@ -99,11 +99,11 @@ void GameWonPanel::Hide() {
 }
 
 void GameWonPanel::Refresh(const GameStateManager& gs) {
-    // Top logo (centered high up, scaled to 0.4f)
-    m_Logo->SetPosition(0.0f, 160.0f);
+    // Top logo (centered high up, scaled to 0.35f)
+    m_Logo->SetPosition(0.0f, 180.0f);
 
     // Title label
-    m_VictoryLabel->SetPosition(0.0f, 30.0f);
+    m_VictoryLabel->SetPosition(0.0f, 10.0f);
 
     // Side-by-side sprites facing each other (spaced nicely)
     m_MarioImage->SetPosition(-80.0f, -60.0f);
