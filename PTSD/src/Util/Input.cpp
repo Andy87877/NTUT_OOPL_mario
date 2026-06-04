@@ -18,6 +18,9 @@ std::unordered_map<Keycode, std::pair<bool, bool>> Input::s_KeyState = {
     std::make_pair(Keycode::MOUSE_MB, std::make_pair(false, false)),
 };
 
+std::unordered_set<Keycode> Input::s_PressedKeys = std::unordered_set<Keycode>();
+std::unordered_set<Keycode> Input::s_ReleasedKeys = std::unordered_set<Keycode>();
+
 bool Input::s_Scroll = false;
 bool Input::s_MouseMoving = false;
 bool Input::s_Exit = false;
@@ -31,12 +34,16 @@ bool Input::IsKeyPressed(const Keycode &key) {
 }
 
 bool Input::IsKeyDown(const Keycode &key) {
-
+    if (s_PressedKeys.count(key) > 0) {
+        return true;
+    }
     return s_KeyState[key].second && !s_KeyState[key].first;
 }
 
 bool Input::IsKeyUp(const Keycode &key) {
-
+    if (s_ReleasedKeys.count(key) > 0) {
+        return true;
+    }
     return !s_KeyState[key].second && s_KeyState[key].first;
 }
 
@@ -71,21 +78,32 @@ glm::vec2 Input::GetScrollDistance() {
 
 void Input::UpdateKeyState(const SDL_Event *event) {
     if (event->type == SDL_MOUSEBUTTONDOWN) {
-        s_KeyState[static_cast<Keycode>(512 + event->button.button)].second =
-            true;
+        Keycode key = static_cast<Keycode>(512 + event->button.button);
+        s_KeyState[key].second = true;
+        s_PressedKeys.insert(key);
     } else if (event->type == SDL_MOUSEBUTTONUP) {
-        s_KeyState[static_cast<Keycode>(512 + event->button.button)].second =
-            false;
+        Keycode key = static_cast<Keycode>(512 + event->button.button);
+        s_KeyState[key].second = false;
+        s_ReleasedKeys.insert(key);
     } else if (event->type == SDL_KEYDOWN) {
-        s_KeyState[static_cast<Keycode>(event->key.keysym.scancode)].second =
-            true;
+        Keycode key = static_cast<Keycode>(event->key.keysym.scancode);
+        if (!s_KeyState[key].second) {
+            s_PressedKeys.insert(key);
+        }
+        s_KeyState[key].second = true;
     } else if (event->type == SDL_KEYUP) {
-        s_KeyState[static_cast<Keycode>(event->key.keysym.scancode)].second =
-            false;
+        Keycode key = static_cast<Keycode>(event->key.keysym.scancode);
+        if (s_KeyState[key].second) {
+            s_ReleasedKeys.insert(key);
+        }
+        s_KeyState[key].second = false;
     }
 }
 
 void Input::Update() {
+    s_PressedKeys.clear();
+    s_ReleasedKeys.clear();
+
     int x, y;
     SDL_GetMouseState(&x, &y);
     s_CursorPosition.x = static_cast<float>(x);

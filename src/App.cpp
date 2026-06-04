@@ -31,6 +31,7 @@
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
 #include "Util/Logger.hpp"
+#include "Util/Time.hpp"
 
 // OpenGL for background clear-colour
 #include <GL/glew.h>
@@ -69,13 +70,20 @@ void App::Start() {
 // ============================================================================
 void App::Update() {
     m_Timer++;
-    if (m_CurrentHandler) m_CurrentHandler->Update(*this);
-    // Each handler owns its own render: background color + renderer + UI.
-    if (m_CurrentHandler)
+    if (m_CurrentHandler) {
+        m_CurrentHandler->Update(*this);
+    }
+
+    // Render logic runs once per frame
+    if (m_CurrentHandler) {
         m_CurrentHandler->OnRender(*this);
-    else
+    } else {
         m_Renderer.Update();
-    if (Util::Input::IfExit()) TransitionTo(State::END);
+    }
+
+    if (Util::Input::IfExit()) {
+        TransitionTo(State::END);
+    }
 }
 
 // ============================================================================

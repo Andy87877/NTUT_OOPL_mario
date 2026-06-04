@@ -30,6 +30,9 @@ class TitleSceneHandler : public ISceneHandler {
     void Update(App& app) override;
     void OnRender(App& app) override;
     const char* GetName() const override { return "TitleScene"; }
+
+   private:
+    int m_Selection = 0;
 };
 
 // ============================================================================

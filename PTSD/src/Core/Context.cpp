@@ -10,11 +10,46 @@
 
 #include "config.hpp"
 
+#ifdef _WIN32
+#include <windows.h>
+typedef MMRESULT(WINAPI* LPTIMEBEGINPERIOD)(UINT);
+typedef MMRESULT(WINAPI* LPTIMEENDPERIOD)(UINT);
+
+static HMODULE s_WinmmModule = nullptr;
+static LPTIMEBEGINPERIOD s_timeBeginPeriod = nullptr;
+static LPTIMEENDPERIOD s_timeEndPeriod = nullptr;
+
+static void InitWindowsTimerResolution() {
+    s_WinmmModule = LoadLibraryA("winmm.dll");
+    if (s_WinmmModule) {
+        s_timeBeginPeriod = (LPTIMEBEGINPERIOD)(void*)GetProcAddress(s_WinmmModule, "timeBeginPeriod");
+        s_timeEndPeriod = (LPTIMEENDPERIOD)(void*)GetProcAddress(s_WinmmModule, "timeEndPeriod");
+        if (s_timeBeginPeriod) {
+            s_timeBeginPeriod(1);
+        }
+    }
+}
+
+static void CleanupWindowsTimerResolution() {
+    if (s_WinmmModule) {
+        if (s_timeEndPeriod) {
+            s_timeEndPeriod(1);
+        }
+        FreeLibrary(s_WinmmModule);
+        s_WinmmModule = nullptr;
+    }
+}
+#endif
+
 using Util::ms_t;
 
 namespace Core {
 Context::Context() {
     Util::Logger::Init();
+
+#ifdef _WIN32
+    InitWindowsTimerResolution();
+#endif
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         LOG_ERROR("Failed to initialize SDL");
@@ -62,6 +97,11 @@ Context::Context() {
         LOG_ERROR(SDL_GetError());
     }
 
+    // Guarantee that VSync is explicitly requested
+    if (SDL_GL_SetSwapInterval(1) < 0) {
+        LOG_WARN("Unable to set VSync! SDL Error: {}", SDL_GetError());
+    }
+
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
         GLuint err = glGetError();
@@ -97,6 +137,10 @@ Context::Context() {
 std::shared_ptr<Context> Context::s_Instance(nullptr);
 
 Context::~Context() {
+#ifdef _WIN32
+    CleanupWindowsTimerResolution();
+#endif
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
@@ -120,14 +164,15 @@ void Context::Setup() {
 }
 
 void Context::Update() {
-    Util::Input::Update();
     SDL_GL_SwapWindow(m_Window);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     constexpr ms_t frameTime = FPS_CAP != 0 ? 1000.0F / FPS_CAP : 0;
     ms_t afterUpdate = Util::Time::GetElapsedTimeMs();
     ms_t updateTime = afterUpdate - m_BeforeUpdateTime;
-    if (updateTime < frameTime) {
+    // Use a safety margin of 2.0ms to prevent double-buffering delay when VSync is active.
+    // This ensures we do not sleep if we are already close to the 60 FPS cap limit.
+    if (updateTime < frameTime - 2.0F) {
         SDL_Delay(static_cast<Uint32>(frameTime - updateTime));
     }
     m_BeforeUpdateTime = Util::Time::GetElapsedTimeMs();
@@ -141,6 +186,10 @@ void Context::Update() {
     //
     // # Updating/rendering time is denoted as "UT"
     Util::Time::Update();
+
+    // Poll inputs at the very end of the Context update, right before returning,
+    // so they are processed immediately by the game loop with zero VSync latency.
+    Util::Input::Update();
 
 #ifdef DEBUG_DELTA_TIME
     auto deltaTime = Util::Time::GetDeltaTimeMs();

@@ -6,11 +6,13 @@ set(SRC_FILES
     Mario/Core/Camera.cpp
     Mario/Core/PhysicsEngine.cpp
     Mario/Core/SpritePathResolver.cpp
+    Mario/Core/FixedTimestep.cpp
 
     # Player (MVC)
     Mario/Player/PlayerState.cpp
     Mario/Player/PlayerForm.cpp
     Mario/Player/PlayerDeathAnimation.cpp
+    Mario/Player/PlayerAnimator.cpp
     Mario/Player/Player.cpp
 
     # Level & Block
@@ -21,6 +23,8 @@ set(SRC_FILES
     Mario/Level/EntityState.cpp
     Mario/Level/EnemyDeathAnimation.cpp
     Mario/Level/EnemyDeathStyleFactory.cpp
+    Mario/Level/BehaviorRegistry.cpp
+    Mario/Level/EntityAnimator.cpp
     Mario/Level/Entity.cpp
     Mario/Level/EntityFactory.cpp
     Mario/Level/LevelConfig.cpp
@@ -61,7 +65,8 @@ set(SRC_FILES
     Mario/UI/HUDPanel.cpp
     Mario/UI/TitlePanel.cpp
     Mario/UI/LoadingPanel.cpp
-    Mario/UI/SimpleTextPanel.cpp
+    Mario/UI/GameOverPanel.cpp
+    Mario/UI/GameWonPanel.cpp
     Mario/UI/ESCMenuPanel.cpp
     Mario/UI/AxeEndingPanel.cpp
     Mario/UI/CoinUI.cpp
@@ -69,7 +74,10 @@ set(SRC_FILES
 
 
     # Services (DIP & Services)
+    Mario/Services/Commands.cpp
     Mario/Services/InputHandler.cpp
+    Mario/Services/MockInputHandler.cpp
+    Mario/Services/KeyboardInputProfile.cpp
     Mario/Services/AudioPathResolver.cpp
     Mario/Services/AudioManager.cpp
     Mario/Services/LevelManager.cpp
@@ -86,12 +94,14 @@ set(INCLUDE_FILES
     Mario/Core/PhysicsEngine.hpp
     Mario/Core/SpritePathResolver.hpp
     Mario/Core/GameConfig.hpp
+    Mario/Core/FixedTimestep.hpp
 
     # Player (MVC)
     Mario/Player/Player.hpp
     Mario/Player/PlayerState.hpp
     Mario/Player/PlayerForm.hpp
     Mario/Player/PlayerDeathAnimation.hpp
+    Mario/Player/PlayerAnimator.hpp
 
     # Level & Block
     Mario/Level/Level.hpp
@@ -100,11 +110,13 @@ set(INCLUDE_FILES
     Mario/Level/MovingPlatform.hpp
     Mario/Level/EntityDef.hpp
     Mario/Level/Entity.hpp
+    Mario/Level/EntityAnimator.hpp
     Mario/Level/EntityFactory.hpp
     Mario/Level/EntityState.hpp
     Mario/Level/LevelConfig.hpp
     Mario/Level/EnemyDeathAnimation.hpp
     Mario/Level/EnemyDeathStyleFactory.hpp
+    Mario/Level/BehaviorRegistry.hpp
     Mario/Level/GameStateManager.hpp
 
     # Behaviors (Phase 4 - Strategy Pattern)
@@ -145,7 +157,8 @@ set(INCLUDE_FILES
     Mario/UI/HUDPanel.hpp
     Mario/UI/TitlePanel.hpp
     Mario/UI/LoadingPanel.hpp
-    Mario/UI/SimpleTextPanel.hpp
+    Mario/UI/GameOverPanel.hpp
+    Mario/UI/GameWonPanel.hpp
     Mario/UI/ESCMenuPanel.hpp
     Mario/UI/AxeEndingPanel.hpp
     Mario/UI/UIManager.hpp
@@ -157,8 +170,13 @@ set(INCLUDE_FILES
     # Services (DIP & Services)
     Mario/Services/ServiceLocator.hpp
     Mario/Services/EventSystem.hpp
+    Mario/Services/ICommand.hpp
+    Mario/Services/Commands.hpp
     Mario/Services/IInputHandler.hpp
     Mario/Services/InputHandler.hpp
+    Mario/Services/MockInputHandler.hpp
+    Mario/Services/IInputProfile.hpp
+    Mario/Services/KeyboardInputProfile.hpp
     Mario/Services/IAudioService.hpp
     Mario/Services/AudioType.hpp
     Mario/Services/AudioPathResolver.hpp

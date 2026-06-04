@@ -14,6 +14,7 @@
 
 #include "Mario/Core/GameConfig.hpp"
 #include "Mario/Player/PlayerState.hpp"
+#include "Mario/Player/PlayerAnimator.hpp"
 #include "Util/GameObject.hpp"
 #include "Util/Image.hpp"
 #include "pch.hpp"
@@ -89,12 +90,8 @@ class Player : public Util::GameObject {
      */
     std::shared_ptr<Util::Image> GetOrLoadSprite(const std::string& path);
 
-    /**
-     * Build the sprite path from current player state.
-     */
-    std::string BuildSpritePath() const;
-
     PlayerState m_State;  // The Model
+    PlayerAnimator m_Animator; // The Animator (SRP Decoupling)
 
     // Sprite cache: path -> Image
     std::unordered_map<std::string, std::shared_ptr<Util::Image>> m_SpriteCache;

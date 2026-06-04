@@ -67,6 +67,8 @@
    - 5.13 State Pattern — IPlayerForm 力量型態
    - 5.14 MVC 完整運作序列圖
    - 5.15 外掛模式 (Cheat Mode) 深度設計
+   - 5.16 未來 OOP 擴充性前瞻設計 — 暫停選單 Command 模式解耦
+   - 5.17 輸入系統策略模式與子幀事件追蹤實作
 6. [深度行為與互動 UML 圖](#6-深度行為與互動-uml-圖)
    - 6.1 系統分層架構鳥瞰圖 (Layered Architecture)
    - 6.2 完整全系統依賴關係圖 (Full Dependency Map)
@@ -818,10 +820,37 @@ classDiagram
         -m_Jump: bool
         -m_Crouch: bool
         -m_Run: bool
+        -m_LastDirectionPressed: int
+        -m_Profile: unique_ptr~IInputProfile~
         +HandleInput(state, speed, level)
     }
 
+    class MockInputHandler {
+        -m_Right: bool
+        -m_Left: bool
+        -m_Jump: bool
+        -m_Crouch: bool
+        -m_Run: bool
+        -m_Fire: bool
+        +HandleInput(state, speed, level)
+        +SetInputs(right, left, jump, crouch, run, fire)
+    }
+
+    class IInputProfile {
+        <<interface>>
+        +IsButtonPressed(btn) bool*
+        +IsButtonDown(btn) bool*
+    }
+
+    class KeyboardInputProfile {
+        +IsButtonPressed(btn) bool
+        +IsButtonDown(btn) bool
+    }
+
     IInputHandler <|.. InputHandler
+    IInputHandler <|.. MockInputHandler
+    InputHandler --> IInputProfile : "delegates mapping via Strategy Pattern"
+    IInputProfile <|.. KeyboardInputProfile
 ```
 
 ---
@@ -1333,6 +1362,35 @@ sequenceDiagram
 3. **動態載入選單項**：
    - `ESCMenuSceneHandler` 內部持有一個 `std::vector<std::unique_ptr<IESCMenuItem>> m_Items`。
    - 這樣一來，`Update()` 只需要無腦執行 `m_Items[sel]->Execute(app)`，而 `Refresh()` 也只需遍歷 `m_Items` 呼叫 `GetDisplayText(gs)` 即可，完全不需修改 `ESCMenuSceneHandler` 核心邏輯。
+
+---
+
+### 5.17 輸入系統策略模式與子幀事件追蹤實作
+
+為了解決高頻切換方向鍵產生的輸入延遲，以及極速敲擊按鍵時瞬時 Polling 遺漏的問題，本專案對輸入層進行了底層核心優化與深度的 OOP 解耦，引入了 **輸入配置策略模式（Input Profile Strategy Pattern）** 與 **子幀事件追蹤（Sub-frame Event Tracking）** 機製。
+
+#### 1. 主迴圈延遲優化：VSync 對齊與消抖 (De-jitter)
+
+- **優化順序**：將 `Util::Input::Update()` 移到了 [Context.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/PTSD/src/Core/Context.cpp) 中 `Context::Update()` 方法的**最尾端（即返回前）**。這使得輸入輪詢發生在 `SDL_GL_SwapWindow` 垂直同步阻塞與限制幀率睡眠（`SDL_Delay`）之後，確保當物理邏輯執行時，拿到的輸入是最新鮮的實時狀態，達成 **0 毫秒輸入延遲**。
+- **防止雙重睡眠 (VSync Anti-Stacking)**：引入 2ms 的安全邊界判斷 `if (updateTime < frameTime - 2.0F)`，若 VSync 等待時間已接近設定的幀間隔（16.67ms），則不再調用 `SDL_Delay`，徹底杜絕了線程調度抖動導致幀率跌落至 30 FPS 的卡頓 bug。
+
+#### 2. 極速切換防漏鍵：子幀事件追蹤 (Sub-frame Event Tracking)
+
+- **核心挑戰**：若玩家兩次按鍵的「按下➔放開」動作完全發生在同一個 16.6ms 幀區間內，當幀尾進行輪詢時，該按鍵的瞬時狀態已回復為 false，導致玩家的操作被完全忽略。
+- **解法**：在 [Input.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/PTSD/src/Util/Input.cpp) 中新增了 `s_PressedKeys` 與 `s_ReleasedKeys` 靜態集合。在 SDL 事件循環中，只要在該幀區間內捕捉到過 `SDL_KEYDOWN` / `SDL_KEYUP` 事件，即將該按鍵加入集合，並修改 `IsKeyDown()` 與 `IsKeyUp()` 同步查詢這些集合。此設計確保哪怕只持續數毫秒的極速敲擊也能被 100% 補捉，消除了操作的粘滯感。
+
+#### 3. 硬鍵值解耦：輸入配置策略模式 (Input Profile Strategy Pattern)
+
+- **優化動機**：原始控制器 `InputHandler.cpp` 直接依賴物理按鍵（如 `Keycode::D`、`Keycode::RIGHT`），導致控制器與硬體環境耦合。
+- **OOP 策略設計**：
+  - 定義抽象動作介面 [IInputProfile.hpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/include/Mario/Services/IInputProfile.hpp)，以動作枚舉 `GameButton`（如 `JUMP`、`LEFT`、`RIGHT`）為參數提供狀態查詢方法。
+  - 實作 [KeyboardInputProfile.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/src/Mario/Services/KeyboardInputProfile.cpp)，負責處理實體鍵盤（WASD/Arrows）到 `GameButton` 的底層轉換。
+  - 讓 [InputHandler.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/src/Mario/Services/InputHandler.cpp) 在構造時注入此 profile，只對 `GameButton` 進行邏輯決策。這樣一來，未來擴充手把或自訂鍵位時，只需實現新策略，而毋須改動任何控制器核心代碼（OCP/DIP）。
+
+#### 4. 測試/重播抽象：依賴反轉與 Mock 實作 (DIP & Mocking)
+
+- **解耦成員**：`App` 不直接依賴具體的 `InputHandler`，而是持有抽象介面 [IInputHandler](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/include/Mario/Services/IInputHandler.hpp)。
+- **Mock 控制器**：我們實作了 [MockInputHandler.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/src/Mario/Services/MockInputHandler.cpp)，提供外部以程式化調用 `SetInputs` 來直接設定控制向量。這使得系統非常便於編寫無鍵盤依賴的自動化單元測試，或者用以回放玩家指令（Replay System），極大地擴充了遊戲引擎的專業度。
 
 ---
 
@@ -1899,8 +1957,11 @@ sequenceDiagram
 | `Mario/Player/PlayerForm.hpp` | `IPlayerForm`, `SmallPlayerForm`, `BigPlayerForm`, `FirePlayerForm`, `SmallStarPlayerForm`, `BigStarPlayerForm` | `IPlayerForm` | 力量狀態多型策略（State Pattern）：尺寸、受傷退化、升級轉換。 |
 | `Mario/Player/PlayerDeathAnimation.hpp` | `IPlayerDeathAnimation`, `ClassicPlayerDeathAnimation` | `IPlayerDeathAnimation` | 玩家死亡動畫策略（凍結/起跳/下墜）。 |
 | `Mario/Player/Player.hpp` | `Player` | `Util::GameObject` | Player View：渲染 + m_Visible 守衛。 |
-| `Mario/Services/IInputHandler.hpp` | `IInputHandler` | None (interface) | Input abstraction (DIP)；`HandleInput` 鍵盤介面。 |
-| `Mario/Services/InputHandler.hpp` | `InputHandler` | `IInputHandler` | 鍵盤控制器：Arrow/WASD + Space/Z/UP/W 跳躍 + E/LShift 加速/射擊。 |
+| `Mario/Services/IInputHandler.hpp` | `IInputHandler` | None (interface) | Input abstraction (DIP)；`HandleInput` 介面。 |
+| `Mario/Services/InputHandler.hpp` | `InputHandler` | `IInputHandler` | 鍵盤控制器：透過 IInputProfile 策略解耦並實作按鍵指令翻譯。 |
+| `Mario/Services/MockInputHandler.hpp` | `MockInputHandler` | `IInputHandler` | 模擬/測試用輸入控制器：支援以程式化方式注入按鍵狀態。 |
+| `Mario/Services/IInputProfile.hpp` | `IInputProfile` | None (interface) | 按鍵映射設定檔抽象介面（Strategy Pattern）。 |
+| `Mario/Services/KeyboardInputProfile.hpp` | `KeyboardInputProfile` | `IInputProfile` | 鍵盤按鍵映射策略：映射動作至 Arrows/WASD 與功能按鍵。 |
 | `Mario/CollisionManager.hpp` | `CollisionManager` | None (facade) | Collision 子系統協調者（Facade Pattern）。 |
 | `Mario/Collision/ICollisionHandler.hpp` | `ICollisionHandler` | None (interface) | 所有碰撞 Handler 的標記基類。 |
 | `Mario/Collision/BlockContactResolver.hpp` | `BlockContactResolver` | None (static utility) | 靜態 Down/Up/Right/Left AABB Snap helpers；`INTERSECT_STRICTNESS` (0.35f) 地面邊緣調優。 |
@@ -1939,11 +2000,11 @@ sequenceDiagram
 
 ### A.2 Source Files (`src/`)
 
-以下為 project 中 49 個 C++17 實作源檔案的實際行數與職責校對：
+以下為 project 中 50 個 C++17 實作源檔案的實際行數與職責校對：
 
 | 檔案 | 行數 | 職責與關鍵細節說明 |
 |------|-----|-------------------|
-| `App.cpp` | 172 | TransitionTo + delegation to ILevelService + accessor impls；移除 Z-index 覆寫。 |
+| `App.cpp` | 185 | TransitionTo + delegation to ILevelService + accessor impls；移除 Z-index 覆寫。 |
 | `Mario/Core/Camera.cpp` | 52 | 8-4 Boss 鎖屏與相機橫向跟隨邏輯。 |
 | `Mario/Core/PhysicsEngine.cpp` | 47 | ApplyGravity() 與 Jump 物理計算。 |
 | `Mario/Core/SpritePathResolver.cpp` | 434 | 全靜態 mapping 表與 s_ResolvedPathCache 快取，避免磁碟每幀重複 I/O 開銷。 |
@@ -1955,7 +2016,7 @@ sequenceDiagram
 | `Mario/Player/PlayerForm.cpp` | 303 | IPlayerForm 及 5 種力量型態子類別多型升級與傷害退化轉換實作。 |
 | `Mario/Player/PlayerDeathAnimation.cpp` | 35 | ClassicPlayerDeathAnimation 死亡策略動畫（凍結➔起跳➔下墜）。 |
 | `Mario/Player/Player.cpp` | 180 | Player View；像素對齊；crouch sprite anchored to hitbox bottom（修正下陷問題）。 |
-| `Mario/Services/InputHandler.cpp` | 122 | 鍵盤按鍵狀態擷取與防卡判定。 |
+| `Mario/Services/InputHandler.cpp` | 111 | 鍵盤按鍵狀態擷取與防卡判定。 |
 | `Mario/Level/EntityState.cpp` | 206 | Entity MVC Model；死亡動畫策略整合；GetHitbox 零硬編碼 AABB 運算。 |
 | `Mario/Level/EnemyDeathAnimation.cpp` | 162 | 四種死亡動畫策略（Squish壓扁/Retreat龜殼/Flip擊飛/Classic通用）具體實作。 |
 | `Mario/Level/EnemyDeathStyleFactory.cpp` | 30 | 依 EntityType 與 Cause 動態建立死亡動畫策略。 |
@@ -1969,17 +2030,19 @@ sequenceDiagram
 | `Mario/Collision/EntityBlockHandler.cpp` | 137 | 實體-方塊碰撞：處理反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形。 |
 | `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
 | `Mario/Level/GameStateManager.cpp` | 107 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
-| `Mario/Scenes/MenuSceneHandlers.cpp` | 128 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
+| `Mario/Scenes/MenuSceneHandlers.cpp` | 147 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
 | `Mario/Scenes/LoadingSceneHandler.cpp` | 47 | 加載畫面（預載貼圖，強制黑色背景）。 |
-| `Mario/Scenes/PlayingSceneHandler.cpp` | 582 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
+| `Mario/Scenes/PlayingSceneHandler.cpp` | 598 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
 | `Mario/Scenes/FlagpoleSceneHandler.cpp` | 202 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
 | `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
 | `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 169 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
-| `Mario/Scenes/ESCMenuSceneHandler.cpp` | 129 | 暫停選單邏輯，包含 5-item（RESUME/1-1/1-2/8-4/POWER作弊變身切換）。 |
+| `Mario/Scenes/ESCMenuSceneHandler.cpp` | 136 | 暫停選單邏輯，包含 5-item（RESUME/1-1/1-2/8-4/POWER作弊變身切換）。 |
 | `Mario/UI/UIManager.cpp` | 135 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
 | `Mario/Services/AudioManager.cpp` | 236 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
 | `Mario/Services/AudioPathResolver.cpp` | 8 | 音效與音樂路徑靜態解析 helper。 |
-| `Mario/Services/InputHandler.cpp` | 122 | 鍵盤輸入實作。 |
+| `Mario/Services/InputHandler.cpp` | 111 | 鍵盤輸入實作。 |
+| `Mario/Services/MockInputHandler.cpp` | 60 | 模擬/測試用輸入控制器實作。 |
+| `Mario/Services/KeyboardInputProfile.cpp` | 78 | 預設鍵盤按鍵映射策略實作。 |
 | `Mario/Services/LevelManager.cpp` | 154 | ILevelService 實作：LoadLevel, StartLevel, BGM 播放；StartLevel 消除 inline 旗幟尋找。 |
 | `Mario/UI/HUDPanel.cpp` | 115 | HUD 面板實作，處理計分、金幣動畫更新及時間警告閃爍。 |
 | `Mario/UI/TitlePanel.cpp` | 32 | 標題畫面面板實作。 |
@@ -2001,7 +2064,7 @@ sequenceDiagram
 | `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 52 | 破碎磚塊碎屑粒子策略。 |
 
-**Total: 47 source files, 8,989 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
+**Total: 47 source files, 8,993 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
 
 ---
 

@@ -1,8 +1,3 @@
-/**
- * @file LoadingPanel.cpp
- * @brief Loading screen panel implementation.
- * @inheritance IUIPanel <- LoadingPanel
- */
 #include "Mario/UI/LoadingPanel.hpp"
 
 #include "Mario/Core/GameConfig.hpp"
@@ -27,24 +22,33 @@ LoadingPanel::LoadingPanel(const std::string& fontPath, int fontSize) {
     m_WorldLabel->SetVisible(false);
     m_LivesText->SetVisible(false);
     m_MarioPreview->SetVisible(false);
+
+    // Resolve Traditional Chinese font fallback path
+    std::string chineseFontPath = GameConfig::GetChineseFontPath(fontPath);
+    m_CreditLabel = std::make_shared<UIText>(
+        chineseFontPath, fontSize * 0.8f, "113820033 電資二 謝奕宏", white);
+    m_CreditLabel->SetVisible(false);
 }
 
 void LoadingPanel::Register(Util::Renderer& renderer) {
     renderer.AddChild(m_WorldLabel);
     renderer.AddChild(m_LivesText);
     renderer.AddChild(m_MarioPreview);
+    renderer.AddChild(m_CreditLabel);
 }
 
 void LoadingPanel::Show() {
     m_WorldLabel->SetVisible(true);
     m_LivesText->SetVisible(true);
     m_MarioPreview->SetVisible(true);
+    m_CreditLabel->SetVisible(true);
 }
 
 void LoadingPanel::Hide() {
     m_WorldLabel->SetVisible(false);
     m_LivesText->SetVisible(false);
     m_MarioPreview->SetVisible(false);
+    m_CreditLabel->SetVisible(false);
 }
 
 void LoadingPanel::Refresh(const GameStateManager& gs) {
@@ -60,6 +64,8 @@ void LoadingPanel::Refresh(const GameStateManager& gs) {
     // Ensure the Mario preview is placed exactly inside the blue box on the left of "x 03"
     m_MarioPreview->SetPosition(-30.0f, -10.0f);
     m_MarioPreview->m_Transform.scale = {GameConfig::DRAW_SCALE, GameConfig::DRAW_SCALE};
+
+    m_CreditLabel->SetPosition(0.0f, -260.0f);
 }
 
 }  // namespace Mario

@@ -7,19 +7,50 @@
  */
 #include "Mario/Level/GameStateManager.hpp"
 
+#include <fstream>
+#include <sstream>
 #include "Util/Logger.hpp"
 
 namespace Mario {
 
-// Level sequence: 1-1 -> 1-2 -> 8-4
-const std::vector<GameStateManager::LevelEntry>
-    GameStateManager::LEVEL_SEQUENCE = {
-        {1, 1},  // World 1-1
-        {1, 2},  // World 1-2
-        {8, 4},  // World 8-4 (final)
-};
+GameStateManager::GameStateManager() {
+    LoadLevelSequence();
+    NewGame();
+}
 
-GameStateManager::GameStateManager() { NewGame(); }
+void GameStateManager::LoadLevelSequence() {
+    m_LevelSequence.clear();
+    std::string path = std::string(RESOURCE_DIR) + "/Levels/LevelSequence.csv";
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG_ERROR("Cannot open LevelSequence.csv: {}, using default fallback", path);
+        m_LevelSequence = {{1, 1}, {1, 2}, {8, 4}};
+        return;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty() || line[0] == '#') continue; // Skip comments and empty lines
+
+        std::stringstream ss(line);
+        std::string wStr, lStr;
+        if (std::getline(ss, wStr, ',') && std::getline(ss, lStr, ',')) {
+            try {
+                int world = std::stoi(wStr);
+                int level = std::stoi(lStr);
+                m_LevelSequence.push_back({world, level});
+            } catch (...) {
+                LOG_ERROR("Invalid line in LevelSequence.csv: {}", line);
+            }
+        }
+    }
+
+    if (m_LevelSequence.empty()) {
+        m_LevelSequence = {{1, 1}, {1, 2}, {8, 4}};
+    }
+    LOG_INFO("Loaded {} levels in sequence from LevelSequence.csv", m_LevelSequence.size());
+}
 
 void GameStateManager::NewGame() {
     m_Score = 0;
@@ -60,12 +91,12 @@ std::string GameStateManager::AdvanceLevel() {
         m_NextLevelOverride.clear();
 
         // Find and sync the index for the override
-        for (int i = 0; i < static_cast<int>(LEVEL_SEQUENCE.size()); i++) {
-            if (std::to_string(LEVEL_SEQUENCE[i].world) + "-" +
-                    std::to_string(LEVEL_SEQUENCE[i].level) ==
+        for (int i = 0; i < static_cast<int>(m_LevelSequence.size()); i++) {
+            if (std::to_string(m_LevelSequence[i].world) + "-" +
+                    std::to_string(m_LevelSequence[i].level) ==
                 next) {
-                m_WorldNum = LEVEL_SEQUENCE[i].world;
-                m_LevelNum = LEVEL_SEQUENCE[i].level;
+                m_WorldNum = m_LevelSequence[i].world;
+                m_LevelNum = m_LevelSequence[i].level;
                 m_LevelIndex = i;
                 break;
             }
@@ -75,15 +106,15 @@ std::string GameStateManager::AdvanceLevel() {
 
     m_LevelIndex++;
 
-    if (m_LevelIndex >= static_cast<int>(LEVEL_SEQUENCE.size())) {
+    if (m_LevelIndex >= static_cast<int>(m_LevelSequence.size())) {
         // Game completed!
         m_GameWon = true;
         LOG_INFO("Game completed! All levels beaten.");
         return "";
     }
 
-    m_WorldNum = LEVEL_SEQUENCE[m_LevelIndex].world;
-    m_LevelNum = LEVEL_SEQUENCE[m_LevelIndex].level;
+    m_WorldNum = m_LevelSequence[m_LevelIndex].world;
+    m_LevelNum = m_LevelSequence[m_LevelIndex].level;
 
     LOG_INFO("Advanced to level {}-{}", m_WorldNum, m_LevelNum);
     return GetLevelName();
@@ -94,9 +125,9 @@ void GameStateManager::SetLevel(int world, int level) {
     m_LevelNum = level;
 
     // Find the index in the sequence
-    for (int i = 0; i < static_cast<int>(LEVEL_SEQUENCE.size()); i++) {
-        if (LEVEL_SEQUENCE[i].world == world &&
-            LEVEL_SEQUENCE[i].level == level) {
+    for (int i = 0; i < static_cast<int>(m_LevelSequence.size()); i++) {
+        if (m_LevelSequence[i].world == world &&
+            m_LevelSequence[i].level == level) {
             m_LevelIndex = i;
             break;
         }

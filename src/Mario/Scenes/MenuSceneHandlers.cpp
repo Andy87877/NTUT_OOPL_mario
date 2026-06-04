@@ -35,10 +35,26 @@ void ISceneHandler::OnRender(App& app) {
 // ============================================================================
 
 void TitleSceneHandler::Update(App& app) {
+    bool upDown = Util::Input::IsKeyDown(Util::Keycode::UP);
+    bool wDown = Util::Input::IsKeyDown(Util::Keycode::W);
+    if (upDown || wDown) {
+        m_Selection = (m_Selection - 1 + 2) % 2;
+    }
+    bool downDown = Util::Input::IsKeyDown(Util::Keycode::DOWN);
+    bool sDown = Util::Input::IsKeyDown(Util::Keycode::S);
+    if (downDown || sDown) {
+        m_Selection = (m_Selection + 1) % 2;
+    }
+
     if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
-        app.GetGameState().NewGame();
-        app.TransitionTo(App::State::LOADING);
-        LOG_INFO("Starting game - entering LOADING state");
+        if (m_Selection == 0) {
+            app.GetGameState().NewGame();
+            app.TransitionTo(App::State::LOADING);
+            LOG_INFO("Starting game - entering LOADING state");
+        } else {
+            app.TransitionTo(App::State::END);
+            LOG_INFO("Exiting game from title screen selection");
+        }
     }
     if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
         app.TransitionTo(App::State::END);
@@ -48,7 +64,7 @@ void TitleSceneHandler::Update(App& app) {
 void TitleSceneHandler::OnRender(App& app) {
     app.ApplyBackground(false);  // Sky-blue title screen
     app.GetRenderer().Update();
-    app.GetUIManager().Update(Mario::UIManager::State::TITLE);
+    app.GetUIManager().Update(Mario::UIManager::State::TITLE, m_Selection);
 }
 
 // ============================================================================
@@ -61,7 +77,7 @@ void DeathSceneHandler::OnEnter(App& app) {
     if (player) {
         player->GetState().StartDeathAnimation();
     }
-    app.GetDeathTimer() = app.GetTimer() + 80;
+    app.GetDeathTimer() = app.GetTimer() + 96;
     Mario::AudioManager::GetInstance().PlayBGM(Mario::BGMName::LostALifeTheme);
     LOG_INFO("Player died - entering DEATH state (Lives remaining: {})",
              app.GetGameState().GetLives());
@@ -114,7 +130,9 @@ void GameOverSceneHandler::OnRender(App& app) {
 // ============================================================================
 
 void GameWonSceneHandler::Update(App& app) {
-    if (Util::Input::IsAnyKeyDown()) {
+    bool enterDown = Util::Input::IsKeyDown(Util::Keycode::RETURN);
+    bool escDown = Util::Input::IsKeyDown(Util::Keycode::ESCAPE);
+    if (enterDown || escDown) {
         app.TransitionTo(App::State::TITLE);
         LOG_INFO("Game Won! Returning to TITLE screen.");
     }

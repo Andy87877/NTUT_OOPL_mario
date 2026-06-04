@@ -2,299 +2,139 @@
 
 ## 組別資訊
 
-| 欄位 | 內容 |
-|------|------|
-| 組別 | T43 |
-| 組員 | 113820033 謝奕宏 |
-| 復刻遊戲 | Super Mario Bros. (FC / NES, 1985) |
-| 開發語言 | C++17 |
-| 框架 | PTSD (Practical Tools for Simple Design) |
-| IDE | CLion + CMake |
-| 版本控制 | Git / GitHub |
-
----
+組別：T43
+組員：113820033 謝奕宏
+復刻遊戲：Super Mario Bros. (FC / NES, 1985)
 
 ## 專案簡介
 
 ### 遊戲簡介
 
-本專案旨在使用 PTSD 框架，以 **C++17** 復刻經典 2D 橫捲軸動作遊戲《Super Mario Bros.》。  
-玩家將操控主角 Mario，透過跑、跳、踩敵、收集金幣與道具等操作，穿越三個風格迥異的關卡，  
-最終擊敗 Boss 庫巴（Bowser）並拯救公主，體驗原汁原味的紅白機經典冒險。
-
-- **類型**：2D 橫捲軸動作遊戲
-- **操作**：控制主角 Mario 進行左右移動、跳躍、踩踏敵人、收集金幣與道具
-- **目標**：穿越三個關卡，最終擊敗 Boss 庫巴拯救公主
-- **參考畫面**：[遊戲畫面連結](https://www.youtube.com/watch?v=rLl9XBg7wSs)
-- **實際遊戲畫面**： 還沒拍
+- 這次專案我是使用助教提供的 PTSD 框架，以 C++17 復刻經典的 2D 橫捲軸動作遊戲《超級瑪利歐兄弟》（Super Mario Bros.）。
+- 玩家在遊戲中可以操控主角 Mario 進行左右移動、跳躍、踩踏敵人，並且吃香菇變大、吃火焰花發射火球、吃無敵星星變得刀槍不入。
+- 專案中我實作了三個關卡，分別是經典的 World 1-1（地面關卡）、World 1-2（地下關卡）以及 World 8-4（城堡關卡），玩家需要穿越重重障礙與不同的敵人，最後在城堡擊敗 Boss 庫巴（Bowser）並拯救公主。
 
 ### 組別分工
 
-本專案由一人獨立完成所有開發工作，包含：
-
-| 工作項目 | 負責人 |
-|---------|--------|
-| 程式架構設計 (OOP + 8 種設計模式) | 謝奕宏 |
-| 核心遊戲邏輯 (物理/碰撞/AI) | 謝奕宏 |
-| 三個關卡設計與地圖生成 (1-1, 1-2, 8-4) | 謝奕宏 |
-| 敵人 AI 行為系統 (19 種 Behavior) | 謝奕宏 |
-| UI 系統與音訊整合 | 謝奕宏 |
-| 素材收集與 Python 工具腳本 | 謝奕宏 |
-| 報告撰寫與文件維護 | 謝奕宏 |
-
----
+- 因為我是一個人一組，所以這個瑪利歐遊戲的所有開發工作都是由我一個人完成，包含程式架構設計、核心遊戲與物理碰撞邏輯、關卡地圖設計與生成、敵人 AI 行為系統、UI 與音效整合，以及撰寫報告和工具腳本等。
 
 ## 遊戲介紹
 
 ### 遊戲規則
 
-#### 基本操作
-
-| 按鍵 | 功能 |
-|------|------|
-| ← → 或 A / D | 左右移動 |
-| ↑ / W / Space / Z | 跳躍（長按跳更高） |
-| ↓ / S | 蹲下 (大瑪利歐) |
-| E / LShift | 加速奔跑 / 發射火球 |
-| ESC | 暫停選單 |
-| Enter | 確認 / 開始遊戲 |
-
-#### 遊戲機制
-
-1. **生命系統**：Mario 初始擁有 3 條命。掉入深淵、被敵人碰觸（非踩踏）、或時間歸零皆會損失一條命。命數歸零即 Game Over。
-2. **力量型態系統（Power State）**：
-   - **小瑪利歐 (Small)**：初始狀態，碰敵即死
-   - **大瑪利歐 (Big)**：吃紅香菇變大，可碎磚塊，受傷退化為小瑪利歐
-   - **火焰瑪利歐 (Fire)**：吃火焰花，可發射火球遠程攻擊敵人
-   - **無敵星星 (Star)**：吃星星後限時無敵，碰觸敵人直接擊殺
-3. **金幣系統**：收集金幣增加分數，每收集 100 枚金幣獲得額外一條命。
-4. **計時系統**：每關限時 400 秒。時間低於 100 秒時自動切換為加速版 BGM 警告玩家。
-5. **踩踏連擊 (Stomp Combo)**：連續踩踏不同敵人（未落地）分數遞增：100 → 200 → 400 → 800 → 1000。
-
-#### 關卡流程
-
-```
-1-1 (地面關卡) ──拉到旗桿──→ 1-2 (地下關卡) ──進入水管──→ 8-4 (城堡關卡) ──擊敗庫巴──→ 通關！
-```
-
-| 關卡 | 場景 | 主要元素 | 通關條件 | 難度 |
-|------|------|---------|---------|------|
-| **1-1** | 地面 | Goomba、Koopa Troopa、磚塊、問號方塊、水管、坑洞 | 抵達終點旗桿 | ⭐ |
-| **1-2** | 地下 | Goomba、Koopa Troopa、食人花、平台、傳送水管 | 進入出口水管 | ⭐⭐ |
-| **8-4** | 城堡 | AxeKoopa、Bowser (Boss)、移動平台、岩漿、火柱、Podoboo | 碰觸橋頭斧頭擊敗 Bowser | ⭐⭐⭐ |
-
-#### 敵人一覽
-
-| 敵人 | 名稱 | 行為描述 |
-|------|------|---------|
-| Goomba | 栗寶寶 | 左右巡邏，碰牆反向；可被踩扁或火球擊殺 |
-| Koopa Troopa | 烏龜兵 (紅/綠) | 巡邏行走；被踩後縮入龜殼，再踩可踢出龜殼連殺 |
-| ParaKoopa | 飛翔烏龜 | 正弦波浮動飛行；被踩後變為普通 Koopa Troopa |
-| AxeKoopa | 擲斧烏龜 | 具備避坑 AI、面向玩家投擲斧頭、活潑跳躍行為 |
-| Bowser | 庫巴 (Boss) | 5 階段 AI：巡邏→吐火→跳躍→受傷→擊敗；需多次火球擊殺 |
-| Piranha Plant | 食人花 | 4 階段伸縮管口 AI；玩家靠近水管時保持隱藏 (防偷襲) |
-| Podoboo | 岩漿泡泡 | 從熔岩中定時向上跳躍，不可踩踏 |
-| Castle Fire | 城堡火柱 | 8-4 隱形越屏噴火器，動態追蹤玩家高度 |
-
-#### 道具一覽
-
-| 道具 | 名稱 | 效果 |
-|------|------|------|
-| Mushroom | 紅香菇 | 小瑪利歐 → 大瑪利歐 |
-| Fire Flower | 火焰花 | 升級為火焰瑪利歐，可發射火球 |
-| Star | 無敵星星 | 限時無敵，碰敵即殺 |
-| 1-UP Mushroom | 綠香菇 | 增加一條命 |
-| Coin | 金幣 | 增加分數，100 枚換一命 |
-
-#### 外掛模式 (Cheat Mode)
-
-透過 ESC 暫停選單可開啟外掛模式，提供以下功能：
-
-- **無限無敵星星**：永久處於星星無敵狀態，碰觸任何敵人直接擊殺
-- **火球攻擊能力**：無論任何力量型態皆可發射火球
-- **虛空救援**：掉入深淵時自動傳送回上一個起跳點，而非死亡
-- **力量變身切換**：在暫停選單中直接切換 Small / Big / Fire 型態
+- **操作方式** - 按鍵
+  - ← → (或 A / D) - 控制 Mario 左右移動
+  - ↑ / W / Space / Z - 跳躍（按得越久可以跳得越高）
+  - ↓ / S - 蹲下（只有在大瑪利歐或火球瑪利歐狀態下才可以蹲下）
+  - E / LShift - 加速跑步，或是發射火球（在火球狀態下）
+  - ESC - 開啟暫停選單（可以進行變身、開關外掛）
+  - Enter - 開始遊戲，或是確認選單
+- **遊戲機制**
+  - **生命系統**：Mario 一開始有 3 條命，如果掉進懸崖、被敵人碰到（沒踩到的話）、或是時間歸零，就會死掉並扣一條命。命扣完就 Game Over。
+  - **力量型態 (Power State)**：
+    - **小瑪利歐 (Small)**：最基本的狀態，被敵人碰到就會死。
+    - **大瑪利歐 (Big)**：吃紅香菇變大，可以撞碎磚塊。被敵人碰到的話會縮小成小瑪利歐，不會直接死。
+    - **火焰瑪利歐 (Fire)**：吃火焰花變身，可以按 Shift/E 丟火球打倒敵人。
+    - **無敵星星 (Star)**：吃星星之後會閃爍，這段時間是無敵的，碰到敵人直接把敵人撞飛。
+  - **金幣與分數**：路上收集金幣可以加分，每收集滿 100 枚金幣會額外獲得一條命。
+  - **時間限制**：每個關卡限時 400 秒，如果時間低於 100 秒，遊戲背景音樂會自動變快，提醒玩家要抓緊時間。
+  - **踩踏連擊**：如果連續踩踏多個敵人而且中間沒有落地，獲得的分數會一直翻倍（100 -> 200 -> 400 -> 800 -> 1000）。
+- **關卡流程**
+  - 遊戲共有三個關卡：World 1-1 (經典地面關卡) -> 觸碰旗桿 -> World 1-2 (地下關卡，有食人花與平台) -> 進入傳送水管 -> World 8-4 (城堡關卡，有岩漿與 Boss 庫巴) -> 踩下橋頭斧頭擊敗庫巴 -> 通關！
+- **敵人行為**
+  - **栗寶寶 (Goomba)**：最基礎的敵人，只會左右巡邏，碰到牆壁會折返。玩家可以直接跳起來踩扁它，或是用火球打飛。
+  - **烏龜兵 (Koopa Troopa)**：分為紅綠兩色。被踩了之後會縮入龜殼。玩家可以走過去踢飛龜殼，龜殼會快速滑動並砸死路上的其他敵人。
+  - **飛天龜 (ParaKoopa)**：有翅膀的烏龜，會成正弦波浮動飛行。被玩家踩中一次後會失去翅膀，降為普通烏龜兵。
+  - **擲斧烏龜 (AxeKoopa)**：會左右走動、避開坑洞，並主動往玩家的方向跳躍及投擲斧頭，是比較棘手的敵人。
+  - **Boss 庫巴 (Bowser)**：關卡 8-4 的終極 Boss。它有五個 AI 階段，會左右走動、朝玩家噴吐火球、活潑地跳躍。玩家需要射出多個火球才能擊殺它，或者直接衝到它身後砍斷吊橋。
+  - **食人花 (Piranha Plant)**：藏在綠色水管裡，定時上下伸縮。我設計了安全偵測，如果玩家站得離水管太近，食人花就不會伸出來，避免玩家剛好走過去被偷襲。
+  - **岩漿泡泡 (Podoboo)**：從 8-4 關卡的熔岩中定時往上跳起，再掉回岩漿中，這種敵人是不能踩踏的。
+  - **城堡火柱 (Castle Fire)**：在 8-4 城堡裡旋轉的越屏火柱，會動態追蹤並傷害玩家。
+- **道具介紹**
+  - **紅香菇 (Mushroom)**：吃掉後可以從小瑪利歐變身為大瑪利歐，身體變高且能敲碎一般磚塊。
+  - **火焰花 (Fire Flower)**：吃掉後可以升級為火焰瑪利歐，按 E / Shift 鍵可以投擲火球。
+  - **無敵星星 (Star)**：吃掉後會有一段時間無敵，此時碰到任何敵人都可以直接撞飛消滅。
+  - **綠香菇 (1-UP Mushroom)**：吃掉後可以額外增加一條命。
+  - **金幣 (Coin)**：路上或磚塊裡的金幣，每收集滿 100 枚金幣就能加一條命。
+- **外掛模式 (Cheat Mode)**
+  - 在遊戲中按下 ESC 叫出暫停選單，我寫了外掛功能可以自由切換：
+    - 可以自由變身成小瑪利歐、大瑪利歐或火焰狀態。
+    - 可以開啟「無限無敵星星」讓 Mario 永久無敵。
+    - 可以開啟「火球射擊能力」，讓小瑪利歐也能射火球。
+    - 可以開啟「虛空救援」，掉進深淵時會自動傳送回上一個起跳平台，不用擔心死掉。
 
 ### 遊戲畫面
 
-#### 還原關卡參考圖
-
-**World 1-1（地面關卡）**
-
-![1-1](Resources/map_reference/1-1.png)
-
-**World 1-2（地下關卡）**
-
-![1-2](Resources/map_reference/1-2.png)
-
-**World 8-4（城堡關卡）**
-
-![8-4](Resources/map_reference/8-4.png)
-
-> 沒有 1:1 完整復刻，有盡力復刻關卡內容與細節。
-
-<!-- #### 實際運行遊戲畫面
-
-為了展現本專案的完整復刻成果，以下整理了各關卡與核心功能的實際運行截圖對照：
-
-| 畫面類型 | 截圖說明 | 實際運行畫面 |
-|------|---------|------------|
-| **遊戲標題畫面 (Title)** | 具備原汁原味的標題選單，玩家可在此選擇進入遊戲。 | ![Title Screen](Resources/map_reference/title_screen_shot.png) |
-| **世界 1-1 地面關卡** | 經典綠色水管、問號方塊、Goomba 巡邏與藍天白雲的像素地面場景。 | ![World 1-1 Gameplay](Resources/map_reference/1-1_gameplay.png) |
-| **世界 1-2 地下關卡** | 特有地下磚塊色調、食人花管口隱藏機制與多層水平水管平台。 | ![World 1-2 Gameplay](Resources/map_reference/1-2_gameplay.png) |
-| **世界 8-4 城堡關卡** | Bowser 噴吐火球、Axe 橋頭陷阱與 Castle Fire Spawner 動態追蹤火柱。 | ![World 8-4 Bowser Fight](Resources/map_reference/8-4_gameplay.png) |
-| **ESC 暫停與外掛選單** | 點擊 ESC 叫出的 UI 面板，可在此切換變身型態與開關 Cheat 模式。 | ![ESC Pause Menu](Resources/map_reference/esc_menu_gameplay.png) |
-| **遊戲勝利通關 (Game Won)**| 成功砍斷橋頭鐵鏈、擊殺庫巴並拯救公主後的勝利祝賀與致謝畫面。 | ![Game Won Screen](Resources/map_reference/game_won_screen.png) |
-
-> [!TIP]
-> **截圖放置說明**：
-> 您只需在運行遊戲時，使用截圖工具擷取以上 6 個關鍵畫面，並將圖片命名為對應的英文檔名（例如 `title_screen_shot.png`、`1-1_gameplay.png` 等），放置於 `Resources/map_reference/` 資料夾下，這份報告中的圖表便能自動、完美地將您的遊戲畫面加載並呈現在 PDF/Markdown 之中！ -->
-
----
+| 階段 | 遊戲畫面 |
+|:---:|:---:|
+| 開始畫面 (Title Screen) | <img src="Resources/map_reference/title_screen_shot.png" width="400"> |
+| 關卡 1-1 (World 1-1) | <img src="Resources/map_reference/1-1.png" width="400"> |
+| 關卡 1-2 (World 1-2) | <img src="Resources/map_reference/1-2.png" width="400"> |
+| 關卡 8-4 (World 8-4) | <img src="Resources/map_reference/8-4.png" width="400"> |
+| 暫停與外掛選單 | <img src="Resources/map_reference/esc_menu_gameplay.png" width="400"> |
+| 勝利通關畫面 | <img src="Resources/map_reference/game_won_screen.png" width="400"> |
 
 ## 程式設計
 
 ### 程式架構
 
-本專案將最原始的 God Class 設計 徹底解耦，轉換為符合現代 C++ 標準的**深度物件導向架構 (Deep OOP Architecture)**。設計上大量運用**繼承 (Inheritance)**、**多型 (Polymorphism)**、**介面 (Interfaces)** 與多種**設計模式 (Design Patterns)**。
+在這次的程式設計中，我花了很多心思把原本混在一起的程式碼（God Class）徹底拆開，改成更符合物件導向原則的架構。我使用了 C++17 來開發，並大量使用了繼承、多型與多種設計模式。
+
+以下是整個專案的專案規模與系統分層：
 
 #### 專案規模
 
-| 指標 | 數值 |
-|------|------|
-| 標頭檔 (.hpp) | 42 個 |
-| 原始檔 (.cpp) | 47 個 |
-| C++17 OOP 程式碼總行數 | **約 9,000 行** |
-| 設計模式使用數量 | **8 種** |
-| IEntityBehavior 策略子類 | **19 個** |
-| ISceneHandler 狀態子類 | **10 個** |
-| Block 子類 | **8 個** (含 MovingPlatform) |
-| IPlayerForm 狀態子類 | **5 個** |
-| IEnemyDeathAnimation 策略 | **4 個** |
-| IUIPanel 策略子類 | **6 個** |
-| Python 工具腳本 | **15 個** |
+- 標頭檔 (`.hpp`)：42 個
+- 原始檔 (`.cpp`)：47 個
+- 程式碼總行數：約 9,000 行
+- 設計模式使用數量：8 種
+- 實體行為策略子類 (`IEntityBehavior`)：19 個
+- 場景狀態子類 (`ISceneHandler`)：10 個
+- 方塊子類 (`Block`)：8 個
+- 玩家型態子類 (`IPlayerForm`)：5 個
 
-#### 系統分層架構圖 (Layered Architecture)
+#### 系統分層架構圖
+
+我將整個專案分為多個層級，從最上層的 App，到場景控制、服務層、遊戲世界物件、行為策略，以及最底層的資料工廠：
 
 ```mermaid
 graph TD
-    subgraph L0 ["⬛ Application Layer"]
-        App["App<br/>(全域狀態機 + 子系統協調)"]
-    end
-
-    subgraph L1 ["🟦 Scene / Handler Layer  (State Pattern)"]
-        PSH["PlayingSceneHandler<br/>17-Phase 主迴圈"]
-        LSH["LoadingSceneHandler"]
-        FSH["FlagpoleSceneHandler"]
-        ASH["AxeSequenceSceneHandler"]
-        EMSH["ESCMenuSceneHandler"]
-        MSH["MenuSceneHandlers<br/>(Title/Death/GameOver/GameWon)"]
-    end
-
-    subgraph L2 ["🟩 Service Layer"]
-        LM["LevelManager<br/>(ILevelService)"]
-        AM["AudioManager<br/>(IAudioService)"]
-        GSM["GameStateManager<br/>(score/lives/coins/time)"]
-        SC["ServiceLocator<br/>(type-safe registry)"]
-        UM["UIManager<br/>(IUIPanel dispatcher)"]
-        CM["CollisionManager<br/>(Facade)"]
-        IH["InputHandler<br/>(IInputHandler)"]
-    end
-
-    subgraph L3 ["🟨 Game World Layer"]
-        Lv["Level<br/>(CSV → Block 2D grid)"]
-        Pl["Player<br/>(View — Util::GameObject)"]
-        En["Entity<br/>(View — Util::GameObject)"]
-        Bl["Block<br/>(Util::GameObject + 7 subclasses)"]
-        MP["MovingPlatform<br/>(Block subclass)"]
-    end
-
-    subgraph L4 ["🟧 Model Layer  (MVC Model)"]
-        PS["PlayerState<br/>(pos/vel/power/anim/flags)"]
-        ES["EntityState<br/>(pos/vel/anim/death)"]
-    end
-
-    subgraph L5 ["🟥 Behavior / Strategy Layer"]
-        IEB["IEntityBehavior<br/>(19 concrete impls)"]
-        IPF["IPlayerForm<br/>(5 power state impls)"]
-        IEDA["IEnemyDeathAnimation<br/>(4 impls)"]
-        IPDA["IPlayerDeathAnimation<br/>(1 impl)"]
-    end
-
-    subgraph L6 ["⬜ Data / Factory Layer"]
-        EF["EntityFactory<br/>(static — only entity creator)"]
-        EDSF["EnemyDeathStyleFactory<br/>(static — injects death strategy)"]
-        GC["GameConfig<br/>(constants + coord helpers)"]
-        SPR["SpritePathResolver<br/>(static path cache)"]
-        PE["PhysicsEngine<br/>(static gravity/jump)"]
-    end
-
-    subgraph L7 ["🔲 PTSD Framework (external)"]
-        GO["Util::GameObject"]
-        Rend["Util::Renderer"]
-    end
-
-    App --> L1
-    L1 --> L2
-    L2 --> L3
-    L3 --> L4
-    L4 --> L5
-    L2 --> L6
-    L3 --> L6
-    L3 --> L7
+    App[App - 全域狀態機與協調] --> Scenes[場景狀態層 - ISceneHandler]
+    Scenes --> Services[服務層 - LevelManager/AudioManager/CollisionManager等]
+    Services --> GameWorld[遊戲世界層 - Player/Entity/Block]
+    GameWorld --> Model[純資料 Model 層 - PlayerState/EntityState]
+    Model --> Behaviors[行為策略層 - IEntityBehavior/IPlayerForm/IEnemyDeathAnimation]
+    Services --> Factories[資料與工廠層 - EntityFactory/GameConfig等]
+    GameWorld --> PTSD[PTSD 框架 - Util::GameObject]
 ```
 
-#### 核心 UML 繼承圖
+#### 核心類別繼承關係與說明
 
-##### PTSD GameObject 繼承樹
+為了讓大家方便看懂，我畫了幾個核心的繼承關係圖：
+
+##### 1. 遊戲物件繼承樹 (PTSD GameObject)
+
+所有在地圖上看得見的物體，我讓它們都繼承自 PTSD 框架的 `Util::GameObject`：
 
 ```mermaid
 classDiagram
     direction TB
-
     class GameObject {
         <<PTSD Framework>>
-        +SetDrawable(drawable)
-        +SetVisible(bool)
-        +SetZIndex(float)
-        +m_Transform
     }
-
     class Block {
-        -int m_BlockID
-        -int m_GridX, m_GridY
-        -BlockDef m_Def
-        +Update(cameraOffset)
-        +OnHit(playerState)
-        #HandleOnHit(playerState)*
-        +GetAABB() AABB
+        +Update()
+        +OnHit()
     }
-
-    class MovingPlatform
-    class StoneBlock
-    class BrickBlock
-    class QuestionBlock
-    class InvisibleBlock
-    class GoalBlock
-    class BackgroundBlock
-    class BridgeBlock
-
     class Entity {
-        -EntityDef m_Def
-        -EntityState m_State
-        -unique_ptr~IEntityBehavior~ m_Behavior
-        +UpdateView(cameraOffset)
+        +UpdateView()
     }
-
     class Player {
-        -PlayerState m_State
-        +UpdateView(cameraOffset)
+        +UpdateView()
     }
-
-    class UIImage
-    class UIText
-
     GameObject <|-- Block
+    GameObject <|-- Entity
+    GameObject <|-- Player
     Block <|-- MovingPlatform
     Block <|-- StoneBlock
     Block <|-- BrickBlock
@@ -303,37 +143,24 @@ classDiagram
     Block <|-- GoalBlock
     Block <|-- BackgroundBlock
     Block <|-- BridgeBlock
-    GameObject <|-- Entity
-    GameObject <|-- Player
-    GameObject <|-- UIImage
-    GameObject <|-- UIText
 ```
 
-##### ISceneHandler 繼承樹 (State Pattern — 10 個狀態)
+- `Util::GameObject`：PTSD 中的遊戲基礎物件。
+- `Player`：玩家的 View 顯示類別，負責依據狀態更新 Mario 的 Sprite 渲染。
+- `Entity`：所有實體（敵人、道具、火球等）的 View 顯示類別。
+- `Block`：所有地圖方塊的基類，包含：`BrickBlock` (一般磚塊)、`QuestionBlock` (問號方塊)、`StoneBlock` (石頭地基)、`InvisibleBlock` (隱形方塊)、`GoalBlock` (終點旗桿底座)、`BackgroundBlock` (背景物件)、`BridgeBlock` (庫巴橋梁)、`MovingPlatform` (會移動的平台)。
+
+##### 2. 場景切換狀態樹 (ISceneHandler)
+
+為了避免 switch-case 爆炸，我用 State Pattern 做了場景管理，每一個畫面都繼承自 `ISceneHandler`：
 
 ```mermaid
 classDiagram
-    direction TB
-
     class ISceneHandler {
         <<interface>>
-        +OnEnter(App&)
-        +Update(App&)*
-        +OnRender(App&)*
-        +OnExit(App&)
+        +Update()*
+        +OnRender()*
     }
-
-    class TitleSceneHandler
-    class LoadingSceneHandler
-    class PlayingSceneHandler
-    class FlagpoleSceneHandler
-    class PipeWarpSceneHandler
-    class AxeSequenceSceneHandler
-    class DeathSceneHandler
-    class GameOverSceneHandler
-    class GameWonSceneHandler
-    class ESCMenuSceneHandler
-
     ISceneHandler <|.. TitleSceneHandler
     ISceneHandler <|.. LoadingSceneHandler
     ISceneHandler <|.. PlayingSceneHandler
@@ -346,558 +173,203 @@ classDiagram
     ISceneHandler <|.. ESCMenuSceneHandler
 ```
 
-##### IEntityBehavior 繼承樹 (Strategy Pattern — 19 種行為)
+- `TitleSceneHandler`：標頭選單畫面。
+- `LoadingSceneHandler`：關卡過場載入畫面（會顯示剩餘命數）。
+- `PlayingSceneHandler`：主要遊玩畫面，裡面有非常嚴謹的每幀更新流程。
+- `FlagpoleSceneHandler`：瑪利歐滑下旗桿並走進城堡的過場動畫。
+- `PipeWarpSceneHandler`：瑪利歐蹲下進入水管的傳送動畫。
+- `AxeSequenceSceneHandler`：瑪利歐砍斷城堡吊橋、庫巴落水死亡的劇情動畫。
+- `DeathSceneHandler` / `GameOverSceneHandler` / `GameWonSceneHandler`：死亡、遊戲結束、通關祝賀畫面。
+- `ESCMenuSceneHandler`：暫停選單與外掛開啟介面。
 
-```mermaid
-classDiagram
-    direction TB
+##### 3. 實體行為策略樹 (IEntityBehavior)
 
-    class IEntityBehavior {
-        <<interface>>
-        +Update(state, level, player, timer)*
-        +OnPlayerCollision(state, player, isFromAbove) bool*
-        +Clone() unique_ptr~IEntityBehavior~*
-    }
+所有敵人與道具的 AI 邏輯，我全部抽出來做成 Strategy Pattern，繼承自 `IEntityBehavior`：
 
-    class GoombaBehavior
-    class KoopaBehavior
-    class ParaKoopaBehavior
-    class AxeKoopaBehavior
-    class BowserBehavior
-    class FireballBehavior
-    class MushroomBehavior
-    class FireFlowerBehavior
-    class StarBehavior
-    class OneUpBehavior
-    class CoinBehavior
-    class AxeBehavior
-    class PrincessBehavior
-    class FlagBehavior
-    class AxeProjectileBehavior
-    class PiranhaPlantBehavior
-    class PodobooBehavior
-    class DefaultEntityBehavior
-    class ParticleDebris
-    class CastleFireSpawnerBehavior
+- `IEntityBehavior`：策略介面。
+  - `GoombaBehavior`：栗寶寶的左右巡邏與被踩扁行為。
+  - `KoopaBehavior`：烏龜兵的巡邏、被踩後縮入龜殼、以及被踢飛的行為。
+  - `ParaKoopaBehavior`：飛天龜的正弦波飛行行為。
+  - `AxeKoopaBehavior`：擲斧烏龜的避坑、主動跳躍與投擲斧頭。
+  - `BowserBehavior`：Boss 庫巴的五階段 AI（巡邏、吐火球、跳躍、受傷、被擊敗）。
+  - `PiranhaPlantBehavior`：食人花的伸縮與安全範圍判定。
+  - `PodobooBehavior`：岩漿泡泡定時向上跳躍。
+  - `MushroomBehavior` / `FireFlowerBehavior` / `StarBehavior` / `OneUpBehavior` / `CoinBehavior`：各種道具從方塊中升起、移動與被吃掉的行為。
+  - `FireballBehavior`：火球的拋物線彈跳與碰撞爆炸。
+  - `CastleFireSpawnerBehavior`：城堡旋轉火柱的生成與旋轉軌跡。
 
-    IEntityBehavior <|.. GoombaBehavior
-    IEntityBehavior <|.. KoopaBehavior
-    IEntityBehavior <|.. ParaKoopaBehavior
-    IEntityBehavior <|.. AxeKoopaBehavior
-    IEntityBehavior <|.. BowserBehavior
-    IEntityBehavior <|.. FireballBehavior
-    IEntityBehavior <|.. MushroomBehavior
-    IEntityBehavior <|.. FireFlowerBehavior
-    IEntityBehavior <|.. StarBehavior
-    IEntityBehavior <|.. OneUpBehavior
-    IEntityBehavior <|.. CoinBehavior
-    IEntityBehavior <|.. AxeBehavior
-    IEntityBehavior <|.. PrincessBehavior
-    IEntityBehavior <|.. FlagBehavior
-    IEntityBehavior <|.. AxeProjectileBehavior
-    IEntityBehavior <|.. PiranhaPlantBehavior
-    IEntityBehavior <|.. PodobooBehavior
-    IEntityBehavior <|.. DefaultEntityBehavior
-    IEntityBehavior <|.. ParticleDebris
-    IEntityBehavior <|.. CastleFireSpawnerBehavior
-```
+##### 4. 玩家力量型態狀態樹 (IPlayerForm)
 
-##### IPlayerForm 繼承樹 (State Pattern — 5 種力量型態)
+我使用 State Pattern 處理 Mario 變身狀態：
 
-```mermaid
-classDiagram
-    direction TB
+- `IPlayerForm`：力量型態介面。
+  - `SmallPlayerForm`：小瑪利歐狀態。
+  - `BigPlayerForm`：大瑪利歐狀態。
+  - `FirePlayerForm`：火焰瑪利歐狀態。
+  - `SmallStarPlayerForm` / `BigStarPlayerForm`：小/大瑪利歐的無敵星星狀態。
 
-    class IPlayerForm {
-        <<interface>>
-        +GetPowerState() PowerState*
-        +GetHeight(crouching) int*
-        +IsBigOrFire() bool*
-        +CanShootFire() bool*
-        +TakeDamage() unique_ptr~IPlayerForm~*
-        +PowerUp(PowerState) unique_ptr~IPlayerForm~*
-    }
+#### 遊戲狀態移轉圖 (App State Machine)
 
-    class SmallPlayerForm
-    class BigPlayerForm
-    class FirePlayerForm
-    class SmallStarPlayerForm
-    class BigStarPlayerForm
-
-    IPlayerForm <|.. SmallPlayerForm
-    IPlayerForm <|.. BigPlayerForm
-    IPlayerForm <|.. FirePlayerForm
-    IPlayerForm <|.. SmallStarPlayerForm
-    IPlayerForm <|.. BigStarPlayerForm
-```
-
-#### App 狀態機轉移圖
+這是整個遊戲主程式的狀態機運作流程：
 
 ```mermaid
 stateDiagram-v2
     direction LR
     [*] --> START
     START --> TITLE_STATE : "App::Start()"
-    TITLE_STATE --> LOADING : "PRESS ENTER"
-    LOADING --> PLAYING : "3.0s 過場計時"
-    PLAYING --> ESC_MENU : "PRESS ESC"
-    ESC_MENU --> PLAYING : "選擇 RESUME"
-    ESC_MENU --> TITLE_STATE : "選擇 QUIT"
-    PLAYING --> FLAGPOLE : "碰觸旗桿 (1-1 / 1-2)"
-    FLAGPOLE --> LOADING : "進城堡動畫完成"
-    PLAYING --> PIPE_WARP : "站在水管上 + 按下方向鍵"
-    PIPE_WARP --> LOADING : "傳送序列完成"
-    PLAYING --> AXE_SEQUENCE : "碰觸橋頭斧頭 (8-4)"
-    AXE_SEQUENCE --> GAME_WON : "庫巴擊敗序列完成"
-    PLAYING --> DEATH : "Mario 死亡"
+    TITLE_STATE --> LOADING : "按下 Enter 鍵"
+    LOADING --> PLAYING : "過場計時完成"
+    PLAYING --> ESC_MENU : "按下 ESC 鍵"
+    ESC_MENU --> PLAYING : "選擇繼續遊戲"
+    PLAYING --> FLAGPOLE : "觸碰旗桿"
+    FLAGPOLE --> LOADING : "進入城堡動畫完成"
+    PLAYING --> PIPE_WARP : "蹲下進入傳送水管"
+    PIPE_WARP --> LOADING : "水管傳送動畫完成"
+    PLAYING --> AXE_SEQUENCE : "觸碰城堡吊橋上的斧頭"
+    AXE_SEQUENCE --> GAME_WON : "擊敗庫巴動畫完成"
+    PLAYING --> DEATH : "瑪利歐死亡"
     DEATH --> LOADING : "剩餘命數 > 0"
     DEATH --> GAME_OVER : "剩餘命數 = 0"
-    GAME_OVER --> TITLE_STATE : "PRESS ENTER"
-    GAME_WON --> TITLE_STATE : "PRESS ENTER"
 ```
 
 #### 遊戲主迴圈 — 17 Phase 架構
 
-`PlayingSceneHandler::Update(App&)` 每幀依序執行以下 17 個階段：
+當我在寫主要遊玩畫面 (`PlayingSceneHandler`) 時，為了確保物理碰撞、輸入、AI、粒子特效等的執行順序不會出錯，我把每一幀的更新分成了 17 個嚴格的步驟：
 
-| Phase | 名稱 | 職責 |
+| Phase | 名稱 | 職責說明 |
 |-------|------|------|
-| 0 | ESC CHECK | 偵測 ESC 鍵 → 切換到暫停選單 |
-| 1 | PROCESS INPUT | `InputHandler::HandleInput()` 讀取鍵盤狀態 |
-| 2 | UPDATE PHYSICS | `PlayerState::ApplyGravity()` 累加重力速度 |
-| 3 | APPLY POSITION | 位置積分 `posX += velX, posY += velY` |
-| 4 | COLLISION DETECT | `CollisionManager::CheckPlayerBlockCollision()` 三步驟碰撞管線 |
-| 5 | SPAWN ITEMS | 處理被 Block hit 觸發的道具生成點 |
-| 6 | PLAYER STATE TICK | `PlayerState::Tick()` 更新計時器與動畫幀 |
-| 7 | ENTITY AI UPDATE | 所有實體的 `IEntityBehavior::Update()` + 實體方塊碰撞 |
-| 8 | ENTITY TICK+VIEW | `EntityState::Tick()` + `Entity::UpdateView()` |
-| 9 | PLAYER-ENTITY COL | `CollisionManager::CheckPlayerEntityCollision()` |
-| 10 | ENTITY-ENTITY COL | `CollisionManager::CheckEntityEntityCollision()` |
-| 11 | AXE/FLAG/PIPE | 特殊碰撞檢查（斧頭/旗桿/水管傳送） |
-| 12 | CAMERA + BLOCKS | `Camera::Update()` + `Level::UpdateBlocks()` |
-| 13 | BRICK DEBRIS | 碎磚粒子生成（JustBroken 旗標） |
-| 14 | PLAYER VIEW | `Player::UpdateView()` + 無敵閃爍效果 |
-| 15 | GAME TIMER | `GameStateManager::Tick()` + 時間低警告 BGM 切換 |
-| 16 | PIT-FALL + DEATH | 深淵墜落偵測 → 死亡或外掛救援 |
-| 17 | CLEANUP | `CleanupDeadEntities()` 清除已標記刪除的實體 |
+| 0 | ESC CHECK | 偵測 ESC 鍵，是否需要切換到暫停選單 |
+| 1 | PROCESS INPUT | 透過 `InputHandler` 讀取鍵盤狀態 |
+| 2 | UPDATE PHYSICS | 累加重力速度與物理運算 |
+| 3 | APPLY POSITION | 位置積分更新（計算新的 X 與 Y 軸位置） |
+| 4 | COLLISION DETECT | 進行玩家與地圖方塊的三步驟碰撞偵測與修正 |
+| 5 | SPAWN ITEMS | 處理被方塊敲擊所產生的道具生成動畫 |
+| 6 | PLAYER STATE TICK | 更新瑪利歐的計時器與動畫影格 |
+| 7 | ENTITY AI UPDATE | 呼叫所有實體的 AI 更新與實體與方塊碰撞 |
+| 8 | ENTITY TICK+VIEW | 更新實體的計時器與視圖渲染狀態 |
+| 9 | PLAYER-ENTITY COL | 偵測玩家與怪物/道具之間的碰撞 |
+| 10 | ENTITY-ENTITY COL | 偵測實體與實體（例如火球打怪、龜殼砸怪）的碰撞 |
+| 11 | AXE/FLAG/PIPE | 檢查特殊碰撞（是否碰到旗桿、斧頭或要傳送的水管） |
+| 12 | CAMERA + BLOCKS | 攝影機追隨玩家，並更新畫面內方塊狀態 |
+| 13 | BRICK DEBRIS | 生成敲碎方塊時的磚塊碎片粒子效果 |
+| 14 | PLAYER VIEW | 更新玩家的貼圖顯示與無敵狀態下的閃爍特效 |
+| 15 | GAME TIMER | 全域遊戲時間計時，並在低於 100 秒時更換加速音樂 |
+| 16 | PIT-FALL + DEATH | 偵測玩家是否掉進懸崖，並觸發死亡或外掛救援 |
+| 17 | CLEANUP | 清除已經死掉的敵人或已被吃掉的道具物件 |
 
 #### MVC 每幀運作序列圖
+
+這是我實作的 MVC（Model-View-Controller）模式在每一幀的運作流程：
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Player as Player Input
-    participant App as App Context
-    participant Handler as PlayingSceneHandler
-    participant Input as InputHandler (Controller)
-    participant State as PlayerState (Model)
-    participant Col as CollisionManager (Facade)
-    participant View as Player (View)
-    participant Sfx as AudioManager (Service)
+    actor Player as 玩家輸入
+    participant App as App 狀態機
+    participant Handler as 遊玩場景處理器
+    participant Input as 輸入控制器 (Controller)
+    participant State as 玩家狀態 (Model)
+    participant Col as 碰撞管理器 (Facade)
+    participant View as 玩家視圖 (View)
+    participant Sfx as 音效管理員
 
-    Player->>Input: Press Key (e.g. RIGHT)
-    App->>Handler: Update(App&)
-    Handler->>Input: HandleInput(State, speed, level)
-    Input->>State: SetVelX(), SetMovingRight(true)
-    Handler->>State: ApplyGravity() → velY
-    Handler->>Col: CheckPlayerBlockCollision()
-    Col->>State: Resolve overlaps / SetGrounded()
-    Handler->>Col: CheckPlayerEntityCollision()
-    Col->>State: TakeDamage() or CollectItem()
-    Col->>Sfx: PlaySFX()
-    Handler->>State: Tick()
-    App->>Handler: OnRender(App&)
-    Handler->>View: UpdateView(cameraOffset)
-    View->>App: SetPosition() / SetSprite()
+    Player->>Input: 按下按鍵 (例如向右)
+    App->>Handler: Update()
+    Handler->>Input: HandleInput()
+    Input->>State: 修改速度與方向 (SetVelX)
+    Handler->>State: 累加重力 (ApplyGravity)
+    Handler->>Col: 檢查玩家與方塊碰撞
+    Col->>State: 修正位置 / 設定站在地上 (Resolve)
+    Handler->>Col: 檢查玩家與實體碰撞
+    Col->>State: 扣血變身或收集道具
+    Col->>Sfx: 播放對應音效
+    Handler->>State: Tick() 更新時間
+    App->>Handler: OnRender()
+    Handler->>View: UpdateView()
+    View->>App: 繪製對應 Sprite 貼圖
 ```
 
 ### 程式技術
 
-#### 使用的設計模式 (Design Patterns)
+以下是我在寫這個瑪利歐專案時，所使用到的物件導向程式技術與設計模式：
 
-本專案共運用了 **8 種** GoF / GRASP 設計模式：
+- **狀態模式 (State Pattern) 控制場景與玩家力量**
+  - **場景控制**：我本來把所有畫面的 switch-case 都寫在 `App.cpp` 裡，但這樣檔案變得超大。後來我用 State Pattern 建立了 `ISceneHandler` 介面，把標頭畫面、載入中、遊戲中、暫停選單等畫面各寫成獨立的類別。這樣 App 的 `Update` 就只需要呼叫當前狀態的 `Update`，整潔了許多，未來要加新畫面也很方便。
+  - **力量變身**：瑪利歐有小隻、大隻、火球、無敵等多種型態。我設計了 `IPlayerForm` 介面與五種對應的狀態類別。每次變身或受傷時，我只要讓狀態機回傳新的型態物件即可。這樣在計算瑪利歐的高度或是判斷能不能發射火球時，完全不需要寫 `if (isBig)` 這種判斷，全靠多型解決。
+- **策略模式 (Strategy Pattern) 實作敵人 AI**
+  - 我本來在處理敵人行為時，寫了大量的 `if (type == Goomba)` 分支。為了解耦，我將每種實體的行為封裝成繼承自 `IEntityBehavior` 的策略類別。現在 `Entity` 只是個顯示載具，它身上持有一個 Behavior 晶片，例如 Goomba 裝 `GoombaBehavior`，飛天龜被踩到沒翅膀時，我只要把它的 Behavior 晶片當場換成 `KoopaBehavior` 即可，不需要重新 `new` 一個物件，彈性非常好。
+- **工廠模式 (Factory Pattern) 統一生成物件**
+  - 為了避免程式碼中到處都是 `new Entity(...)`，我寫了 `EntityFactory` 來統一處理實體的建立。當需要生成怪物或道具時，呼叫端只需要告訴工廠類型與座標，工廠就會自動幫它設定好 Z-Index、碰撞箱、載入貼圖並注入對應的 AI 行為，非常省事。
+  - 另外我也寫了 `EnemyDeathStyleFactory`，根據敵人的死法（被踩扁、被火球擊飛等）來動態決定它要播放哪種死亡動畫策略。
+- **門面模式 (Facade Pattern) 重構碰撞系統**
+  - 碰撞系統是我花最多時間的地方。一開始所有物件的碰撞判斷都混在 `CollisionManager` 中，多達 800 行且非常容易出 bug。後來我把它做成 Facade 模式，只當作一個分派櫃檯，底下分拆成 `PlayerBlockHandler`、`PlayerEntityHandler`、`EntityBlockHandler` 和 `EntityEntityHandler` 四個子處理器，分別管不同類型的碰撞。這樣我修 bug 時就不會互相影響。
+- **依賴反轉 (DIP) 與服務定位器 (Service Locator)**
+  - 為了讓跨模組調用服務（像是播放音效、讀取地圖）更方便，我建立了 `ServiceLocator` 來管理所有全域服務。我先定義好 `IAudioService` 和 `ILevelService` 的介面，並將實作註冊進去。這樣其他類別只需要透過 `ServiceLocator::GetService<T>()` 就能拿到服務，不需要把各個 Manager 的指標傳來傳去。
+- **範本方法模式 (Template Method Pattern) 設計方塊**
+  - 我設計了方塊基底類別 `Block`，定義了碰撞被撞擊時的固定流程（播放彈跳動畫、更換貼圖狀態等），並開出一個 `virtual HandleOnHit()` 的虛擬函式。像問號方塊和磚塊等子類別只需要實作這個 `HandleOnHit` 去生金幣或碎裂即可，重複的流程都被鎖在基類中，符合 DRY 原則。
+- **Viewport Culling (視口剔除) 優化渲染效能**
+  - 瑪利歐的地圖非常長，如果每一幀都把所有的方塊和怪物拿去畫，效能會非常差。因此我實作了視口剔除，在 `Level` 更新和渲染時，我會先計算當前攝影機的位置，只去渲染和更新在畫面可見範圍內的方塊與實體，大大提升了 FPS。
+- **Sprite Path Cache (貼圖路徑快取)**
+  - 遊戲中如果每次更新 Sprite 都去讀取硬碟，會有很嚴重的 I/O 延遲。我設計了 `SpritePathResolver`，裡面用 `std::unordered_map` 把解析過的路徑快取起來，第二次之後讀取貼圖就能直接從記憶體拿，避免掉幀。
+- **CSV 資料驅動關卡**
+  - 我把地圖的設計全部做成 CSV 檔（如 `1-1.csv`），並用 `IDList.csv` 和 `EntityList.csv` 來定義方塊和實體的代號。這樣我不需要在程式碼中寫死地圖，只要改 CSV 檔案就能直接改變關卡的設計，實作了資料驅動。
 
-| # | Pattern | 解決的問題 | 本專案的角色 | 擴充方式 |
-|---|---------|-----------|------------|---------|
-| 1 | **State** | `App.cpp` 曾是 800 行 switch 怪物 | `ISceneHandler` — 每個畫面一個子類，`App::Update()` 剩兩行；`IPlayerForm` — 力量型態狀態機 | 新增畫面：加一個 .hpp/.cpp + enum |
-| 2 | **Strategy** | Entity 用 `if (type==Goomba)` 滿天飛 | `IEntityBehavior` — 19 種行為各一個 class | 新增敵人：加 XxxBehavior + Factory 一個 case |
-| 3 | **MVC** | 渲染邏輯和遊戲邏輯混在一起 | Model=State, View=GameObject, Controller=InputHandler | — |
-| 4 | **Factory** | 到處散落 `new Entity(...)` | `EntityFactory` 唯一建立入口；`EnemyDeathStyleFactory` 死亡策略工廠 | 新增實體：只改 Factory |
-| 5 | **DIP** | 呼叫者依賴具體 class 難測試 | `IAudioService`, `IInputHandler`, `ILevelService` 介面隔離 | 換實作：只換注入點 |
-| 6 | **Service Locator** | 跨模組傳遞指標麻煩 | `ServiceLocator::GetService<T>()` 全域取服務 | 新增服務：Register 一次 |
-| 7 | **Facade** | `CollisionManager` 曾是 800 行義大利麵 | 四個 Handler 各管一種碰撞；CollisionManager 只負責分派 | — |
-| 8 | **Template Method** | Block 子類碰撞邏輯大同小異 | `Block::OnHit()` 固定流程 → `virtual HandleOnHit()` 留給子類 | 新增方塊：override HandleOnHit |
+### 使用到 AI/AI Agent 的部分 (沒有用到者，不需要寫這篇)
 
-#### 設計模式深度解析
+在開發這個專案的過程中，我使用了 AI 助手（Google Gemini Antigravity、VSCode Copilot Pro）來協助我進行開發。以下是我如何與 AI 協作的心得與分工：
 
-##### 1. State Pattern — App::State 狀態機
-
-**原問題：** 原版 `App.cpp` 在單一 switch-case 中塞入所有遊戲狀態邏輯，超過 500 行難以維護。
-
-**解法：** GoF State Pattern — `App` 持有 `std::unique_ptr<ISceneHandler> m_CurrentHandler`。
-
-```cpp
-// App::Update() 永遠只有兩行！
-m_CurrentHandler->Update(*this);    // game logic
-m_CurrentHandler->OnRender(*this);  // drawing
-```
-
-新增遊戲狀態只需：
-
-1. 新增一個 `ISceneHandler` 子類 (.hpp + .cpp)
-2. 一個 `CreateSceneHandler()` case
-3. 一個 `App::State` enum 值
-
-**零修改 App.hpp 其他部分。**
-
-##### 2. Strategy Pattern — IEntityBehavior
-
-**原問題：** 傳統設計下的 Entity 使用大量 `if (type == Goomba)` 判斷，每新增一種敵人就要修改大量既有程式碼。
-
-**解法：** Strategy Pattern — `Entity` 持有 `unique_ptr<IEntityBehavior>`，透過多型 dispatch 消除所有 type 判斷分支。
-
-所有 19 種實體行為各自獨立為一個 class：
-
-| 類別 | 敵人/實體 | 特性 |
-|------|---------|------|
-| GoombaBehavior | 栗寶寶 | 巡邏 + 踩扁 |
-| KoopaBehavior | 烏龜兵/龜殼 | 巡邏 → Shell 模式切換 |
-| ParaKoopaBehavior | 飛翔烏龜 | 正弦波浮動 → 著陸轉換 |
-| AxeKoopaBehavior | 擲斧烏龜 | 避坑 AI + 面向玩家 + 投擲斧頭 + 活潑跳躍 |
-| BowserBehavior | Boss 庫巴 | 5-Phase AI (巡邏/吐火/跳躍/受傷/擊敗) + HP 系統 |
-| PiranhaPlantBehavior | 食人花 | 4-Phase 伸縮 + 玩家安全半徑偵測 |
-| PodobooBehavior | 岩漿泡泡 | 定時向上跳躍，不可踩 |
-| CastleFireSpawnerBehavior | 城堡火柱 | 越屏隱形噴火，動態追蹤玩家高度 |
-| FireballBehavior | 玩家火球 | 拋物線軌跡 + 碰撞爆炸 |
-| MushroomBehavior | 紅香菇 | 從方塊升起 → 平移 → 碰牆反向 |
-| FireFlowerBehavior | 火焰花 | 靜態升起等待收集 |
-| StarBehavior | 星星 | 彈跳移動，無敵狀態 |
-| OneUpBehavior | 綠香菇 | 與紅香菇相同移動，觸發增命 |
-| CoinBehavior | 金幣 | 靜態旋轉，無重力 |
-| ParticleDebris | 磚塊碎片 | 物理粒子模擬 |
-| 其他 4 種 | 斧頭/公主/旗幟/斧投射物 | 靜態觸發器/NPC |
-
-##### 3. MVC Pattern — Player & Entity
-
-```
-Model      → PlayerState / EntityState  (純資料：位置/速度/動畫/狀態旗標)
-View       → Player      / Entity       (繼承 Util::GameObject：選 Sprite/渲染)
-Controller → InputHandler               (讀鍵盤 → 寫 PlayerState)
-           + PlayingSceneHandler         (主迴圈協調所有元件)
-```
-
-**關鍵分離：** Model 不依賴 PTSD 渲染 API、View 不包含遊戲邏輯、碰撞由 CollisionManager 處理。
-
-##### 4. Factory Pattern
-
-- **`EntityFactory`**：唯一的 Entity 建立入口，負責根據 `EntityType` 設定維度、建立對應 Behavior、注入死亡動畫策略。
-- **`EnemyDeathStyleFactory`**：根據敵人類型與死因，動態建立對應的死亡動畫策略物件（踩扁/龜殼/火球擊飛/通用）。
-
-##### 5. Facade Pattern — CollisionManager
-
-**原問題：** `CollisionManager.cpp` 曾是 800 行義大利麵，混合 4 種碰撞邏輯。
-
-**解法：** 拆為 4 個特化策略 Handler + 1 個 Facade 分派器：
-
-```mermaid
-classDiagram
-    class CollisionManager {
-        <<Facade>>
-        +CheckPlayerBlockCollision()
-        +CheckPlayerEntityCollision()
-        +CheckEntityBlockCollision()
-        +CheckEntityEntityCollision()
-    }
-    class PlayerBlockHandler { +Resolve() }
-    class PlayerEntityHandler { +Resolve() }
-    class EntityBlockHandler { +Resolve() }
-    class EntityEntityHandler { +Resolve() }
-
-    CollisionManager --> PlayerBlockHandler
-    CollisionManager --> PlayerEntityHandler
-    CollisionManager --> EntityBlockHandler
-    CollisionManager --> EntityEntityHandler
-```
-
-##### 6. State Pattern — IPlayerForm (力量型態)
-
-**原問題：** Mario 具有多種力量型態（Small, Big, Fire, SmallStar, BigStar）。硬編碼在 `PlayerState` 中會充斥 if-else。
-
-**解法：** `PlayerState` 持有 `unique_ptr<IPlayerForm>`，每次升級/受傷時透過多型回傳新的形態物件，**零 if-else / switch-case**：
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> SMALL : Init
-    SMALL --> BIG : Collect Mushroom
-    SMALL --> FIRE : Collect Fire Flower
-    SMALL --> SMALL_STAR : Collect Star
-    BIG --> FIRE : Collect Fire Flower
-    BIG --> BIG_STAR : Collect Star
-    FIRE --> BIG_STAR : Collect Star
-
-    BIG --> SMALL : TakeDamage()
-    FIRE --> BIG : TakeDamage()
-    SMALL --> Dead : TakeDamage()
-
-    SMALL_STAR --> SMALL : StarTimer == 0
-    BIG_STAR --> BIG : StarTimer == 0
-```
-
-#### 特色技術亮點
-
-| 技術 | 說明 |
-|------|------|
-| **Viewport Culling 優化** | Level 使用 O(1) 扁平 Block 陣列與視口剔除，只渲染可見範圍的方塊 |
-| **Sprite Path Cache** | `SpritePathResolver` 使用 `s_ResolvedPathCache` 避免每幀磁碟 I/O |
-| **Entity-Entity O(M²) 優化** | `EntityEntityHandler` 透過 thread_local 視口快取，將碰撞迴圈從 O(N²) 降至 O(M²) |
-| **Zero Down-Casting** | 完全消除 `dynamic_cast`，狀態間透過 DTO 或 Self-Configuring 傳遞參數 |
-| **Data-Driven Entity** | `EntityDef::renderTargetWidth` 由 Factory 注入，消除 Entity 內部的 level 字串判定 |
-| **CSV 資料驅動** | 關卡地圖 (`.csv`) + IDList + EntityList，全部由資料驅動而非硬編碼 |
-| **Template Method** | `Block::OnHit()` 固定流程（載入貼圖→彈跳→`virtual HandleOnHit()`），子類只需 override 差異 |
-| **座標轉換統一** | `GameConfig` 提供 6 個靜態 helper，禁止在 callsite 手動寫 `+width/2` |
-
-#### 目錄結構
-
-```
-NTUT_OOPL_mario_V3/
-├── include/
-│   ├── App.hpp                           ← 應用程式主類別
-│   └── Mario/
-│       ├── Core/                         ← 核心基礎設施
-│       │   ├── GameConfig.hpp            ← 全域常數 + 座標轉換
-│       │   ├── Collider.hpp              ← AABB 碰撞矩形
-│       │   ├── CollisionContext.hpp       ← 碰撞資料 DTO
-│       │   ├── Camera.hpp                ← 攝影機系統
-│       │   ├── PhysicsEngine.hpp         ← 物理引擎
-│       │   └── SpritePathResolver.hpp    ← Sprite 路徑快取
-│       ├── Player/                       ← 玩家 MVC
-│       │   ├── Player.hpp                ← View 層
-│       │   ├── PlayerState.hpp           ← Model 層
-│       │   ├── PlayerForm.hpp            ← 力量型態策略 (5 個子類)
-│       │   └── PlayerDeathAnimation.hpp  ← 死亡動畫策略
-│       ├── Level/                        ← 關卡與實體
-│       │   ├── Level.hpp                 ← CSV 關卡載入
-│       │   ├── Block.hpp                 ← 方塊基類 (7 個子類)
-│       │   ├── MovingPlatform.hpp        ← 移動平台
-│       │   ├── EntityDef.hpp             ← 實體定義 DTO
-│       │   ├── Entity.hpp                ← 實體 View 層
-│       │   ├── EntityState.hpp           ← 實體 Model 層
-│       │   ├── EntityFactory.hpp         ← 實體工廠
-│       │   ├── EnemyDeathAnimation.hpp   ← 敵人死亡動畫 (4 種)
-│       │   ├── EnemyDeathStyleFactory.hpp← 死亡策略工廠
-│       │   └── GameStateManager.hpp      ← 全域遊戲狀態
-│       ├── Behaviors/                    ← 策略行為 (19 種)
-│       │   ├── IEntityBehavior.hpp       ← 策略介面
-│       │   ├── GoombaBehavior.hpp
-│       │   ├── KoopaFamily.hpp           ← Koopa 系列 (3 種合併)
-│       │   ├── BowserBehavior.hpp        ← Boss AI
-│       │   ├── CastleFireSpawnerBehavior.hpp
-│       │   ├── FireballBehavior.hpp
-│       │   ├── ItemBehaviors.hpp          ← 5 種道具合併
-│       │   ├── StaticEntityBehaviors.hpp  ← 4 種靜態合併
-│       │   ├── PiranhaPlantBehavior.hpp
-│       │   ├── PodobooBehavior.hpp
-│       │   ├── DefaultEntityBehavior.hpp
-│       │   └── ParticleDebris.hpp
-│       ├── Collision/                    ← 碰撞子系統
-│       │   ├── ICollisionHandler.hpp     ← 碰撞介面
-│       │   ├── BlockContactResolver.hpp  ← 靜態 Snap helpers
-│       │   ├── PlayerBlockHandler.hpp
-│       │   ├── PlayerEntityHandler.hpp
-│       │   ├── EntityBlockHandler.hpp
-│       │   └── EntityEntityHandler.hpp
-│       ├── Scenes/                       ← 場景狀態 (10 個)
-│       │   ├── ISceneHandler.hpp         ← 狀態介面
-│       │   ├── PlayingSceneHandler.hpp
-│       │   ├── MenuSceneHandlers.hpp     ← 4 種選單合併
-│       │   ├── LoadingSceneHandler.hpp
-│       │   ├── FlagpoleSceneHandler.hpp
-│       │   ├── PipeWarpSceneHandler.hpp
-│       │   ├── AxeSequenceSceneHandler.hpp
-│       │   └── ESCMenuSceneHandler.hpp
-│       ├── Services/                     ← 服務層 (DIP)
-│       │   ├── ServiceLocator.hpp
-│       │   ├── EventSystem.hpp
-│       │   ├── IInputHandler.hpp
-│       │   ├── InputHandler.hpp
-│       │   ├── IAudioService.hpp
-│       │   ├── AudioType.hpp
-│       │   ├── AudioPathResolver.hpp
-│       │   ├── AudioManager.hpp
-│       │   ├── ILevelService.hpp
-│       │   └── LevelManager.hpp
-│       └── UI/                           ← UI 系統
-│           ├── UIPanel.hpp               ← 6 種面板策略
-│           ├── UIManager.hpp
-│           ├── UIWidgets.hpp
-│           ├── CoinUI.hpp
-│           └── FloatingText.hpp
-├── src/                                  ← 47 個 .cpp 實作檔
-│   ├── App.cpp (172 行)
-│   ├── main.cpp
-│   └── Mario/  (同上對應結構)
-├── Resources/
-│   ├── Levels/    (1-1.csv, 1-2.csv, 8-4.csv)
-│   ├── LookUpSheet/ (IDList.csv, EntityList.csv)
-│   ├── Sprites/   (Block/Player/Entity/UI PNG)
-│   ├── Audio/     (BGM .ogg / SFX .wav)
-│   └── Font/      (遊戲字型)
-├── python_src/                           ← 15 個 Python 工具腳本
-├── Constructure.md                       ← 完整 OOP 架構設計文件
-├── Agent.md                              ← AI 助手開發指南
-└── files.cmake                           ← 所有檔案列舉
-```
-
-### 使用到 AI/AI Agent 的部分
-
-本專案在開發過程中使用了 **AI Agent（Google Gemini Antigravity 、 VSCode Copilot Pro）** 輔助開發，以下詳述使用方式與範疇：
-
-#### AI 使用場景
-
-| 使用場景 | 具體說明 | AI 貢獻度 |
-|---------|---------|----------|
-| **OOP 架構設計與重構** | 將最原始的 God Class 設計 拆解為 State/Strategy/MVC/Factory 等設計模式的 C++ 架構 | 高度輔助 |
-| **程式碼實作** | 19 個 `IEntityBehavior` 策略類別、10 個 `ISceneHandler` 場景狀態、碰撞子系統等核心模組的撰寫 | 高度輔助 |
-| **Bug 修復** | 碰撞物理管線調優、邊界條件修復、渲染偏移修正等 6 輪 Bug Session | 高度輔助 |
-| **Boss AI 設計** | Bowser 5-Phase AI 狀態機、AxeKoopa 避坑 AI、Castle Fire Spawner 動態追蹤 | 高度輔助 |
-| **架構文件維護** | `Constructure.md` 的 UML 圖表、設計模式解析、檔案清單更新 | 高度輔助 |
-| **Python 工具腳本** | 8-4 地圖生成、Sprite 裁切、CSV 驗證等 15 個工具腳本 | 高度輔助 |
-
-#### AI Agent 工作流程
-
-AI Agent 嚴格遵循 `Agent.md` 中定義的開發規範：
-
-1. **架構設計先行**：每次重大開發前先更新 `implementation_plan.md` 與使用者對齊
-2. **程式碼品質**：所有 `.hpp/.cpp` 頂部必有英文職責與繼承註解
-3. **架構同步**：每次修改類別結構後即時更新 `Constructure.md`
-4. **進度追蹤**：透過 `task.md` 記錄所有進度與目標
-5. **禁止事項遵守**：不修改 CMakeLists.txt、不執行 cmake 命令
-
-#### AI Agent 開發準則 (Agent.md 規範摘要)
-
-```
-1. OOP 優先：封裝、繼承、多型，禁止 God Class
-2. MVC 架構：Model / View / Controller 嚴格分離
-3. 英文註解：所有程式碼註解必須為英文
-4. 檔案規範：新增檔案加入 files.cmake，頂部必有職責說明
-5. 架構同步：修改類別後立即更新 Constructure.md
-6. 禁止修改 CMakeLists.txt 或執行 cmake 命令
-```
-
----
+- **架構發想與重構建議**：當我遇到 God Class 義大利麵程式碼崩潰的時候，我請 AI 幫我分析並給予重構建議。AI 幫我提出了使用 State Pattern 拆解 App 和 IPlayerForm，以及使用 Strategy Pattern 拆解 AI 行為的點子。我根據它的點子，畫出 UML 繼承圖，定義好類別介面後，再由我引導 AI 寫出具體實作。
+- **輔助撰寫核心程式碼**：在定義好 `IEntityBehavior` 和 `ISceneHandler` 的空殼後，我讓 AI 協助生成一些重覆性高但繁瑣的實作，例如 19 種 Behaviors 的具體狀態邏輯，以及 10 個場景狀態的跳轉流程，大幅節省了我的打字時間。
+- **協助除錯與優化效能**：在碰撞物理管線調優的過程中，瑪利歐常會出現卡牆或抖動的 Bug，我把程式碼片段和 Bug 狀況貼給 AI，AI 幫我分析出是物理 Snap 的順序問題（必須先做 FallDetect，再做 BodyResolution），並提供了 Viewport Culling 的優化邏輯，幫助我解決了效能瓶頸。
+- **自動化工具腳本**：為了快速編輯 8-4 的 CSV 地圖與裁切 Sprite 圖片，我請 AI 幫我用 Python 寫了 15 個小工具腳本，讓地圖產生的工作快了許多。
+- **我與 AI 協作的開發流程**：
+  我嚴格遵守著「架構設計先行」的原則。每次做重大修改前，我都會先整理好我的 implementation_plan 檔案，確認邏輯沒問題才動手。我也會及時更新 Constructure.md 確保架構與程式碼同步。
 
 ## 結語
 
 ### 問題與解決方法
 
-#### 問題 1：God Class 導致的義大利麵式程式碼
-
-**問題描述：** 最原始的程式碼是一個典型的 God Class，所有遊戲邏輯、渲染、碰撞、AI 全部混在同一個檔案中，超過數千行且完全不可維護。
-
-**解決方法：** 導入 **State Pattern** 將 `App.cpp` 從 800 行 switch 怪物縮減為 172 行的純協調器。將遊戲邏輯分散到 10 個 `ISceneHandler` 子類中，各自負責一個畫面的邏輯。同時導入 **ILevelService** 介面將 Player、Level、Entities 等資料從 App 剝離至 `LevelManager`。
-
-**成果：** `App::Update()` 永遠只有兩行程式碼。
-
----
-
-#### 問題 2：碰撞系統義大利麵
-
-**問題描述：** `CollisionManager.cpp` 曾是 800 行的巨大類別，混合處理 4 種截然不同的碰撞邏輯，違反 SRP。
-
-**解決方法：** 導入 **Facade Pattern + Strategy Pattern**，將碰撞系統拆分為：
-
-- `PlayerBlockHandler`：玩家 vs 方塊（三步驟物理管線）
-- `PlayerEntityHandler`：玩家 vs 實體（踩踏/傷害/收集）
-- `EntityBlockHandler`：實體 vs 方塊（地面/反彈）
-- `EntityEntityHandler`：實體 vs 實體（火球/龜殼）
-
-`CollisionManager` 本身縮減為 65 行的純 Facade 分派器。
-
----
-
-#### 問題 3：Entity 類型判斷的硬編碼
-
-**問題描述：** 最原始的程式碼使用 `if (type == Goomba)` 等硬編碼分支判斷敵人行為，每新增一種敵人需修改大量既有程式碼。
-
-**解決方法：** 導入 **Strategy Pattern**，將每種實體的行為封裝為獨立的 `IEntityBehavior` 子類。`Entity` 只需呼叫 `m_Behavior->Update()`，完全不知道具體是什麼實體。
-
-**成果：** 新增敵人只需加一個 `XxxBehavior` 類別 + 在 `EntityFactory` 加一個 case，核心程式碼零修改。
-
----
-
-#### 問題 4：力量型態的 if-else 爆炸
-
-**問題描述：** Mario 的力量型態（Small/Big/Fire/Star）邏輯散落在 PlayerState 的各個方法中，充斥著 `if (powerState == FIRE)` 等判斷。
-
-**解決方法：** 導入 **State Pattern（IPlayerForm）**，將每種力量型態封裝為獨立的策略類別，透過多型 `TakeDamage()` 和 `PowerUp()` 回傳下一個狀態物件。
-
-**成果：** 新增力量型態（如冰花、狸貓）只需新增一個 `IPlayerForm` 子類，核心物理引擎與渲染主流程完全不需修改。
-
----
-
-#### 問題 5：向下轉型 (dynamic_cast) 污染
-
-**問題描述：** 場景切換時需傳遞特定參數（如旗桿座標、水管傳送方向），原先使用 `dynamic_cast` 將場景指標向下轉型再呼叫 Setup。
-
-**解決方法：** 導入 **Self-Configuring + State Context DTO**：
-
-- `FlagpoleSceneHandler` 在 `OnEnter()` 主動查詢 `ILevelService`
-- `PipeWarpSceneHandler` 透過 `GameStateManager` 的 Warp DTO 取得傳送參數
-
-**成果：** 整個 C++ 專案中完全清除了所有 `dynamic_cast`。
-
----
-
-#### 問題 6：碰撞物理管線的精確移植
-
-**問題描述：** 碰撞系統的碰撞解析順序極為敏感（先落地偵測→頭頂觸發→逐方塊迴圈），順序錯誤會導致 Mario 卡牆、飄浮、穿牆等 Bug。
-
-**解決方法：** 嚴格調研並實作最穩定的三步驟碰撞管線：
-
-1. **FallDetect**：4px strip 偵測腳下是否有方塊
-2. **CeilingTrigger**：窄 hitbox 偵測頭頂撞擊
-3. **BodyResolution**：全身碰撞體的 Down→Right→Left→Up 順序 Snap
-
-**成果：** 經過 6 輪 Bug Session 的精細調優，碰撞物理手感與原版高度一致。
-
----
+- **最初的 God Class 義大利麵程式碼**
+  - **問題**：剛開始寫的時候，我把遊戲的邏輯、畫面繪製、碰撞判斷和敵人 AI 全塞在 `App.cpp` 裡，導致程式碼變得非常長（幾千行），稍微修改一個地方別的地方就會壞掉，完全無法維護。
+  - **解決方法**：我痛定思痛進行重構，導入 **State Pattern** 將 `App` 解耦。我建立了 10 個 `ISceneHandler` 子類別，將各個畫面的邏輯移出去。現在 `App::Update()` 只需要兩行，其他全交給當前的場景處理器去跑。
+- **碰撞系統太過混亂**
+  - **問題**：原先 `CollisionManager.cpp` 塞了 800 行程式碼，混合處理玩家、方塊、怪物和火球之間的各種碰撞，經常發生修改了玩家碰撞卻導致怪物掉出地圖的 bug。
+  - **解決方法**：我導入 **Facade Pattern**，將碰撞管理器當作單一分派櫃檯，並將具體的碰撞判斷拆分到 `PlayerBlockHandler`、`PlayerEntityHandler`、`EntityBlockHandler` 和 `EntityEntityHandler` 四個處理器中，讓它們各司其職，修 bug時不會再互相干擾。
+- **新增敵人需要修改大量舊程式碼**
+  - **問題**：一開始每種怪物的行為都用 `if (type == Goomba)` 判斷，導致如果我想新增飛天龜或 Boss 庫巴，就得去好幾個檔案裡加一堆 if-else，非常痛苦。
+  - **解決方法**：我使用 **Strategy Pattern**，讓 `Entity` 只有一個 `IEntityBehavior` 策略指標。我把 19 種實體行為各自寫成獨立的類別，新增怪物時只需要寫一個新的 Behavior 並註冊到 `EntityFactory` 裡，核心代碼完全不用修改。
+- **瑪利歐力量變身的 if-else 爆炸**
+  - **問題**：瑪利歐有小隻、大隻、火球、無敵等狀態，這些狀態的碰撞高度、能不能丟火球、動畫路徑等邏輯散落在 PlayerState 中，充斥著各種 if-else。
+  - **解決方法**：我導入 **State Pattern (IPlayerForm)**，把 5 種變身型態拆成獨立的類別。現在瑪利歐吃香菇變大時，狀態機直接回傳 `BigPlayerForm` 物件。物理引擎和動畫要取得高度時直接呼叫 `m_Form->GetHeight()` 即可，免去了所有 if-else 判斷。
+- **向下轉型 (dynamic_cast) 造成的效能與架構污染**
+  - **問題**：在切換場景時，我原本為了傳遞特定參數（像是玩家在水管的傳送方向或旗桿座標），使用了 `dynamic_cast` 將 `ISceneHandler` 轉型成具體的 Handler，這在 OOP 中是不良的設計。
+  - **解決方法**：我改用 **Self-Configuring** 與 **GameState DTO**。讓 `FlagpoleSceneHandler` 自行去跟 `LevelService` 查旗桿座標，而水管傳送參數則存在 `GameStateManager` 的資料傳輸物件中，成功在整個 C++ 專案中清除了所有 `dynamic_cast`。
+- **碰撞物理管線極度敏感，容易卡牆或抖動**
+  - **問題**：在移植瑪利歐碰撞時，我發現如果碰撞解析的順序不對，玩家很容易卡在磚塊裡、抖動或是穿牆。
+  - **解決方法**：我研究後實作了嚴謹的三步驟碰撞物理管線：第一步 `FallDetect` 偵測腳下是否有踩到東西；第二步 `CeilingTrigger` 偵測頭頂是否撞到磚塊；第三步 `BodyResolution` 依據下、右、左、上的順序去 Snap 邊界。經過多輪調優，手感終於跟原版一致。
 
 ### 自評
 
-| 項次 | 項目 | 完成 |
-|------|------|------|
-| 1 | 復刻三個關卡 (1-1, 1-2, 8-4) 並可完整通關 | V |
-| 2 | 完成專案權限改為 public | V |
-| 3 | 具有 debug mode 的功能 (ESC 暫停選單 + Cheat Mode) | V |
-| 4 | 解決專案上所有 Memory Leak 的問題 (使用 unique_ptr/shared_ptr 管理所有動態記憶體) | V |
-| 5 | 報告中沒有任何錯字，以及沒有任何一項遺漏 | V |
-| 6 | 報告至少保持基本的美感，人類可讀 | V |
-
-#### OOP 原則遵守確認
-
-| 原則 | 實現方式 | 狀態 |
-|------|---------|------|
-| 所有實體繼承 Util::GameObject | Player, Entity, Block, UIImage, UIText 全部繼承 | V |
-| 沒有 God Class | App 只負責 TransitionTo()；邏輯分散到各 Handler/Manager | V |
-| MVC 架構 | PlayerState(M) → Player(V) → InputHandler(C) | V |
-| State Pattern | 10 個 ISceneHandler + 5 個 IPlayerForm | V |
-| Strategy Pattern | 19 個 IEntityBehavior + 4 個 IEnemyDeathAnimation + 6 個 IUIPanel | V |
-| Factory Pattern | EntityFactory + EnemyDeathStyleFactory 唯一入口 | V |
-| DIP | IAudioService / IInputHandler / ILevelService 介面隔離 | V |
-| OCP 原則 | 新增怪物/狀態/UI面板不修改現有核心類別 | V |
-| DRY 原則 | GameConfig 統一座標轉換；靜態 Sprite Cache | V |
-| 零 dynamic_cast | 狀態間透過 DTO 或 Self-Configuring 傳遞參數 | V |
+| 項次 | 項目                   | 完成 |
+|------|------------------------|-------|
+| 1    | 這是範例 |  V  |
+| 2    | 完成專案權限改為 public |  V  |
+| 3    | 具有 debug mode 的功能  |  V  |
+| 4    | 解決專案上所有 Memory Leak 的問題  |  V  |
+| 5    | 報告中沒有任何錯字，以及沒有任何一項遺漏  |  V  |
+| 6    | 報告至少保持基本的美感，人類可讀  |  V  |
 
 ### 心得
+
+- **113820033 謝奕宏**
 
 這學期的物件導向程式設計實習（OOPL）對我而言，是一次極為震撼且深刻的程式心路歷程。這不僅僅是完成了復刻超級瑪利歐這款遊戲本身，更讓我深刻翻轉了對「物件導向設計」與「人機協作（Human-AI Collaboration）」的認知。
 
 #### 1. 甜蜜的蜜月期與突如其來的「義大利麵地獄」
 
-剛開始寫這個瑪利歐專案時，我心裡其實非常放鬆，甚至有點小得意。我想著：「反正現在有 **VS Code Copilot** 和 **Antigravity** 這些超強的 AI 工具，我只要用口語講一下需求，程式碼不就劈哩啪啦生出來了，寫專案超輕鬆的吧！」（想起來，這簡直是沒受過扎實資工系課程洗禮才會講出來的幼稚發言）。
+剛開始寫這個瑪利歐專案時，我心裡其實非常放鬆，甚至有點小得意。我想著：「反正現在有 VS Code Copilot 和 Antigravity 這些超強的 AI 工具，我只要用口語講一下需求，程式碼不就劈哩啪啦生出來了，寫專案超輕鬆的吧！」（想起來，這簡直是沒受過扎實資工系課程洗禮才會講出來的幼稚發言）。
 
-確實，前幾天開發過程簡直像蜜月期一樣爽快。AI 寫程式碼的速度飛快，給個指令就產出一大堆代碼，遊戲也真的能跑能動了，Mario 會跑、會跳，看起來有模有樣。但因為我當時太過依賴 AI 的即時產出，完全沒有靜下心來規劃整體的 OOP 架構。結果，代碼不知不覺塞成一團，程式裡充斥著幾百個 if-else 和硬編碼，不知不覺寫出了一大坨令人頭疼的義大利麵代碼。
+確實，前幾天開發過程簡集像蜜月期一樣爽快。AI 寫程式碼的速度飛快，給個指令就產出一大堆代碼，遊戲也真的能跑能動了，Mario 會跑、會跳，看起來有模有樣。但因為我當時太過依賴 AI 的即時產出，完全沒有靜下心來規劃整體的 OOP 架構。結果，代碼不知不覺塞成一團，程式裡充斥著幾百個 if-else 和硬編碼，不知不覺寫出了一大坨令人頭疼的義大利麵代碼。
 
 雖然遊戲能動，但隨著專案規模擴大，真正的考驗來了：當我想新增水管傳送，或者是 8-4 的 Boss 關時，代碼開始全面崩潰。只要改了 A 就會壞了 B，到處都是牽一髮動全身的死結。我每天陷入了無止境的 Debug 地獄，看著幾千行亂成一團的代碼，我真的感到無比痛苦與挫折。
 
@@ -907,9 +379,9 @@ AI Agent 嚴格遵循 `Agent.md` 中定義的開發規範：
 
 AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「架構遠見」。如果我身為開發者，沒有先在腦中把物件的繼承關係、介面合約、工廠模式等藍圖給規劃好，直接叫 AI 開始寫，那 AI 產出來的只會是「能跑的精美垃圾」。
 
-於是我痛下決心，決定把原本凌亂的代碼全部推倒進行大手術！我拿了我的平板和撰寫markdown格式，先靜下心來把所有的類別關係一筆一筆畫出來：思考哪些物件是共通的、繼承樹該怎麼長、狀態要怎麼用多型來解耦。
+於是我痛下決心，決定把原本凌亂的代碼全部推倒進行大手術！我拿了我的平板和撰寫 markdown 格式，先靜下心來把所有的類別關係一筆一筆畫出來：思考哪些物件是共通的、繼承樹該怎麼長、狀態要怎麼用多型來解耦。
 
-我和AI討論過後，把整個 Interface 定義得清清楚楚，建立好乾淨的「空殼框架」後，才重新把這些架構拋給 AI，讓它只負責填充裡面的具體實現細節。這一次，奇蹟發生了：代碼不僅變得超級乾淨，而且各個模組各司其職，再也沒有改 A 壞 B 的鳥事發生！
+我和 AI 討論過後，把整個 Interface 定義得清清楚楚，建立好乾淨的「空殼框架」後，才重新把這些架構拋給 AI，讓它只負責填充裡面的具體實現細節。這一次，奇蹟發生了：代碼不僅變得超級乾淨，而且各個模組各司其職，再也沒有改 A 壞 B 的鳥事發生！
 
 #### 3. 設計模式與 OOP 架構的接地氣體會（物件創造與解耦）
 
@@ -933,10 +405,10 @@ AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「�
 
 #### 總結
 
-這個OOP瑪利歐專案對我而言，最珍貴的收穫不僅僅是利用 C++ 成功復刻了我從小就想做的遊戲，更重要的是，我從中學會了如何當一個掌控全局的「系統架構師」，而不是被 AI 牽著鼻子走的碼農(不然未來工作也可能被AI取代)。這是我大學生涯目前為止做過最有趣、也成就感最大的一個專案！
+這個 OOP 瑪利歐專案對我而言，最珍貴的收穫不僅僅是利用 C++ 成功復刻了我從小就想做的遊戲，更重要的是，我從中學會了如何當一個掌控全局的「系統架構師」，而不是被 AI 牽著鼻子走的碼農（不然未來工作也可能被 AI 取代）。這是我大學生涯目前為止做過最有趣、也成就感最大的一個專案！
 
 ### 貢獻比例
 
-| 組員 | 貢獻比例 |
-|------|---------|
-| 113820033 謝奕宏 | **100%** |
+| 組員 | 貢獻度 |
+|:---:|:---:|
+| 113820033 謝奕宏 | 100% |

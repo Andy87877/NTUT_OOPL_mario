@@ -205,7 +205,8 @@ class BrickBlock : public Block {
 
 class QuestionBlock : public Block {
    public:
-    using Block::Block;
+    QuestionBlock(int blockID, int gridX, int gridY, const BlockDef& def,
+                  const std::string& levelName = "");
     void HandleOnHit(int playerState) override;
 };
 
@@ -234,6 +235,7 @@ class BackgroundBlock : public Block {
 class BridgeBlock : public Block {
    public:
     using Block::Block;
+    void Update(float cameraOffset) override;
     void HandleOnHit(int playerState) override;
     bool IsBridge() const override { return true; }
 };

@@ -21,7 +21,8 @@
 #include "Mario/UI/HUDPanel.hpp"
 #include "Mario/UI/TitlePanel.hpp"
 #include "Mario/UI/LoadingPanel.hpp"
-#include "Mario/UI/SimpleTextPanel.hpp"
+#include "Mario/UI/GameOverPanel.hpp"
+#include "Mario/UI/GameWonPanel.hpp"
 #include "Mario/UI/ESCMenuPanel.hpp"
 #include "Mario/UI/AxeEndingPanel.hpp"
 #include "Mario/UI/UIWidgets.hpp"
@@ -98,8 +99,8 @@ class UIManager {
     HUDPanel m_HUDPanel;
     TitlePanel m_TitlePanel;
     LoadingPanel m_LoadingPanel;
-    SimpleTextPanel m_GameOverPanel;
-    SimpleTextPanel m_GameWonPanel;
+    GameOverPanel m_GameOverPanel;
+    GameWonPanel m_GameWonPanel;
     ESCMenuPanel m_ESCMenuPanel;
     AxeEndingPanel m_AxeEndingPanel;
 
@@ -124,6 +125,9 @@ class UIManager {
 
     // Cheat Mode label
     std::shared_ptr<UIText> m_CheatModeText;
+
+    State m_LastState = State::PLAYING;
+    bool m_FirstUpdate = true;
 };
 
 }  // namespace Mario

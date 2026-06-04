@@ -20,8 +20,8 @@ UIManager::UIManager(GameStateManager* gameState)
       m_HUDPanel(m_FontPath, m_FontSize),
       m_TitlePanel(m_FontPath, m_FontSize),
       m_LoadingPanel(m_FontPath, m_FontSize),
-      m_GameOverPanel(m_FontPath, m_FontSize, "GAME OVER"),
-      m_GameWonPanel(m_FontPath, m_FontSize, "WORLD CLEARED"),
+      m_GameOverPanel(m_FontPath, m_FontSize),
+      m_GameWonPanel(m_FontPath, m_FontSize),
       m_ESCMenuPanel(m_FontPath, m_FontSize),
       m_AxeEndingPanel(m_FontPath, m_FontSize) {
     auto white = Util::Color::FromRGB(255, 255, 255);
@@ -53,18 +53,7 @@ UIManager::UIManager(GameStateManager* gameState)
     m_UIRenderer.AddChild(m_FPSText);
 
     // Copyright text (bottom-left corner); prefer a Chinese-capable font.
-    std::string chineseFontPath = m_FontPath;
-    {
-        std::ifstream f1("C:/Windows/Fonts/msjh.ttc");
-        if (f1.good()) {
-            chineseFontPath = "C:/Windows/Fonts/msjh.ttc";
-        } else {
-            std::ifstream f2("C:/Windows/Fonts/msjh.ttf");
-            if (f2.good()) {
-                chineseFontPath = "C:/Windows/Fonts/msjh.ttf";
-            }
-        }
-    }
+    std::string chineseFontPath = GameConfig::GetChineseFontPath(m_FontPath);
     m_CopyrightText = std::make_shared<UIText>(
         chineseFontPath, m_FontSize, "113820033 電資二 謝奕宏", white);
     m_CopyrightText->SetPosition(-620.0f, -340.0f);
@@ -121,12 +110,24 @@ void UIManager::Update(State currentState, int escMenuSelection,
     }
 
     // --- Scene panel dispatch ---
-    HideAllScenePanels();
+    if (m_FirstUpdate || m_LastState != currentState) {
+        HideAllScenePanels();
+        auto itNew = m_PanelMap.find(currentState);
+        if (itNew != m_PanelMap.end()) {
+            itNew->second->Show();
+        }
+        m_LastState = currentState;
+        m_FirstUpdate = false;
+    }
+
     auto it = m_PanelMap.find(currentState);
     if (it != m_PanelMap.end()) {
         IUIPanel* panel = it->second;
 
         // Supply extra context to panels that need it before Refresh().
+        if (currentState == State::TITLE) {
+            m_TitlePanel.SetMenuContext(escMenuSelection);
+        }
         if (currentState == State::ESC_MENU) {
             m_ESCMenuPanel.SetMenuContext(escMenuSelection, powerStateName);
         }
@@ -135,7 +136,6 @@ void UIManager::Update(State currentState, int escMenuSelection,
                                              EndingTextPhase::CREDITS);
         }
 
-        panel->Show();
         panel->Refresh(*m_GameState);
     }
 

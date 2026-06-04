@@ -8,6 +8,9 @@
 #ifndef MARIO_GAME_CONFIG_HPP
 #define MARIO_GAME_CONFIG_HPP
 
+#include <string>
+#include <fstream>
+
 namespace Mario {
 
 /**
@@ -40,8 +43,8 @@ struct GameConfig {
 
     // -- Timing --
     static constexpr float TICK_INTERVAL =
-        20.0f / 1000.0f;                       // 20ms per tick (50 FPS)
-    static constexpr int TIME_SUB_LIMIT = 40;  // Ticks per game-second
+        1.0f / 60.0f;                       // 16.67ms per tick (60 FPS)
+    static constexpr int TIME_SUB_LIMIT = 48;  // Ticks per game-second (scaled for 60Hz)
 
     // -- Player --
     static constexpr float BASE_SPEED = 7.35f;  // Base Mario speed (tiles/sec)
@@ -101,15 +104,15 @@ struct GameConfig {
     // -- Flagpole / Ending --
     static constexpr int FLAGPOLE_SLIDE_SPEED = 2;  // Pixels per tick
     static constexpr int ENDING_WALK_DELAY =
-        20;  // Ticks after grounded before walking
+        24;  // Ticks after grounded before walking (scaled for 60Hz)
     static constexpr int LEVEL_TRANSITION_DELAY =
-        50;                                    // Ticks before next level loads
+        60;                                    // Ticks before next level loads (scaled for 60Hz)
     static constexpr int PIPE_ANIM_SPEED = 5;  // Mario descend speed in pipe
 
     // -- Cheat Mode Configuration (外掛模式) --
-    static constexpr int CHEAT_STAR_TIMER_MAX = 500;
-    static constexpr int CHEAT_STAR_TIMER_RESET_THRESHOLD = 100;
-    static constexpr int CHEAT_RESCUE_INV_FRAMES = 60;
+    static constexpr int CHEAT_STAR_TIMER_MAX = 600;
+    static constexpr int CHEAT_STAR_TIMER_RESET_THRESHOLD = 120;
+    static constexpr int CHEAT_RESCUE_INV_FRAMES = 72;
 
     // -- Coordinate Conversion Helpers (Unified Systems) --
     /**
@@ -174,6 +177,22 @@ struct GameConfig {
      */
     static float ScreenYToPTSD(float screenY) {
         return WINDOW_HEIGHT / 2.0f - screenY;
+    }
+
+    /**
+     * Resolve and return a Traditional Chinese capable font path.
+     * Uses msjh.ttc or msjh.ttf from Windows Fonts, falling back to the given path.
+     */
+    static std::string GetChineseFontPath(const std::string& fallbackPath) {
+        std::ifstream f1("C:/Windows/Fonts/msjh.ttc");
+        if (f1.good()) {
+            return "C:/Windows/Fonts/msjh.ttc";
+        }
+        std::ifstream f2("C:/Windows/Fonts/msjh.ttf");
+        if (f2.good()) {
+            return "C:/Windows/Fonts/msjh.ttf";
+        }
+        return fallbackPath;
     }
 };
 

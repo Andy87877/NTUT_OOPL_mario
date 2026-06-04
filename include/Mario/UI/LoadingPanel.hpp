@@ -29,6 +29,7 @@ class LoadingPanel : public IUIPanel {
     std::shared_ptr<UIText> m_WorldLabel;
     std::shared_ptr<UIText> m_LivesText;
     std::shared_ptr<UIImage> m_MarioPreview;
+    std::shared_ptr<UIText> m_CreditLabel;
 };
 
 }  // namespace Mario

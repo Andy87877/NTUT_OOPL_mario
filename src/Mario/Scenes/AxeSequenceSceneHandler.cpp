@@ -109,7 +109,7 @@ void AxeSequenceSceneHandler::OnRender(App& app) {
 void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
     switch (m_Phase) {
         case Phase::START:
-            if (m_tick_count > 30) {  // ~0.5s pause
+            if (m_tick_count > 36) {  // ~0.6s pause (scaled for 60Hz)
                 m_Phase = Phase::BRIDGE_COLLAPSE;
                 m_tick_count = 0;
                 LOG_INFO("8-4: Collapsing bridge.");
@@ -120,7 +120,7 @@ void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
             break;
 
         case Phase::BRIDGE_COLLAPSE:
-            if (m_tick_count > 60) {  // ~1s
+            if (m_tick_count > 72) {  // ~1.2s (scaled for 60Hz)
                 m_Phase = Phase::BOWSER_FALL;
                 m_tick_count = 0;
                 if (m_bowser && m_bowser->GetState().IsActive()) {
@@ -135,7 +135,7 @@ void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
             break;
 
         case Phase::BOWSER_FALL:
-            if (m_tick_count > 180) {  // ~3s
+            if (m_tick_count > 216) {  // ~3.6s (scaled for 60Hz)
                 m_Phase = Phase::WALK_TO_PRINCESS;
                 m_tick_count = 0;
                 LOG_INFO("8-4: Walking to Princess.");
@@ -159,7 +159,7 @@ void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
                     LOG_INFO("8-4: Reached Princess.");
                 }
             } else {
-                if (m_tick_count > 300) {  // Walk for ~5s fallback
+                if (m_tick_count > 360) {  // Walk for ~6s fallback (scaled for 60Hz)
                     m_Phase = Phase::PRINCESS_DIALOG;
                 }
             }
@@ -167,7 +167,7 @@ void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
         }
 
         case Phase::PRINCESS_DIALOG:
-            if (m_tick_count > 300) {  // ~5s
+            if (m_tick_count > 360) {  // ~6s (scaled for 60Hz)
                 m_Phase = Phase::COMPLETED;
                 LOG_INFO("8-4: Game complete!");
             }

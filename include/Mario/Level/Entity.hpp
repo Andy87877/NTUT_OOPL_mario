@@ -17,6 +17,7 @@
 #include "Mario/Core/GameConfig.hpp"
 #include "Mario/Level/EntityDef.hpp"
 #include "Mario/Level/EntityState.hpp"
+#include "Mario/Level/EntityAnimator.hpp"
 #include "Util/GameObject.hpp"
 #include "Util/Image.hpp"
 #include "pch.hpp"  // IWYU pragma: export
@@ -89,7 +90,6 @@ class Entity : public Util::GameObject {
     AABB GetHitbox() const;
 
    private:
-    std::string BuildSpritePath() const;
     std::shared_ptr<Util::Image> GetOrLoadSprite(const std::string& path);
 
     /**
@@ -105,6 +105,7 @@ class Entity : public Util::GameObject {
     EntityDef m_Def;
     std::string m_LevelName;  // Level name for sprite path resolution (e.g.,
                               // "1-1", "8-4")
+    EntityAnimator m_Animator; // The Animator (SRP Decoupling)
 
     std::string m_CurrentSpritePath;
 

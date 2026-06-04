@@ -38,7 +38,7 @@ class ClassicPlayerDeathAnimation : public IPlayerDeathAnimation {
     int m_FrameCounter = 0;
     double m_VelY = 0.0;
 
-    static constexpr int kFreezeFrames = 6;
+    static constexpr int kFreezeFrames = 7;
     static constexpr double kLaunchMultiplier = 1.35;
     static constexpr double kGravityMultiplier = 2.8;
 };

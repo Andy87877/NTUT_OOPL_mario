@@ -28,11 +28,6 @@ Block::Block(int blockID, int gridX, int gridY, const BlockDef& def,
       m_LevelName(levelName) {
     m_Solid = def.solid;
 
-    // Special case: multi-hit coin block (ID 5 in reference)
-    if (blockID == 5) {
-        m_HP = 5;
-    }
-
     // Set initial screen position (camera offset = 0)
     float worldLeft = static_cast<float>(gridX * GameConfig::TILE_SIZE);
     float worldTop = static_cast<float>(gridY * GameConfig::TILE_SIZE);
@@ -184,34 +179,6 @@ void Block::Update(float cameraOffset) {
         LoadSpriteOnDemand();
     }
 
-    // --- Gravity physics: bridge collapse ---
-    // When SetGravity(true) is called, block enters free-fall using stored
-    // world coordinates instead of the fixed grid position.
-    if (m_HasGravity) {
-        m_FallVelocity += 1.5f;  // Gravity acceleration per tick
-        m_WorldY += m_FallVelocity;
-
-        // Hide and deactivate once the block falls below the level boundary
-        if (m_WorldY > GameConfig::LEVEL_HEIGHT_PX + 200.0f) {
-            m_Broken = true;
-            SetVisible(false);
-            SetDrawable(nullptr);
-            return;
-        }
-
-        // Use physics world coordinates for screen position, aligning edges to
-        // integers
-        float roundedOffset = std::round(cameraOffset);
-        float worldCX = std::round(m_WorldX) + GameConfig::TILE_SIZE / 2.0f;
-        float worldCY = std::round(m_WorldY) + GameConfig::TILE_SIZE / 2.0f;
-
-        float sx = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
-        float sy = GameConfig::WorldToPTSDY(worldCY);
-
-        m_Transform.translation = {sx, sy};
-        return;  // Skip grid-based positioning below
-    }
-
     // --- Standard grid-based positioning ---
     // Convert grid position to screen position with camera offset
     float worldLeft = static_cast<float>(m_GridX * GameConfig::TILE_SIZE);
@@ -251,51 +218,9 @@ void Block::OnHit(int playerState) {
     HandleOnHit(playerState);
 }
 
-void Block::HandleOnHit(int playerState) {
-    // For standard breakable blocks (like bricks) that do not contain items:
-    if (m_Def.breakable && !m_Def.isContainer) {
-        if (playerState > 0) {
-            Break();
-        } else {
-            // Small Mario bounces the brick and plays a bump sound, but does not break it
-            // or permanently mark it as hit/consumed.
-            if (m_Def.bounceBack) {
-                Bounce();
-            }
-            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Bump);
-        }
-        return;
-    }
-
-    m_HP--;
-    if (m_HP <= 0) {
-        m_IsHit = true;
-
-        if (m_HitSprite) {
-            // Switch to hit sprite (e.g., question block -> empty block)
-            SetDrawable(m_HitSprite);
-        } else if (m_Def.breakable && playerState > 0) {
-            // Big/Fire Mario breaks bricks
-            Break();
-            return;
-        }
-
-        // Make invisible question blocks visible after being hit
-        if (m_Def.name == "InvisQuestionBlock") {
-            SetVisible(true);
-        }
-
-        // Play bump sound when HP reduces to 0
-        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Bump);
-    }
-
-    // Only animate bounce for blocks that have the bounceBack flag set.
-    // Castle/hard blocks (bounceBack=false) still play the bump sound but
-    // do NOT visually bounce — matching NES behavior where hitting a hard
-    // stone block gives a "bonk" sound without any block movement.
-    if (m_Def.bounceBack) {
-        Bounce();
-    }
+void Block::HandleOnHit(int /*playerState*/) {
+    // Base implementation is a no-op fallback.
+    // Specific behaviors are overridden in subclasses.
 }
 
 void Block::Bounce() {
@@ -366,6 +291,14 @@ void BrickBlock::HandleOnHit(int playerState) {
     }
 }
 
+QuestionBlock::QuestionBlock(int blockID, int gridX, int gridY, const BlockDef& def,
+                             const std::string& levelName)
+    : Block(blockID, gridX, gridY, def, levelName) {
+    if (blockID == 5) {
+        m_HP = 5;
+    }
+}
+
 void QuestionBlock::HandleOnHit(int /*playerState*/) {
     if (m_IsHit) return;
     m_HP--;
@@ -414,6 +347,35 @@ void BackgroundBlock::HandleOnHit(int /*playerState*/) {
 
 bool BackgroundBlock::IsCastleDoor() const {
     return m_Def.name == "Castle5" || m_Def.name == "CastleDoor";
+}
+
+void BridgeBlock::Update(float cameraOffset) {
+    // When SetGravity(true) is called on BridgeBlock, it enters free-fall using stored
+    // world coordinates instead of the fixed grid position.
+    if (m_HasGravity) {
+        m_FallVelocity += 1.5f;  // Gravity acceleration per tick
+        m_WorldY += m_FallVelocity;
+
+        // Hide and deactivate once the block falls below the level boundary
+        if (m_WorldY > GameConfig::LEVEL_HEIGHT_PX + 200.0f) {
+            m_Broken = true;
+            SetVisible(false);
+            SetDrawable(nullptr);
+            return;
+        }
+
+        // Use physics world coordinates for screen position, aligning edges to integers
+        float roundedOffset = std::round(cameraOffset);
+        float worldCX = std::round(m_WorldX) + GameConfig::TILE_SIZE / 2.0f;
+        float worldCY = std::round(m_WorldY) + GameConfig::TILE_SIZE / 2.0f;
+
+        float sx = GameConfig::WorldToPTSDX(worldCX, roundedOffset);
+        float sy = GameConfig::WorldToPTSDY(worldCY);
+
+        m_Transform.translation = {sx, sy};
+        return;
+    }
+    Block::Update(cameraOffset);
 }
 
 void BridgeBlock::HandleOnHit(int /*playerState*/) {

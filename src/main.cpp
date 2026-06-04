@@ -12,6 +12,10 @@ int main(int, char**) {
     App app;
 
     while (!context->GetExit()) {
+        // Update input state, time delta, and swap buffers at the start of frame
+        // to ensure zero input-to-physics update latency.
+        context->Update();
+
         switch (app.GetCurrentState()) {
             case App::State::START:
                 app.Start();
@@ -35,7 +39,6 @@ int main(int, char**) {
                 context->SetExit(true);
                 break;
         }
-        context->Update();
     }
     return 0;
 }

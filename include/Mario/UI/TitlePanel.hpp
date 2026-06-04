@@ -20,13 +20,25 @@ class TitlePanel : public IUIPanel {
     TitlePanel(const std::string& fontPath, int fontSize);
     ~TitlePanel() override = default;
 
+    /**
+     * Set the current menu selection index before Refresh().
+     * @param selection 0 = 1 Player Game, 1 = Quit Game
+     */
+    void SetMenuContext(int selection);
+
     void Register(Util::Renderer& renderer) override;
     void Show() override;
     void Hide() override;
     void Refresh(const GameStateManager& gs) override;
 
    private:
-    std::shared_ptr<UIText> m_TitleLabel;
+    int m_Selection = 0;
+    int m_FrameCount = 0;
+
+    std::shared_ptr<UIImage> m_Logo;
+    std::shared_ptr<UIText> m_OnePlayerLabel;
+    std::shared_ptr<UIText> m_QuitLabel;
+    std::shared_ptr<UIImage> m_Cursor;
     std::shared_ptr<UIText> m_SubLabel;
 };
 

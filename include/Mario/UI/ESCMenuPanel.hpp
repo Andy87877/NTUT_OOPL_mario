@@ -37,7 +37,11 @@ class ESCMenuPanel : public IUIPanel {
     int m_Selection = 0;
     std::string m_PowerStateName = "SMALL";
 
+    std::shared_ptr<UIImage> m_Overlay;
     std::shared_ptr<UIText> m_PausedLabel;
+    std::shared_ptr<UIText> m_DescLabel;
+    std::shared_ptr<UIText> m_HintLabel;
+    std::shared_ptr<UIImage> m_Cursor;
     std::vector<std::shared_ptr<UIText>> m_MenuTexts;
 };
 

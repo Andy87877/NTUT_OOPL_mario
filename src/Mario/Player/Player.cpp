@@ -54,44 +54,9 @@ void Player::UpdateView(float cameraOffset) {
         return;  // Skip rendering if invisible
     }
 
-    // Build the sprite path from current state following C# logic:
-    // sprite_name = "Mario" + prefix + state + frame
-    std::string prefix;
-    int frame;
-    int spriteState;
-    int starState = 0;
-
-    if (m_State.IsDeathAnimActive()) {
-        prefix = "Jump";
-        frame = 0;
-        spriteState = 0;
-    } else if (m_State.GetTransitionTimer() > 0) {
-        // Alternate sprites every 4 frames during transition
-        prefix = "Idle";
-        frame = 0;
-        bool useBig = (m_State.GetTransitionTimer() / 4) % 2 == 0;
-        
-        if (m_State.GetPowerState() == PowerState::FIRE && m_State.GetPrevPowerState() == PowerState::BIG) {
-            // Transition from Big to Fire: alternate between Big (state 1) and Fire (state 2)
-            spriteState = useBig ? 2 : 1;
-        } else {
-            // Transition between Small and Big/Fire: alternate between Small (state 0) and Big (state 1)
-            spriteState = useBig ? 1 : 0;
-        }
-        starState = 0;
-    } else {
-        prefix = m_State.GetAnimPrefix();
-        frame = m_State.GetAnimFrame();
-        
-        const auto* form = m_State.GetForm();
-        bool isShooting = m_State.IsFireShooting();
-        spriteState = form->GetSpriteState(isShooting);
-        starState = form->GetStarState(m_State.GetStarTimer(), isShooting);
-    }
-
-    // Get the sprite path
-    std::string spritePath = SpritePathResolver::GetPlayerSpritePath(
-        prefix, spriteState, frame, starState);
+    // Resolve sprite path and state via PlayerAnimator (SRP Decoupling)
+    std::string spritePath = m_Animator.GetSpritePath(m_State);
+    int spriteState = m_Animator.GetSpriteState(m_State);
 
     // Only reload sprite if it changed
     if (!spritePath.empty() && spritePath != m_CurrentSpritePath &&
@@ -115,11 +80,7 @@ void Player::UpdateView(float cameraOffset) {
 
     // Y: crouch and transition fix — anchor sprite bottom to hitbox bottom so the sprite
     // never sinks into the floor when Big/Fire Mario crouches or alternates states.
-    // The Big/Fire sprite canvas is always 2-tile tall; the Small sprite is 1-tile tall.
-    // spriteState == 0 (SMALL) and spriteState == 3 (SMALL_STAR) are both 1-tile tall.
-    float spriteHeight = (spriteState == 0 || spriteState == 3)
-                             ? static_cast<float>(GameConfig::TILE_SIZE)
-                             : static_cast<float>(GameConfig::TILE_SIZE * 2);
+    float spriteHeight = m_Animator.GetSpriteHeight(spriteState);
     float hitboxBottom = std::round(m_State.GetY()) + playerHeight;
     float worldCY = hitboxBottom - spriteHeight / 2.0f;
     float screenY = GameConfig::WorldToPTSDY(worldCY);

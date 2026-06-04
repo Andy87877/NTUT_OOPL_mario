@@ -137,7 +137,9 @@ class GameStateManager {
     bool m_GameWon = false;
     bool m_CheatModeActive = false;
 
-    static const std::vector<LevelEntry> LEVEL_SEQUENCE;
+    std::vector<LevelEntry> m_LevelSequence;
+
+    void LoadLevelSequence();
 };
 
 }  // namespace Mario

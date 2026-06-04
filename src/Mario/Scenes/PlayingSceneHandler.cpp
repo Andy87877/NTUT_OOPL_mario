@@ -44,9 +44,14 @@ void PlayingSceneHandler::Update(App& app) {
     auto& level = app.GetLevel();
     if (!player || !level) return;
 
-    // -- Input (MVC Controller layer) --
-    app.GetInputHandler().HandleInput(player->GetState(), app.GetSpeed(),
+    // -- Input (MVC Controller layer using Command Pattern) --
+    auto commands = app.GetInputHandler().HandleInput(player->GetState(), app.GetSpeed(),
                                       *level);
+    for (auto& cmd : commands) {
+        if (cmd) {
+            cmd->Execute(player->GetState(), *level);
+        }
+    }
 
     // -- Step moving platforms and carry player (OOP virtual dispatch) --
     // Must run before gravity so the player is repositioned before physics.
@@ -455,9 +460,8 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
 
     // Down pipe: both halves must intersect + Mario grounded + Down key held.
     // Centering check (C#): pipeDX < Mario.X < pipeDX + TILE_SIZE/1.25
-    if (pipeDown1 && pipeDown2 && ps.IsGrounded() &&
-        (Util::Input::IsKeyPressed(Util::Keycode::DOWN) ||
-         Util::Input::IsKeyPressed(Util::Keycode::S))) {
+    bool crouchPressed = app.GetInputHandler().IsCrouchPressed();
+    if (pipeDown1 && pipeDown2 && ps.IsGrounded() && crouchPressed) {
         float maxOffset = TS / 1.25f;  // = 36px at TILE_SIZE=45
         if (ps.GetX() > pipeDX && ps.GetX() < pipeDX + maxOffset) {
             LOG_INFO("Entering pipe DOWN at ({}, {})", pipeDX, pipeDY);
@@ -480,9 +484,8 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
 
     // Right pipe: any half must intersect + grounded + Right key held.
     // Vertical alignment (C#): pipeRY + TILE_SIZE + 1 > Mario.Y
-    if ((pipeRight1 || pipeRight2) && ps.IsGrounded() &&
-        (Util::Input::IsKeyPressed(Util::Keycode::RIGHT) ||
-         Util::Input::IsKeyPressed(Util::Keycode::D))) {
+    bool movingRight = app.GetInputHandler().IsMovingRight();
+    if ((pipeRight1 || pipeRight2) && ps.IsGrounded() && movingRight) {
         if (pipeRY + TS + 1.0f > ps.GetY()) {
             LOG_INFO("Entering pipe RIGHT at ({}, {})", pipeRX, pipeRY);
             Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);

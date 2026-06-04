@@ -252,14 +252,14 @@ void PlayerState::TakeDamage() {
         Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::Warp);
 
         // Invincibility frames
-        m_InvTimer = 60;  // ~1.2 seconds of invincibility
+        m_InvTimer = 72;  // ~1.2 seconds of invincibility (scaled for 60Hz)
 
         if (wasBig && !isBig) {
             // When shrinking from big to small, adjust Y downwards
             if (!m_Crouching) {
                 SetY(GetY() + GameConfig::TILE_SIZE);
             }
-            m_TransitionTimer = 30; // Shrink transition
+            m_TransitionTimer = 36; // Shrink transition (scaled for 60Hz)
         }
     }
 }
@@ -274,9 +274,9 @@ void PlayerState::PowerUp(PowerState newState) {
     
     if (!wasBig && isBig) {
         SetY(GetY() - GameConfig::TILE_SIZE);
-        m_TransitionTimer = 30; // Grow transition from Small to Big/Fire
+        m_TransitionTimer = 36; // Grow transition from Small to Big/Fire (scaled for 60Hz)
     } else if (wasBig && newState == PowerState::FIRE) {
-        m_TransitionTimer = 30; // Big to Fire transition
+        m_TransitionTimer = 36; // Big to Fire transition (scaled for 60Hz)
     }
 }
 
@@ -288,7 +288,7 @@ void PlayerState::StartStar() {
         m_Form = std::make_unique<BigStarPlayerForm>(m_MemoryState);
     }
     m_PowerState = m_Form->GetPowerState();
-    m_StarTimer = 500;  // ~10 seconds
+    m_StarTimer = 600;  // ~10 seconds (scaled for 60Hz)
 }
 
 // ============================================================================
@@ -330,7 +330,7 @@ void PlayerState::ForceApplyPowerState(int idx) {
             m_PowerState = PowerState::BIG_STAR;
             m_Form = std::make_unique<BigStarPlayerForm>(PowerState::FIRE);
             m_MemoryState = PowerState::FIRE;  // Return to Fire after star ends
-            m_StarTimer = 500;
+            m_StarTimer = 600;  // (scaled for 60Hz)
             break;
         default:
             break;

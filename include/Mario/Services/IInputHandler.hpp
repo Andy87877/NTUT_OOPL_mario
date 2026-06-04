@@ -10,6 +10,10 @@
 #ifndef MARIO_I_INPUT_HANDLER_HPP
 #define MARIO_I_INPUT_HANDLER_HPP
 
+#include <vector>
+#include <memory>
+#include "Mario/Services/ICommand.hpp"
+
 namespace Mario {
 
 class PlayerState;
@@ -19,26 +23,25 @@ class Level;
  * Pure virtual interface for the input controller in the MVC pattern.
  *
  * The InputHandler (Controller) reads raw device input and translates it
- * into commands that modify the PlayerState (Model).  By depending on this
- * interface, the rest of the system is decoupled from any specific input
- * device (keyboard, gamepad, replay, AI demo mode, etc.).
- *
- * Key bindings are an implementation detail of the concrete class.
+ * into a sequence of commands (Command Pattern) executed on the PlayerState (Model).
+ * By depending on this interface, the rest of the system is decoupled from any
+ * specific input device (keyboard, gamepad, replay, AI demo mode, etc.).
  */
 class IInputHandler {
    public:
     virtual ~IInputHandler() = default;
 
     /**
-     * Read current input and apply it to the player's Model.
+     * Read current input and translate it to a vector of commands.
      * Called once per frame from PlayingSceneHandler.
-     * @param state  The PlayerState (Model) to modify
+     * @param state  The PlayerState (Model) to reference
      * @param speed  Current movement speed (pixels/frame)
      * @param level  Current level for crouch-stand-up guard
+     * @return List of command objects to execute in sequence
      */
-    virtual void HandleInput(PlayerState& state, float speed, Level& level) = 0;
+    virtual std::vector<std::shared_ptr<ICommand>> HandleInput(
+        PlayerState& state, float speed, Level& level) = 0;
 
-    // -- Per-frame input state queries (read after HandleInput) --
     virtual bool IsMovingRight() const = 0;
     virtual bool IsMovingLeft() const = 0;
     virtual bool IsJumpPressed() const = 0;

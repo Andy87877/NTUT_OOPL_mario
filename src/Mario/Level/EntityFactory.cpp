@@ -11,18 +11,8 @@
 
 #include "Mario/Level/LevelConfig.hpp"
 
-#include "Mario/Behaviors/BowserBehavior.hpp"
-#include "Mario/Behaviors/CastleFireSpawnerBehavior.hpp"
-#include "Mario/Behaviors/DefaultEntityBehavior.hpp"
-#include "Mario/Behaviors/FireballBehavior.hpp"
-#include "Mario/Behaviors/GoombaBehavior.hpp"
+#include "Mario/Level/BehaviorRegistry.hpp"
 #include "Mario/Behaviors/IEntityBehavior.hpp"
-#include "Mario/Behaviors/ItemBehaviors.hpp"
-#include "Mario/Behaviors/KoopaFamily.hpp"
-#include "Mario/Behaviors/ParticleDebris.hpp"
-#include "Mario/Behaviors/PiranhaPlantBehavior.hpp"
-#include "Mario/Behaviors/PodobooBehavior.hpp"
-#include "Mario/Behaviors/StaticEntityBehaviors.hpp"
 #include "Mario/Core/GameConfig.hpp"
 #include "Mario/Level/EnemyDeathStyleFactory.hpp"
 #include "Mario/Player/Player.hpp"
@@ -199,91 +189,8 @@ std::shared_ptr<Entity> EntityFactory::SpawnEntity(
                                            fromBlock, levelName);
 
     if (!entity) return nullptr;
-
-    // Configure behavior strategy based on entity type (loaded from CSV)
-    std::unique_ptr<IEntityBehavior> behavior;
-
-    switch (localDef.type) {
-        case EntityType::GOOMBA:
-            behavior = std::make_unique<GoombaBehavior>();
-            break;
-        case EntityType::KOOPA_TROOPA:
-            // EntityList.csv has two KOOPA_TROOPA entries:
-            //   name="Koopa"      → red Koopa (turns at ledges)
-            //   name="KoopaTroopa"→ green Koopa (walks off cliffs)
-            // We distinguish them here once so KoopaBehavior::Update never
-            // needs a runtime string comparison (OCP / SRP).
-            behavior = std::make_unique<KoopaBehavior>(
-                localDef.name == "Koopa" ? KoopaBehavior::KoopaType::RED_TROOPA
-                                         : KoopaBehavior::KoopaType::TROOPA);
-            break;
-        case EntityType::PARAKOOPA:
-            behavior = std::make_unique<ParaKoopaBehavior>();
-            break;
-        case EntityType::KOOPA_SHELL:
-            behavior = std::make_unique<KoopaBehavior>(
-                KoopaBehavior::KoopaType::SHELL);
-            break;
-        case EntityType::AXE_KOOPA:
-            behavior = std::make_unique<AxeKoopaBehavior>();
-            break;
-        case EntityType::BOWSER:
-            behavior = std::make_unique<BowserBehavior>();
-            break;
-        case EntityType::CASTLE_FIRE_SPAWNER:
-            behavior = std::make_unique<CastleFireSpawnerBehavior>();
-            break;
-        case EntityType::FIRE:
-            behavior = std::make_unique<FireballBehavior>(
-                localDef.isEnemy ? FireballBehavior::FireballType::BOWSER
-                                 : FireballBehavior::FireballType::PLAYER);
-            break;
-        case EntityType::PRINCESS:
-            behavior = std::make_unique<PrincessBehavior>();
-            break;
-        case EntityType::MUSHROOM:
-            behavior = std::make_unique<MushroomBehavior>();
-            break;
-        case EntityType::FIRE_FLOWER:
-            behavior = std::make_unique<FireFlowerBehavior>();
-            break;
-        case EntityType::STAR:
-            behavior = std::make_unique<StarBehavior>();
-            break;
-        case EntityType::ONE_UP:
-            behavior = std::make_unique<OneUpBehavior>();
-            break;
-        case EntityType::COIN:
-            behavior = std::make_unique<CoinBehavior>();
-            break;
-        case EntityType::FLAG:
-            // FlagBehavior: IsFlag() lets LevelManager find it polymorphically.
-            behavior = std::make_unique<FlagBehavior>();
-            break;
-        case EntityType::PARTICLE_DEBRIS:
-            behavior = std::make_unique<ParticleDebris>();
-            break;
-        case EntityType::AXE:
-            // Static axe trigger on Bowser's bridge — AxeBehavior handles
-            // animation and deletion on contact; App::CheckAxeCollision()
-            // triggers the bridge-collapse sequence.
-            behavior = std::make_unique<AxeBehavior>();
-            break;
-        case EntityType::AXE_PROJECTILE:
-            // Thrown axe projectile: gravity + velocity applied by EntityState
-            // Tick()
-            behavior = std::make_unique<AxeProjectileBehavior>();
-            break;
-        case EntityType::PIRANHA_PLANT:
-            behavior = std::make_unique<PiranhaPlantBehavior>();
-            break;
-        case EntityType::PODOBOO:
-            behavior = std::make_unique<PodobooBehavior>();
-            break;
-        default:
-            behavior = std::make_unique<DefaultEntityBehavior>();
-            break;
-    }
+    // Configure behavior strategy based on behavior registry (OCP)
+    auto behavior = BehaviorRegistry::Create(localDef.type, localDef);
 
     // Attach behavior to entity
     if (behavior) {

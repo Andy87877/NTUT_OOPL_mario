@@ -7,6 +7,7 @@
 #include <SDL_stdinc.h> // for Uint8
 
 #include "Util/Keycode.hpp" // for Keycode
+#include <unordered_set>
 
 namespace Util {
 
@@ -143,6 +144,8 @@ private:
     static glm::vec2 s_ScrollDistance;
 
     static std::unordered_map<Keycode, std::pair<bool, bool>> s_KeyState;
+    static std::unordered_set<Keycode> s_PressedKeys;
+    static std::unordered_set<Keycode> s_ReleasedKeys;
 
     static bool s_Scroll;
     static bool s_MouseMoving;

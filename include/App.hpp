@@ -30,6 +30,7 @@
 #include "Mario/Level/Entity.hpp"
 #include "Mario/Level/EntityFactory.hpp"
 #include "Mario/Core/GameConfig.hpp"
+#include "Mario/Core/FixedTimestep.hpp"
 #include "Mario/Level/GameStateManager.hpp"
 #include "Mario/Services/IInputHandler.hpp"
 #include "Mario/Scenes/ISceneHandler.hpp"
@@ -168,8 +169,9 @@ class App {
     // -- UI --
     std::unique_ptr<Mario::UIManager> m_UIManager;
 
-    // -- App Timer --
+    // -- App Timer & Fixed Timestep Accumulator --
     int m_Timer = 0;
+    Mario::FixedTimestep m_FixedTimestep{1000.0 / 60.0, 100.0};
 };
 
 #endif  // APP_HPP

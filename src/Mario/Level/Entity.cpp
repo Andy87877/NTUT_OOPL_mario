@@ -50,8 +50,26 @@ void Entity::UpdateView(float cameraOffset) {
         return;
     }
 
-    // Build sprite path
-    std::string spritePath = BuildSpritePath();
+    // Viewport Culling: If the entity is off-screen, hide it and return early.
+    // Allow a 300px buffer to prevent visual popping.
+    // Exceptions: short-lived particles/debris and player fireballs must always update.
+    float entityX = m_State.GetX();
+    float entityWidth = static_cast<float>(m_State.GetWidth());
+    float screenLeft = cameraOffset - 300.0f;
+    float screenRight = cameraOffset + GameConfig::WINDOW_WIDTH + 300.0f;
+
+    bool isParticle = m_Behavior && m_Behavior->AlwaysUpdate();
+    bool isPlayerFireball = m_Behavior && m_Behavior->IsPlayerFireball();
+
+    if (entityX + entityWidth < screenLeft || entityX > screenRight) {
+        if (!isParticle && !isPlayerFireball) {
+            SetVisible(false);
+            return;
+        }
+    }
+
+    // Resolve sprite path via EntityAnimator (SRP Decoupling)
+    std::string spritePath = m_Animator.GetSpritePath(m_State, m_Def, m_LevelName);
 
     if (spritePath != m_CurrentSpritePath) {
         m_CurrentSpritePath = spritePath;
@@ -81,7 +99,7 @@ void Entity::UpdateView(float cameraOffset) {
     }
 
     // Convert world to PTSD screen coordinates using unified helpers
-    float entityWidth = static_cast<float>(m_State.GetWidth());
+    entityWidth = static_cast<float>(m_State.GetWidth());
     float entityHeight = static_cast<float>(m_State.GetHeight());
 
     // Calculate scale: if EntityFactory set a renderTargetWidth override, use
@@ -174,39 +192,6 @@ void Entity::InitializeSizeOnce(const glm::vec2& spriteSize) {
     }
 }
 
-std::string Entity::BuildSpritePath() const {
-    const std::string& name = m_State.GetName();
-
-    // Squished or dead Koopa family members use the Shell sprite
-    if (m_State.IsSquished() || (m_State.IsDead() && m_State.IsKoopaSquash())) {
-        if (m_State.IsKoopaSquash()) {
-            // Koopa/ParaKoopa shells use KoopaShell sprite
-            return SpritePathResolver::GetEntitySpritePath("KoopaShell", -1,
-                                                           m_LevelName);
-        }
-        return SpritePathResolver::GetEntitySpritePath(name + "Squish", -1,
-                                                       m_LevelName);
-    }
-
-    // Special handling: KoopaTroopaShell uses KoopaShell sprite
-    // (KoopaTroopaShell is a dynamic entity created when KoopaTroopa is
-    // stomped)
-    std::string displayName = name;
-    if (name == "KoopaTroopaShell") {
-        displayName = "KoopaShell";
-    }
-
-    // Animated entities: name + frame (1-indexed in C#)
-    if (m_Def.isAnimated) {
-        int frame = m_State.GetAnimFrame() + 1;  // C# uses 1-indexed frames
-        return SpritePathResolver::GetEntitySpritePath(displayName, frame,
-                                                       m_LevelName);
-    }
-
-    // Static/single-frame entities
-    return SpritePathResolver::GetEntitySpritePath(displayName, -1,
-                                                   m_LevelName);
-}
 
 std::shared_ptr<Util::Image> Entity::GetOrLoadSprite(const std::string& path) {
     static std::unordered_map<std::string, std::shared_ptr<Util::Image>>
