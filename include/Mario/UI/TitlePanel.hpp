@@ -21,10 +21,16 @@ class TitlePanel : public IUIPanel {
     ~TitlePanel() override = default;
 
     /**
-     * Set the current menu selection index before Refresh().
-     * @param selection 0 = 1 Player Game, 1 = Quit Game
+     * Supply title menu context dynamically.
+     * @param selection    Highlighted menu index.
+     * @param itemTexts    Texts for all title screen options.
      */
-    void SetMenuContext(int selection);
+    void SetMenuContext(int selection, const std::vector<std::string>& itemTexts);
+
+    /**
+     * Set whether the controls guide panel should be shown.
+     */
+    void SetShowControls(bool show) { m_ShowControls = show; }
 
     void Register(Util::Renderer& renderer) override;
     void Show() override;
@@ -34,13 +40,24 @@ class TitlePanel : public IUIPanel {
    private:
     int m_Selection = 0;
     int m_FrameCount = 0;
+    bool m_ShowControls = false;
 
+    // --- Standard Title Screen Widgets ---
     std::shared_ptr<UIImage> m_Logo;
-    std::shared_ptr<UIText> m_OnePlayerLabel;
-    std::shared_ptr<UIText> m_QuitLabel;
+    std::vector<std::shared_ptr<UIText>> m_MenuTexts;
     std::shared_ptr<UIImage> m_Cursor;
     std::shared_ptr<UIText> m_SubLabel;
     std::shared_ptr<UIText> m_CreditLabel;
+
+    // --- Controls Guide Widgets ---
+    std::shared_ptr<UIText> m_ControlsTitle;
+    std::shared_ptr<UIText> m_HeaderEng;
+    std::shared_ptr<UIText> m_HeaderChi;
+    std::shared_ptr<UIText> m_HeaderKey;
+    std::vector<std::shared_ptr<UIText>> m_ControlsEng;
+    std::vector<std::shared_ptr<UIText>> m_ControlsChi;
+    std::vector<std::shared_ptr<UIText>> m_ControlsKey;
+    std::shared_ptr<UIText> m_ControlsBackHint;
 };
 
 }  // namespace Mario

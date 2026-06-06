@@ -73,8 +73,7 @@ void UIManager::HideAllScenePanels() {
     }
 }
 
-void UIManager::Update(State currentState, int escMenuSelection,
-                       const std::string& powerStateName) {
+void UIManager::Update(State currentState) {
     if (!m_GameState) return;
 
     // --- FPS counter ---
@@ -125,12 +124,6 @@ void UIManager::Update(State currentState, int escMenuSelection,
         IUIPanel* panel = it->second;
 
         // Supply extra context to panels that need it before Refresh().
-        if (currentState == State::TITLE) {
-            m_TitlePanel.SetMenuContext(escMenuSelection);
-        }
-        if (currentState == State::ESC_MENU) {
-            m_ESCMenuPanel.SetMenuContext(escMenuSelection, powerStateName);
-        }
         if (currentState == State::AXE_SEQUENCE) {
             m_AxeEndingPanel.SetShowCredits(m_EndingTextPhase ==
                                              EndingTextPhase::CREDITS);

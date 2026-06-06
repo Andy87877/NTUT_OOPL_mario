@@ -358,11 +358,18 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
 
     for (const auto& block : level->GetGoalBlocks()) {
         if (!playerBox.Intersects(block->GetAABB())) continue;
-        LOG_INFO("Flagpole reached at block ({}, {})", block->GetGridX(),
-                 block->GetGridY());
-        float poleX = block->GetWorldX() - GameConfig::TILE_SIZE * 0.4f;
-        TriggerFlagpoleEntry(app, ps, poleX, *level);
-        return;
+
+        // Calculate pole X alignment dynamically using block width and grab offset ratio
+        float blockWidth = block->GetAABB().right - block->GetAABB().left;
+        float poleX = block->GetWorldX() + blockWidth * GameConfig::FLAGPOLE_GRAB_OFFSET_RATIO;
+
+        // Only trigger flagpole sequence when Mario's X has actually reached the pole position
+        if (ps.GetX() >= poleX) {
+            LOG_INFO("Flagpole reached at block ({}, {})", block->GetGridX(),
+                     block->GetGridY());
+            TriggerFlagpoleEntry(app, ps, poleX, *level);
+            return;
+        }
     }
 
     // Fallback: if Mario is horizontally within the pole column but above the
@@ -382,10 +389,13 @@ void PlayingSceneHandler::CheckFlagpoleCollision(App& app) const {
         }
     }
     if (topmostGoal) {
-        LOG_INFO("Flagpole X-range fallback at block ({}, {})",
-                 topmostGoal->GetGridX(), topmostGoal->GetGridY());
-        float poleX = topmostGoal->GetWorldX() - GameConfig::TILE_SIZE * 0.4f;
-        TriggerFlagpoleEntry(app, ps, poleX, *level);
+        float blockWidth = topmostGoal->GetAABB().right - topmostGoal->GetAABB().left;
+        float poleX = topmostGoal->GetWorldX() + blockWidth * GameConfig::FLAGPOLE_GRAB_OFFSET_RATIO;
+        if (ps.GetX() >= poleX) {
+            LOG_INFO("Flagpole X-range fallback at block ({}, {})",
+                     topmostGoal->GetGridX(), topmostGoal->GetGridY());
+            TriggerFlagpoleEntry(app, ps, poleX, *level);
+        }
     }
 }
 

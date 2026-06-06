@@ -130,7 +130,7 @@ std::shared_ptr<Util::Image> Player::GetOrLoadSprite(const std::string& path) {
         try {
             auto sprite = std::make_shared<Util::Image>(path);
             m_SpriteCache[path] = sprite;
-            LOG_DEBUG("Loaded sprite: {}", path);
+            // LOG_DEBUG("Loaded sprite: {}", path);
             return sprite;
         } catch (const std::exception& e) {
             LOG_ERROR("Failed to create Image from {}: {}", path, e.what());

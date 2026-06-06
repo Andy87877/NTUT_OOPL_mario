@@ -131,8 +131,12 @@ void FlagpoleSceneHandler::UpdatePoleSlide(Player& player) {
             flagPassedMario = (m_flag_entity->GetState().GetY() >= ps.GetY());
         }
         if (flagPassedMario && ps.IsFacingRight()) {
-            // Shift Mario right to the other side of the pole
-            ps.SetX(ps.GetX() + GameConfig::TILE_SIZE * 0.6f);
+            // Shift Mario right to the other side of the pole dynamically using ratios
+            if (m_goal_block_x >= 0.0f) {
+                ps.SetX(m_goal_block_x + GameConfig::TILE_SIZE * GameConfig::FLAGPOLE_WALK_OFFSET_RATIO);
+            } else {
+                ps.SetX(ps.GetX() + GameConfig::TILE_SIZE * (GameConfig::FLAGPOLE_WALK_OFFSET_RATIO - GameConfig::FLAGPOLE_GRAB_OFFSET_RATIO));
+            }
             ps.SetFacingRight(false);  // Flip facing left
             m_Phase = Phase::POLE_WALK;
             m_tick_count = 0;  // Reset tick count for the delay

@@ -18,18 +18,15 @@ bool KeyboardInputProfile::IsButtonPressed(GameButton btn) const {
                    Util::Input::IsKeyPressed(Util::Keycode::A);
         case GameButton::JUMP:
             return Util::Input::IsKeyPressed(Util::Keycode::SPACE) ||
-                   Util::Input::IsKeyPressed(Util::Keycode::Z) ||
                    Util::Input::IsKeyPressed(Util::Keycode::UP) ||
                    Util::Input::IsKeyPressed(Util::Keycode::W);
         case GameButton::CROUCH:
             return Util::Input::IsKeyPressed(Util::Keycode::DOWN) ||
                    Util::Input::IsKeyPressed(Util::Keycode::S);
         case GameButton::RUN:
-            return Util::Input::IsKeyPressed(Util::Keycode::LSHIFT) ||
-                   Util::Input::IsKeyPressed(Util::Keycode::E);
+            return Util::Input::IsKeyPressed(Util::Keycode::LSHIFT);
         case GameButton::FIRE:
-            return Util::Input::IsKeyPressed(Util::Keycode::E) ||
-                   Util::Input::IsKeyPressed(Util::Keycode::LSHIFT);
+            return Util::Input::IsKeyPressed(Util::Keycode::E);
         default:
             return false;
     }
@@ -45,18 +42,15 @@ bool KeyboardInputProfile::IsButtonDown(GameButton btn) const {
                    Util::Input::IsKeyDown(Util::Keycode::A);
         case GameButton::JUMP:
             return Util::Input::IsKeyDown(Util::Keycode::SPACE) ||
-                   Util::Input::IsKeyDown(Util::Keycode::Z) ||
                    Util::Input::IsKeyDown(Util::Keycode::UP) ||
                    Util::Input::IsKeyDown(Util::Keycode::W);
         case GameButton::CROUCH:
             return Util::Input::IsKeyDown(Util::Keycode::DOWN) ||
                    Util::Input::IsKeyDown(Util::Keycode::S);
         case GameButton::RUN:
-            return Util::Input::IsKeyDown(Util::Keycode::LSHIFT) ||
-                   Util::Input::IsKeyDown(Util::Keycode::E);
+            return Util::Input::IsKeyDown(Util::Keycode::LSHIFT);
         case GameButton::FIRE:
-            return Util::Input::IsKeyDown(Util::Keycode::E) ||
-                   Util::Input::IsKeyDown(Util::Keycode::LSHIFT);
+            return Util::Input::IsKeyDown(Util::Keycode::E);
         default:
             return false;
     }

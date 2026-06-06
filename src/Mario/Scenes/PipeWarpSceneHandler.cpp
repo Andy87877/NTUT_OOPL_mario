@@ -62,7 +62,7 @@ void PipeWarpSceneHandler::Update(App& app) {
 
     if (!m_WarpSFXPlayed) {
         m_WarpSFXPlayed = true;
-        LOG_DEBUG("Playing Warp SFX: Resources/Audio/SFX/20. Warp.mp3");
+        // LOG_DEBUG("Playing Warp SFX: Resources/Audio/SFX/20. Warp.mp3");
     }
 
     m_tick_count++;
@@ -139,7 +139,7 @@ void PipeWarpSceneHandler::UpdatePipeDescend(Player& player) {
 
     if (ps.GetY() > m_pipe_target_y) {
         m_Phase = Phase::COMPLETED;
-        LOG_DEBUG("Pipe descend complete");
+        // LOG_DEBUG("Pipe descend complete");
     }
 }
 
@@ -157,7 +157,7 @@ void PipeWarpSceneHandler::UpdatePipeRight(Player& player) {
 
     if (ps.GetX() > m_pipe_target_x) {
         m_Phase = Phase::COMPLETED;
-        LOG_DEBUG("Pipe right-walk complete");
+        // LOG_DEBUG("Pipe right-walk complete");
     }
 }
 

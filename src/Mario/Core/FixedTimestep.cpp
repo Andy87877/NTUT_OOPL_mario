@@ -20,7 +20,8 @@ int FixedTimestep::Accumulate(double dtMs) {
 
     m_Accumulator += dtMs;
 
-    // Calculate how many discrete ticks of FIXED_STEP fit into the accumulated time
+    // Calculate how many discrete ticks of FIXED_STEP fit into the accumulated
+    // time
     int steps = static_cast<int>(m_Accumulator / m_FixedStep);
 
     // Subtract the consumed time steps from the accumulator

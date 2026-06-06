@@ -29,7 +29,7 @@ AudioManager::AudioManager()
 }
 
 void AudioManager::PlayBGM(BGMName name) {
-    LOG_DEBUG("PlayBGM() called with name={}", static_cast<int>(name));
+    // LOG_DEBUG("PlayBGM() called with name={}", static_cast<int>(name));
 
     // Boundary check for BGM enum value
     int bgmIndex = static_cast<int>(name);
@@ -39,21 +39,21 @@ void AudioManager::PlayBGM(BGMName name) {
         return;
     }
 
-    LOG_DEBUG("Current state: m_BGMStarted={}, m_Muted={}, m_Volume={}",
-              m_BGMStarted, m_Muted, m_Volume);
+    // LOG_DEBUG("Current state: m_BGMStarted={}, m_Muted={}, m_Volume={}",
+    //           m_BGMStarted, m_Muted, m_Volume);
 
     // If already playing this exact BGM, don't restart it
     if (m_CurrentBGM.has_value() && m_CurrentBGM.value() == name &&
         m_BGMStarted) {
-        LOG_DEBUG("BGM {} already playing, skipping restart",
-                  static_cast<int>(name));
+        // LOG_DEBUG("BGM {} already playing, skipping restart",
+        //           static_cast<int>(name));
         return;
     }
 
     // Stop previous BGM if switching to a different one
     if (m_CurrentBGM.has_value() && m_CurrentBGM.value() != name) {
-        LOG_DEBUG("Stopping previous BGM: {}",
-                  static_cast<int>(m_CurrentBGM.value()));
+        // LOG_DEBUG("Stopping previous BGM: {}",
+        //           static_cast<int>(m_CurrentBGM.value()));
         StopBGM();
     }
 
@@ -70,7 +70,7 @@ void AudioManager::PlayBGM(BGMName name) {
             LOG_INFO("Loading BGM: {} from path: {}", static_cast<int>(name),
                      fullPath);
             m_BGMs[name] = std::make_shared<Util::BGM>(fullPath);
-            LOG_DEBUG("BGM object created");
+            // LOG_DEBUG("BGM object created");
         }
 
         // Check if BGM was loaded successfully
@@ -82,19 +82,19 @@ void AudioManager::PlayBGM(BGMName name) {
             return;
         }
 
-        LOG_DEBUG("BGM is valid, proceeding to play");
+        // LOG_DEBUG("BGM is valid, proceeding to play");
 
         // Mark as current BGM
         m_CurrentBGM = name;
 
         // Set volume
         int volume = m_Muted ? 0 : static_cast<int>(m_Volume * 128.0f);
-        LOG_DEBUG("Setting BGM volume: {}", volume);
+        // LOG_DEBUG("Setting BGM volume: {}", volume);
         m_BGMs[name]->SetVolume(volume);
 
         // Call Play() only if not yet started
         if (!m_BGMStarted) {
-            LOG_DEBUG("BGM not started yet, m_BGMStarted={}", m_BGMStarted);
+            // LOG_DEBUG("BGM not started yet, m_BGMStarted={}", m_BGMStarted);
             if (!m_Muted && volume > 0) {
                 LOG_INFO(">>> CALLING m_BGMs[name]->Play(-1) <<<");
                 m_BGMs[name]->Play(-1);  // -1 = infinite loop
@@ -107,9 +107,9 @@ void AudioManager::PlayBGM(BGMName name) {
                          volume);
             }
         } else {
-            LOG_DEBUG(
-                "BGM already started (m_BGMStarted=true), skipping Play() "
-                "call");
+            // LOG_DEBUG(
+            //     "BGM already started (m_BGMStarted=true), skipping Play() "
+            //     "call");
         }
     } catch (const std::exception& e) {
         LOG_ERROR("Exception in PlayBGM: {}", e.what());
@@ -120,7 +120,7 @@ void AudioManager::PlayBGM(BGMName name) {
 
 void AudioManager::StopBGM() {
     if (m_CurrentBGM.has_value()) {
-        LOG_DEBUG("Stopping BGM: {}", static_cast<int>(m_CurrentBGM.value()));
+        // LOG_DEBUG("Stopping BGM: {}", static_cast<int>(m_CurrentBGM.value()));
         auto bgm = m_BGMs.find(m_CurrentBGM.value());
         if (bgm != m_BGMs.end()) {
             bgm->second->FadeOut(100);  // Fade out over 100ms
@@ -142,8 +142,8 @@ void AudioManager::PlaySFX(SFXName name) {
 
             // Construct full absolute path using AudioPathResolver
             std::string fullPath = AudioPathResolver::GetSFXPath(filename);
-            LOG_DEBUG("Loading SFX: {} from {}", static_cast<int>(name),
-                      fullPath);
+            // LOG_DEBUG("Loading SFX: {} from {}", static_cast<int>(name),
+            //           fullPath);
             m_SFXs[name] = std::make_shared<Util::SFX>(fullPath);
         }
 
@@ -158,8 +158,8 @@ void AudioManager::PlaySFX(SFXName name) {
         m_SFXs[name]->SetVolume(volume);
 
         if (volume > 0 && !m_Muted) {
-            LOG_DEBUG("Playing SFX: {} (volume: {})", static_cast<int>(name),
-                      volume);
+            // LOG_DEBUG("Playing SFX: {} (volume: {})", static_cast<int>(name),
+            //           volume);
             m_SFXs[name]->Play(0);  // 0 = play once, no loop
         }
     } catch (const std::exception& e) {
@@ -170,7 +170,7 @@ void AudioManager::PlaySFX(SFXName name) {
 
 void AudioManager::SetVolume(float volume) {
     m_Volume = std::max(0.0f, std::min(1.0f, volume));
-    LOG_DEBUG("Audio volume set to: {}", m_Volume);
+    // LOG_DEBUG("Audio volume set to: {}", m_Volume);
 
     if (m_CurrentBGM.has_value() &&
         m_BGMs.find(m_CurrentBGM.value()) != m_BGMs.end()) {

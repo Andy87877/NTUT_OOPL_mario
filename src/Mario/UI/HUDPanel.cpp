@@ -98,9 +98,9 @@ void HUDPanel::Refresh(const GameStateManager& gs) {
     m_WorldText->SetTextContent(gs.GetLevelName());
 
     // --- TIME label and value (far right) ---
-    float timeHeaderX = 1100.0f;
+    float timeHeaderX = 1140.0f;
     float timeHeaderY = 16.0f;
-    float timeValueX = 1115.0f;
+    float timeValueX = 1155.0f;
     float timeValueY = 32.0f;
     m_HeaderTime->SetPosition(GameConfig::ScreenXToPTSD(timeHeaderX),
                               GameConfig::ScreenYToPTSD(timeHeaderY));

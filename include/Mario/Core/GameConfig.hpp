@@ -109,6 +109,8 @@ struct GameConfig {
     static constexpr int LEVEL_TRANSITION_DELAY =
         60;                                    // Ticks before next level loads (scaled for 60Hz)
     static constexpr int PIPE_ANIM_SPEED = 5;  // Mario descend speed in pipe
+    static constexpr float FLAGPOLE_GRAB_OFFSET_RATIO = -0.4f; // Mario's X offset ratio relative to flagpole block left edge
+    static constexpr float FLAGPOLE_WALK_OFFSET_RATIO = 0.2f; // Mario's X offset ratio relative to flagpole block left edge for walk phase
 
     // -- Cheat Mode Configuration (外掛模式) --
     static constexpr int CHEAT_STAR_TIMER_MAX = 600;

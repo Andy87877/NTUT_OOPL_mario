@@ -21,6 +21,9 @@ class Entity;
 class EntityState;
 class Level;
 class Player;
+class GameStateManager;
+class UIManager;
+class Camera;
 
 /**
  * Abstract behavior interface for entities.
@@ -236,6 +239,32 @@ class IEntityBehavior {
      * projectile's speed and gravity without comparing EntityType (OCP).
      */
     virtual bool IsEnemySpawner() const { return false; }
+
+    /**
+     * Configure details of a spawned projectile (e.g. speed, trajectory) polymorphically.
+     * Allows behaviors like CastleFireSpawnerBehavior to customize projectile speed/angle
+     * without checking behaviors or names in the factory (OCP/OOP).
+     */
+    virtual void ConfigureSpawnedProjectile(EntityState& projectileState, int spawnDir) const {
+        (void)projectileState;
+        (void)spawnDir;
+    }
+
+    /**
+     * Handle item collection effect.
+     * Default: no-op (for non-collectible items).
+     * Collectible items (mushroom, fire flower, star, 1up, coin) override this
+     * to apply their unique gameplay effects, play sounds, and generate floating texts.
+     */
+    virtual void OnItemCollected(EntityState& state, Player& player,
+                                 GameStateManager& gameState,
+                                 UIManager& uiManager, Camera& camera) {
+        (void)state;
+        (void)player;
+        (void)gameState;
+        (void)uiManager;
+        (void)camera;
+    }
 };
 
 }  // namespace Mario

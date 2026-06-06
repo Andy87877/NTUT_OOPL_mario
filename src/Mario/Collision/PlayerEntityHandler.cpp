@@ -203,68 +203,9 @@ void PlayerEntityHandler::HandleItemCollision(Player& player, Entity& entity,
                                               Camera& camera,
                                               GameStateManager& gameState,
                                               UIManager& uiManager) {
-    PlayerState& ps = player.GetState();
-    EntityState& es = entity.GetState();
-
-    float ptsdX = GameConfig::TopLeftToPTSDX(
-        es.GetWorldX(), static_cast<float>(es.GetWidth()), camera.GetOffset());
-    float ptsdY = GameConfig::TopLeftToPTSDY(
-        es.GetWorldY(), static_cast<float>(es.GetHeight()));
-
-    if (es.IsPowerUp()) {
-        int puState = es.GetPowerUpState();
-        int curState = ps.GetState();
-
-        if (puState >= 1 && puState <= 3) {
-            if (curState == 3 || curState == 4) {
-                // Collection during star invincibility.
-                if (curState == 4) {  // Big Star
-                    if (puState == 2) {
-                        ps.SetMemoryState(PowerState::FIRE);
-                    }
-                } else if (curState == 3) {  // Small Star
-                    if (puState == 1 || puState == 2) {
-                        ps.SetY(ps.GetY() - GameConfig::TILE_SIZE);
-                        ps.SetPowerState(PowerState::BIG_STAR);
-                        ps.SetMemoryState(puState == 1 ? PowerState::BIG
-                                                       : PowerState::FIRE);
-                    }
-                }
-            } else {
-                // Regular power-up collection.
-                if (puState > curState) {
-                    if (curState == 0 && puState < 3) {
-                        ps.SetY(ps.GetY() - GameConfig::TILE_SIZE);
-                    }
-                    if (puState == 1)
-                        ps.PowerUp(PowerState::BIG);
-                    else if (puState == 2)
-                        ps.PowerUp(PowerState::FIRE);
-                    else if (puState == 3)
-                        ps.StartStar();
-                }
-            }
-            AudioManager::GetInstance().PlaySFX(SFXName::Powerup);
-        } else if (puState == 5) {
-            gameState.AddLife();
-            AudioManager::GetInstance().PlaySFX(SFXName::_1up);
-            uiManager.AddFloatingText(ptsdX, ptsdY, "+1UP", 60);
-        }
-
-        int score = es.GetScoreWorth();
-        gameState.AddScore(score);
-        uiManager.AddFloatingText(ptsdX, ptsdY, "+" + std::to_string(score),
-                                  60);
-        es.Delete();
-
-    } else if (es.IsCoin()) {
-        gameState.AddCoin();
-        int score = es.GetScoreWorth();
-        gameState.AddScore(score);
-        AudioManager::GetInstance().PlaySFX(SFXName::Coin);
-        uiManager.AddFloatingText(ptsdX, ptsdY, "+" + std::to_string(score),
-                                  60);
-        es.Delete();
+    auto* behavior = entity.GetBehavior();
+    if (behavior) {
+        behavior->OnItemCollected(entity.GetState(), player, gameState, uiManager, camera);
     }
 }
 

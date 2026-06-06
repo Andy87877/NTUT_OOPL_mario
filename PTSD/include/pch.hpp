@@ -26,4 +26,14 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl2.h>
 
+#include <string>
+std::string GetResourceDirectory();
+
+#ifdef RESOURCE_DIR
+#ifndef BUILDING_RESOURCE_RESOLVER
+#undef RESOURCE_DIR
+#define RESOURCE_DIR GetResourceDirectory().c_str()
+#endif
+#endif
+
 #endif

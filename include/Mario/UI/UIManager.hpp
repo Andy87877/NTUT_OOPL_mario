@@ -63,11 +63,11 @@ class UIManager {
     /**
      * Dispatch to the active screen panel and flush the UI renderer.
      * @param currentState    Which screen is active.
-     * @param escMenuSelection  Highlighted item index (ESC_MENU only).
-     * @param powerStateName  Current cheat power name (ESC_MENU only).
      */
-    void Update(State currentState, int escMenuSelection = 0,
-                const std::string& powerStateName = "SMALL");
+    void Update(State currentState);
+
+    TitlePanel& GetTitlePanel() { return m_TitlePanel; }
+    ESCMenuPanel& GetESCMenuPanel() { return m_ESCMenuPanel; }
 
     /**
      * Add a floating score/1UP text at PTSD screen coordinates.

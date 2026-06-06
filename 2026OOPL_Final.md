@@ -2,9 +2,9 @@
 
 ## 組別資訊
 
-組別：T43
-組員：113820033 謝奕宏
-復刻遊戲：Super Mario Bros. (FC / NES, 1985)
+- 組別：T43
+- 組員：113820033 謝奕宏
+- 復刻遊戲：Super Mario Bros. (FC / NES, 1985)
 
 ## 專案簡介
 
@@ -43,7 +43,7 @@
   - 遊戲共有三個關卡：World 1-1 (經典地面關卡) -> 觸碰旗桿 -> World 1-2 (地下關卡，有食人花與平台) -> 進入傳送水管 -> World 8-4 (城堡關卡，有岩漿與 Boss 庫巴) -> 踩下橋頭斧頭擊敗庫巴 -> 通關！
 - **敵人行為**
   - **栗寶寶 (Goomba)**：最基礎的敵人，只會左右巡邏，碰到牆壁會折返。玩家可以直接跳起來踩扁它，或是用火球打飛。
-  - **烏龜兵 (Koopa Troopa)**：分為紅綠兩色。被踩了之後會縮入龜殼。玩家可以走過去踢飛龜殼，龜殼會快速滑動並砸死路上的其他敵人。
+  - **烏龜兵 (Koopa Troopa)**：被踩了之後會縮入龜殼。玩家可以走過去踢飛龜殼，龜殼會快速滑動並砸死路上的其他敵人。
   - **飛天龜 (ParaKoopa)**：有翅膀的烏龜，會成正弦波浮動飛行。被玩家踩中一次後會失去翅膀，降為普通烏龜兵。
   - **擲斧烏龜 (AxeKoopa)**：會左右走動、避開坑洞，並主動往玩家的方向跳躍及投擲斧頭，是比較棘手的敵人。
   - **Boss 庫巴 (Bowser)**：關卡 8-4 的終極 Boss。它有五個 AI 階段，會左右走動、朝玩家噴吐火球、活潑地跳躍。玩家需要射出多個火球才能擊殺它，或者直接衝到它身後砍斷吊橋。
@@ -65,14 +65,250 @@
 
 ### 遊戲畫面
 
-| 階段 | 遊戲畫面 |
+#### 📺 主畫面與場景切換
+
+| 說明 | 畫面 |
 |:---:|:---:|
-| 開始畫面 (Title Screen) | <img src="Resources/map_reference/title_screen_shot.png" width="400"> |
-| 關卡 1-1 (World 1-1) | <img src="Resources/map_reference/1-1.png" width="400"> |
-| 關卡 1-2 (World 1-2) | <img src="Resources/map_reference/1-2.png" width="400"> |
-| 關卡 8-4 (World 8-4) | <img src="Resources/map_reference/8-4.png" width="400"> |
-| 暫停與外掛選單 | <img src="Resources/map_reference/esc_menu_gameplay.png" width="400"> |
-| 勝利通關畫面 | <img src="Resources/map_reference/game_won_screen.png" width="400"> |
+| 開始畫面 (Title Screen) — 遊戲主選單，按 Enter 開始 | <img src="Resources/map_reference/title_screen_shot.png"> |
+| 關卡過場載入畫面 (Loading Scene) — 顯示剩餘命數與關卡編號 | <img src="Resources/map_reference/loading_scene.png"> |
+| 暫停與外掛選單 (ESC Menu) — 可切換形態與開關外掛 | <img src="Resources/map_reference/esc_menu_gameplay.png"> |
+| 死亡畫面 (Death Scene) — Mario 死亡動畫播放中 | <img src="Resources/map_reference/death_scene.png"> |
+| Game Over 畫面 | <img src="Resources/map_reference/game_over_screen.png"> |
+| 勝利通關畫面 (Game Won) — 救出公主動畫 | <img src="Resources/map_reference/game_won_screen.png"> |
+
+---
+
+#### 🌿 World 1-1 (地面關卡) 精選截圖
+
+| 說明 | 畫面 |
+|:---:|:---:|
+| World 1-1 — 關卡全覽地圖（參考設計圖） | <img src="Resources/map_reference/1-1.png"> |
+| 1-1 開場 — Mario 在草地上起跑 | <img src="Resources/map_reference/1-1_start.png"> |
+| 1-1 問號磚塊 — 敲擊問號磚塊獲得香菇 | <img src="Resources/map_reference/1-1_question_block_mushroom.png"> |
+| 1-1 踩踏 Goomba — 連踩多隻獲得連擊分數 | <img src="Resources/map_reference/1-1_stomp_goomba.png"> |
+| 1-1 踩踏 Koopa Troopa — 踩入龜殼後踢飛 | <img src="Resources/map_reference/1-1_stomp_koopa.png"> |
+| 1-1 撿到無敵星星 — Mario 閃爍無敵狀態 | <img src="Resources/map_reference/1-1_star_invincible.png"> |
+| 1-1 觸碰旗桿 — 旗桿降旗過場動畫 | <img src="Resources/map_reference/1-1_flagpole.png"> |
+| 1-1 進城堡 — Mario 走進終點城堡 | <img src="Resources/map_reference/1-1_enter_castle.png"> |
+
+---
+
+#### 🪨 World 1-2 (地下關卡) 精選截圖
+
+| 說明 | 畫面 |
+|:---:|:---:|
+| World 1-2 — 關卡全覽地圖（參考設計圖） | <img src="Resources/map_reference/1-2.png"> |
+| 1-2 開場 — 地下黑暗環境，磚塊密集通道 | <img src="Resources/map_reference/1-2_start.png"> |
+| 1-2 食人花 (Piranha Plant) — 從水管伸出的食人花 | <img src="Resources/map_reference/1-2_piranha_plant.png"> |
+| 1-2 食人花安全判定 — 靠近水管時食人花不會伸出 | <img src="Resources/map_reference/1-2_piranha_safe.png"> |
+| 1-2 傳送水管 (Pipe Warp) — 蹲下進入傳送水管 | <img src="Resources/map_reference/1-2_pipe_warp.png"> |
+| 1-2 進入水管動畫 — Mario 蹲入管中的過場動畫 | <img src="Resources/map_reference/1-2_pipe_enter_anim.png"> |
+| 1-2 飛天龜 (ParaKoopa) — 成正弦波飛行的有翅烏龜 | <img src="Resources/map_reference/1-2_parakoopa.png"> |
+| 1-2 踩飛天龜 — 飛天龜被踩後失去翅膀變成普通烏龜 | <img src="Resources/map_reference/1-2_parakoopa_stomped.png"> |
+
+---
+
+#### 🏰 World 8-4 (城堡關卡) 精選截圖
+
+| 說明 | 畫面 |
+|:---:|:---:|
+| World 8-4 — 關卡全覽地圖（參考設計圖） | <img src="Resources/map_reference/8-4.png"> |
+| 8-4 開場 — 城堡入口，岩漿在下方翻湧 | <img src="Resources/map_reference/8-4_start.png"> |
+| 8-4 岩漿泡泡 (Podoboo) — 從岩漿中躍起的火焰敵人 | <img src="Resources/map_reference/8-4_podoboo.png"> |
+| 8-4 城堡火柱 (Castle Fire) — 旋轉追蹤玩家的越屏火柱 | <img src="Resources/map_reference/8-4_castle_fire.png"> |
+| 8-4 擲斧烏龜 (AxeKoopa) — 追蹤玩家跳躍並投擲斧頭 | <img src="Resources/map_reference/8-4_axekoopa.png"> |
+| 8-4 Boss 庫巴 (Bowser) 出場 — 吊橋守門巨獸登場 | <img src="Resources/map_reference/8-4_bowser_appear.png"> |
+| 8-4 庫巴噴火球 — Bowser 對玩家噴出大型火球 | <img src="Resources/map_reference/8-4_bowser_fireball.png"> |
+| 8-4 庫巴跳躍 — Bowser 朝玩家方向大幅跳躍 | <img src="Resources/map_reference/8-4_bowser_jump.png"> |
+| 8-4 火球擊傷庫巴 — Mario 射火球多次傷害 Bowser | <img src="Resources/map_reference/8-4_bowser_hit.png"> |
+| 8-4 觸碰斧頭 — Mario 砍斷吊橋，庫巴落水 | <img src="Resources/map_reference/8-4_axe_trigger.png"> |
+| 8-4 庫巴落水死亡動畫 — 吊橋斷裂過場動畫 | <img src="Resources/map_reference/8-4_bowser_fall.png"> |
+
+---
+
+#### 🍄 道具系統截圖
+
+| 說明 | 畫面 |
+|:---:|:---:|
+| 紅香菇 (Mushroom) 從問號磚塊升起 | <img src="Resources/map_reference/item_mushroom_spawn.png"> |
+| Mario 吃紅香菇變身為大瑪利歐 | <img src="Resources/map_reference/item_mushroom_powerup.png"> |
+| 火焰花 (Fire Flower) 從問號磚塊升起 | <img src="Resources/map_reference/item_fireflower_spawn.png"> |
+| Mario 吃火焰花變身為火焰瑪利歐 | <img src="Resources/map_reference/item_fireflower_powerup.png"> |
+| 火焰瑪利歐發射火球 — 按 Shift/E 投出 | <img src="Resources/map_reference/item_fireball_shoot.png"> |
+| 火球打倒 Goomba — 火球爆炸特效 | <img src="Resources/map_reference/item_fireball_hit.png"> |
+| 無敵星星 (Star) 從磚塊升起並彈跳 | <img src="Resources/map_reference/item_star_spawn.png"> |
+| Mario 無敵狀態 — 彩色閃爍特效 | <img src="Resources/map_reference/item_star_active.png"> |
+| 綠香菇 (1-UP Mushroom) 獲得一條命 | <img src="Resources/map_reference/item_1up_mushroom.png"> |
+| 金幣 (Coin) 從問號磚塊飛出 | <img src="Resources/map_reference/item_coin_pop.png"> |
+| 大瑪利歐蹲下 — 大隻狀態可按下蹲 | <img src="Resources/map_reference/player_big_crouch.png"> |
+
+---
+
+#### 🧱 方塊機制截圖
+
+| 說明 | 畫面 |
+|:---:|:---:|
+| 問號磚塊 (Question Block) 被敲擊彈跳動畫 | <img src="Resources/map_reference/block_question_hit.png"> |
+| 問號磚塊被敲過後變成空磚塊 | <img src="Resources/map_reference/block_question_empty.png"> |
+| 大瑪利歐撞破磚塊 (Brick Block) — 碎片四散特效 | <img src="Resources/map_reference/block_brick_break.png"> |
+| 小瑪利歐撞磚塊 — 磚塊彈跳但不碎裂 | <img src="Resources/map_reference/block_brick_bounce.png"> |
+| 隱形方塊 (Invisible Block) 被撞出現 | <img src="Resources/map_reference/block_invisible_reveal.png"> |
+| 終點旗桿底座 (Goal Block) 觸碰判定 | <img src="Resources/map_reference/block_goalpost.png"> |
+| 庫巴吊橋 (Bridge Block) — 可被斧頭砍斷 | <img src="Resources/map_reference/block_bridge.png"> |
+
+---
+
+#### 👾 敵人行為截圖
+
+| 說明 | 畫面 |
+|:---:|:---:|
+| 栗寶寶 (Goomba) 左右巡邏行走 | <img src="Resources/map_reference/enemy_goomba_walk.png"> |
+| Goomba 被踩扁 — 扁平死亡動畫短暫停留 | <img src="Resources/map_reference/enemy_goomba_stomp.png"> |
+| Goomba 被火球擊飛 — 翻轉飛出畫面 | <img src="Resources/map_reference/enemy_goomba_fireball.png"> |
+| 烏龜兵 (Koopa Troopa) 綠色行走 | <img src="Resources/map_reference/enemy_koopa_walk.png"> |
+| Koopa 縮入龜殼 — 被踩後縮殼狀態 | <img src="Resources/map_reference/enemy_koopa_shell.png"> |
+| 龜殼被踢飛滑動 — 撞倒路上其他敵人 | <img src="Resources/map_reference/enemy_koopa_shell_slide.png"> |
+| 飛天龜 (ParaKoopa) 正弦波飛行軌跡 | <img src="Resources/map_reference/enemy_parakoopa_fly.png"> |
+| 食人花 (Piranha Plant) 從水管伸出 | <img src="Resources/map_reference/enemy_piranha_extend.png"> |
+| 岩漿泡泡 (Podoboo) 從熔岩躍起 | <img src="Resources/map_reference/enemy_podoboo_jump.png"> |
+| 擲斧烏龜 (AxeKoopa) 投擲斧頭 | <img src="Resources/map_reference/enemy_axekoopa_throw.png"> |
+| AxeKoopa 避坑行為 — 偵測到坑洞自動折返 | <img src="Resources/map_reference/enemy_axekoopa_pitavoid.png"> |
+
+---
+
+#### 🎮 外掛選單 (Cheat Mode) 截圖
+
+| 說明 | 畫面 |
+|:---:|:---:|
+| ESC 暫停選單全貌 | <img src="Resources/map_reference/esc_menu_gameplay.png"> |
+| 外掛選單 — 切換為小瑪利歐形態 | <img src="Resources/map_reference/cheat_small_mario.png"> |
+| 外掛選單 — 切換為大瑪利歐形態 | <img src="Resources/map_reference/cheat_big_mario.png"> |
+| 外掛選單 — 切換為火焰瑪利歐形態 | <img src="Resources/map_reference/cheat_fire_mario.png"> |
+| 外掛選單 — 開啟「無限無敵星星」 | <img src="Resources/map_reference/cheat_infinite_star.png"> |
+| 外掛選單 — 開啟「火球射擊能力」（小瑪利歐也能射） | <img src="Resources/map_reference/cheat_fire_ability.png"> |
+| 外掛選單 — 開啟「虛空救援」（掉坑自動傳送回平台） | <img src="Resources/map_reference/cheat_void_rescue.png"> |
+
+---
+
+#### 📊 HUD 與分數系統截圖
+
+| 說明 | 畫面 |
+|:---:|:---:|
+| 遊戲 HUD — 顯示分數、金幣數、關卡、剩餘時間 | <img src="Resources/map_reference/hud_overview.png"> |
+| 金幣數達 100 枚 — 自動獲得一條命的提示 | <img src="Resources/map_reference/hud_100coins.png"> |
+| 連踩兩隻敵人 — HUD 顯示 200 分連擊數字 | <img src="Resources/map_reference/hud_combo_stomp_x2.png"> |
+| 連踩四隻敵人 — HUD 顯示 800 分連擊數字 | <img src="Resources/map_reference/hud_combo_stomp_x4.png"> |
+| 時間低於 100 秒 — 音樂加速提示 | <img src="Resources/map_reference/hud_low_time.png"> |
+
+---
+
+### 遊戲素材展示
+
+以下為遊戲中實際使用的角色、敵人、道具與方塊等 Sprite 素材。所有圖形均由我依照原版 NES 像素風格裁切整理，並統一存放於 `Resources/Sprites/` 目錄下。
+
+#### 🧑 Mario 主角 Sprite
+
+| 說明 | Sprite |
+|:---:|:---:|
+| 小瑪利歐 — 靜止 (Idle) | <img src="Resources/Sprites/MarioIdle.png"> |
+| 小瑪利歐 — 跳躍 (Jump) | <img src="Resources/Sprites/MarioJump.png"> |
+| 小瑪利歐 — 行走 Frame 1 | <img src="Resources/Sprites/MarioRight1.png"> |
+| 小瑪利歐 — 行走 Frame 2 | <img src="Resources/Sprites/MarioRight2.png"> |
+| 小瑪利歐 — 行走 Frame 3 | <img src="Resources/Sprites/MarioRight3.png"> |
+| 大瑪利歐 — 靜止 (Idle) | <img src="Resources/Sprites/MarioIdle1.png"> |
+| 大瑪利歐 — 跳躍 (Jump) | <img src="Resources/Sprites/MarioJump1.png"> |
+| 大瑪利歐 — 行走 Frame 1 | <img src="Resources/Sprites/MarioRight11.png"> |
+| 大瑪利歐 — 行走 Frame 2 | <img src="Resources/Sprites/MarioRight12.png"> |
+| 大瑪利歐 — 蹲下 (Crouch) | <img src="Resources/Sprites/MarioCrouch1.png"> |
+| 火焰瑪利歐 — 靜止 (Idle) | <img src="Resources/Sprites/MarioIdle2.png"> |
+| 火焰瑪利歐 — 跳躍 (Jump) | <img src="Resources/Sprites/MarioJump2.png"> |
+| 火焰瑪利歐 — 行走 Frame 1 | <img src="Resources/Sprites/MarioRight21.png"> |
+| 火焰瑪利歐 — 射擊火球 | <img src="Resources/Sprites/MarioFire2.png"> |
+| 火焰瑪利歐 — 蹲下 (Crouch) | <img src="Resources/Sprites/MarioCrouch2.png"> |
+| 旗桿滑降 Frame 1 (小 Mario) | <img src="Resources/Sprites/MarioPole10.png"> |
+| 旗桿滑降 Frame 2 (小 Mario) | <img src="Resources/Sprites/MarioPole20.png"> |
+| 旗桿滑降 Frame 1 (大 Mario) | <img src="Resources/Sprites/MarioPole11.png"> |
+| 旗桿滑降 Frame 2 (大 Mario) | <img src="Resources/Sprites/MarioPole21.png"> |
+
+---
+
+#### 👾 敵人 Sprite (World 1-1 / 1-2)
+
+| 說明 | Sprite |
+|:---:|:---:|
+| 栗寶寶 (Goomba) — 行走 Frame 1 | <img src="Resources/Sprites/Goomba1.png"> |
+| 栗寶寶 (Goomba) — 行走 Frame 2 | <img src="Resources/Sprites/Goomba2.png"> |
+| 栗寶寶 (Goomba) — 被踩扁 | <img src="Resources/Sprites/GoombaSquish.png"> |
+| 烏龜兵 (Koopa Troopa) — 行走 Frame 1 | <img src="Resources/Sprites/KoopaTroopa1.png"> |
+| 烏龜兵 (Koopa Troopa) — 行走 Frame 2 | <img src="Resources/Sprites/KoopaTroopa2.png"> |
+| 龜殼 (Koopa Shell) — 縮殼狀態 | <img src="Resources/Sprites/KoopaShell.png"> |
+| 食人花 (Piranha Plant) — 伸出| <img src="Resources/Sprites/1-2/PiranhaPlant1.png"> |
+
+---
+
+#### 🏰 敵人 Sprite (World 8-4 城堡關卡)
+
+| 說明 | Sprite |
+|:---:|:---:|
+| 飛天龜 (ParaKoopa) — 飛行 | <img src="Resources/Sprites/8-4/ParaKoopa1.png"> |
+| 食人花 (Piranha Plant) — 城堡版 | <img src="Resources/Sprites/8-4/PiranhaPlant1.png"> |
+| 岩漿泡泡 (Podoboo) | <img src="Resources/Sprites/8-4/Podoboo1.png"> |
+| 擲斧烏龜 (AxeKoopa) — 行走 | <img src="Resources/Sprites/8-4/AxeKoopa1.png"> |
+| 擲斧烏龜投出的斧頭 (Axe) | <img src="Resources/Sprites/8-4/Axe_throw.png"> |
+| Boss 庫巴 (Bowser) — 行走 | <img src="Resources/Sprites/8-4/Bowser1.png"> |
+| 庫巴噴火 (Bowser Fire) | <img src="Resources/Sprites/8-4/Bowser_fire1.png"> |
+| 吊橋斧頭 (Bridge Axe) — 觸碰後砍斷吊橋 | <img src="Resources/Sprites/8-4/Axe.png"> |
+| 公主 (Princess)  | <img src="Resources/Sprites/8-4/Princess1.png"> |
+
+---
+
+#### 🍄 道具與金幣 Sprite
+
+| 說明 | Sprite |
+|:---:|:---:|
+| 紅香菇 (Mushroom) | <img src="Resources/Sprites/Mushroom.png"> |
+| 火焰花 (Fire Flower) — Frame 1 | <img src="Resources/Sprites/FireFlower1.png"> |
+| 火焰花 (Fire Flower) — Frame 2 | <img src="Resources/Sprites/FireFlower2.png"> |
+| 火焰花 (Fire Flower) — Frame 3 | <img src="Resources/Sprites/FireFlower3.png"> |
+| 無敵星星 (Star) — Frame 1 | <img src="Resources/Sprites/Star1.png"> |
+| 無敵星星 (Star) — Frame 2 | <img src="Resources/Sprites/Star2.png"> |
+| 無敵星星 (Star) — Frame 3 | <img src="Resources/Sprites/Star3.png"> |
+| 無敵星星 (Star) — Frame 4 | <img src="Resources/Sprites/Star4.png"> |
+| 綠香菇 (1-UP Mushroom) | <img src="Resources/Sprites/OneUpShroom.png"> |
+| 金幣 (Coin) — 靜止 | <img src="Resources/Sprites/Coin.png"> |
+| 金幣 (Coin) — 從磚塊彈出 Frame 1 | <img src="Resources/Sprites/CoinTop1.png"> |
+| 金幣 (Coin) — 從磚塊彈出 Frame 2 | <img src="Resources/Sprites/CoinTop2.png"> |
+| 金幣 (Coin) — 從磚塊彈出 Frame 3 | <img src="Resources/Sprites/CoinTop3.png"> |
+| 火球 (Fireball) — Frame 1 | <img src="Resources/Sprites/Fire1.png"> |
+| 火球 (Fireball) — Frame 2 | <img src="Resources/Sprites/Fire2.png"> |
+| 火球爆炸 (Explosion) — Frame 1 | <img src="Resources/Sprites/Explosion1.png"> |
+| 火球爆炸 (Explosion) — Frame 2 | <img src="Resources/Sprites/Explosion2.png"> |
+| 火球爆炸 (Explosion) — Frame 3 | <img src="Resources/Sprites/Explosion3.png"> |
+
+---
+
+#### 🧱 方塊與地圖環境 Sprite
+
+| 說明 | Sprite |
+|:---:|:---:|
+| 問號磚塊 (Question Block) — 動畫 Frame 1 | <img src="Resources/Sprites/QuestionBlock1.png"> |
+| 問號磚塊 (Question Block) — 動畫 Frame 2 | <img src="Resources/Sprites/QuestionBlock2.png"> |
+| 問號磚塊 (Question Block) — 動畫 Frame 3 | <img src="Resources/Sprites/QuestionBlock3.png"> |
+| 問號磚塊 — 被敲空後（灰色磚塊） | <img src="Resources/Sprites/QuestionBlockHit.png"> |
+| 一般磚塊 (Brick Block) | <img src="Resources/Sprites/BrickBlock.png"> |
+| 磚塊碎裂 (Brick Break) — 碎片特效 | <img src="Resources/Sprites/BrickBlockBreak.png"> |
+| 石頭地基 (Solid Block) | <img src="Resources/Sprites/SolidBlock.png"> |
+| 地下磚塊 (Brick Block 地下版) | <img src="Resources/Sprites/BrickBlock1.png"> |
+| 地下磚塊碎裂特效 | <img src="Resources/Sprites/BrickBlockBreak1.png"> |
+| 水管上段 (Pipe Top Left) | <img src="Resources/Sprites/Pipe1.png"> |
+| 水管上段 (Pipe Top Right) | <img src="Resources/Sprites/Pipe12.png"> |
+| 水管本體 (Pipe Body Left) | <img src="Resources/Sprites/Pipe2.png"> |
+| 水管本體 (Pipe Body Right) | <img src="Resources/Sprites/Pipe22.png"> |
+| 旗桿 (Flagpole) | <img src="Resources/Sprites/Flagpole.png"> |
+| 旗桿頂端 (Flagpole Top) | <img src="Resources/Sprites/FlagpoleTop.png"> |
+| 旗幟 (Flag) | <img src="Resources/Sprites/Flag.png"> |
+| 水平移動平台 (Moving Platform H) | <img src="Resources/Sprites/MovingPlatformH.png"> |
+| 垂直移動平台 (Moving Platform V) | <img src="Resources/Sprites/MovingPlatformV.png"> |
 
 ## 程式設計
 
@@ -84,14 +320,15 @@
 
 #### 專案規模
 
-- 標頭檔 (`.hpp`)：42 個
-- 原始檔 (`.cpp`)：47 個
-- 程式碼總行數：約 9,000 行
+- 標頭檔 (`.hpp`)：85 個
+- 原始檔 (`.cpp`)：68 個
+- 程式碼總行數：約 15,200 行
 - 設計模式使用數量：8 種
-- 實體行為策略子類 (`IEntityBehavior`)：19 個
+- 實體行為策略子類 (`IEntityBehavior`)：20 個
 - 場景狀態子類 (`ISceneHandler`)：10 個
 - 方塊子類 (`Block`)：8 個
 - 玩家型態子類 (`IPlayerForm`)：5 個
+
 
 #### 系統分層架構圖
 
@@ -216,8 +453,8 @@ classDiagram
 stateDiagram-v2
     direction LR
     [*] --> START
-    START --> WELCOME_STATE : "App.Start()"
-    WELCOME_STATE --> LOADING : "按下 Enter 鍵"
+    START --> TITLE_STATE : "App::Start()"
+    TITLE_STATE --> LOADING : "按下 Enter 鍵"
     LOADING --> PLAYING : "過場計時完成"
     PLAYING --> ESC_MENU : "按下 ESC 鍵"
     ESC_MENU --> PLAYING : "選擇繼續遊戲"
@@ -405,7 +642,7 @@ AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「�
 
 #### 總結
 
-這個 OOP 瑪利歐專案對我而言，最珍貴的收穫不僅僅是利用 C++ 成功復刻了我從小就想做的遊戲，更重要的是，我從中學會了如何當一個掌控全局的「系統架構師」，而不是被 AI 牽著鼻子走的碼農（不然未來工作也可能被 AI 取代）。這是我大學生涯目前為止做過最有趣、也成就感最大的一個專案！
+這個 OOP 瑪利歐專案對我而言，最珍貴的收穫不僅僅是利用 C++ 成功復刻了我從小就想做的遊戲，更重要的是，我從中學會了如何當一個掌控全局的「系統架構師」，而不是被 AI 牽著鼻子走的碼農（不然自己工作也會被 AI 取代）。這是我大學生涯目前為止做過最有趣、也成就感最大的一個專案！
 
 ### 貢獻比例
 

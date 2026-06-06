@@ -67,13 +67,18 @@ class CastleFireSpawnerBehavior : public IEntityBehavior {
      */
     bool IsEnemySpawner() const override { return true; }
 
+    /**
+     * Configure details of the spawned fireball (randomized speed, diagonal angle).
+     */
+    void ConfigureSpawnedProjectile(EntityState& projectileState, int spawnDir) const override;
+
    private:
+    bool IsYInsideBlocks(float y, float startX, float endX, const Level& level) const;
+
     int m_FireballTimer = 0;
     int m_AttackCounter = 0;
+    int m_NextSpawnInterval = 100;
     std::vector<SpawnRequest> m_PendingSpawns;
-
-    static constexpr int FIREBALL_INTERVAL =
-        100;  // Spawns a fireball every 100 frames (2 seconds)
 };
 
 }  // namespace Mario

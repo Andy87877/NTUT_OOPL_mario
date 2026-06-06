@@ -7,6 +7,7 @@ set(SRC_FILES
     Mario/Core/PhysicsEngine.cpp
     Mario/Core/SpritePathResolver.cpp
     Mario/Core/FixedTimestep.cpp
+    Mario/Core/ResourceResolver.cpp
 
     # Player (MVC)
     Mario/Player/PlayerState.cpp
@@ -68,6 +69,8 @@ set(SRC_FILES
     Mario/UI/GameOverPanel.cpp
     Mario/UI/GameWonPanel.cpp
     Mario/UI/ESCMenuPanel.cpp
+    Mario/UI/ESCMenuItems.cpp
+    Mario/UI/TitleMenuItems.cpp
     Mario/UI/AxeEndingPanel.cpp
     Mario/UI/CoinUI.cpp
     Mario/UI/FloatingText.cpp
@@ -160,6 +163,10 @@ set(INCLUDE_FILES
     Mario/UI/GameOverPanel.hpp
     Mario/UI/GameWonPanel.hpp
     Mario/UI/ESCMenuPanel.hpp
+    Mario/UI/IESCMenuItem.hpp
+    Mario/UI/ESCMenuItems.hpp
+    Mario/UI/ITitleMenuItem.hpp
+    Mario/UI/TitleMenuItems.hpp
     Mario/UI/AxeEndingPanel.hpp
     Mario/UI/UIManager.hpp
     Mario/UI/UIWidgets.hpp

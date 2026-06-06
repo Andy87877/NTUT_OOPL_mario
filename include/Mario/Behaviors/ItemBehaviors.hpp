@@ -37,6 +37,9 @@ class MushroomBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "MushroomBehavior"; }
+    void OnItemCollected(EntityState& state, Player& player,
+                         GameStateManager& gameState,
+                         UIManager& uiManager, Camera& camera) override;
 };
 
 // ============================================================================
@@ -57,6 +60,9 @@ class FireFlowerBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "FireFlowerBehavior"; }
+    void OnItemCollected(EntityState& state, Player& player,
+                         GameStateManager& gameState,
+                         UIManager& uiManager, Camera& camera) override;
 };
 
 // ============================================================================
@@ -77,6 +83,9 @@ class StarBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "StarBehavior"; }
+    void OnItemCollected(EntityState& state, Player& player,
+                         GameStateManager& gameState,
+                         UIManager& uiManager, Camera& camera) override;
 };
 
 // ============================================================================
@@ -98,6 +107,9 @@ class OneUpBehavior : public IEntityBehavior {
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "OneUpBehavior"; }
+    void OnItemCollected(EntityState& state, Player& player,
+                         GameStateManager& gameState,
+                         UIManager& uiManager, Camera& camera) override;
 };
 
 // ============================================================================
@@ -120,6 +132,9 @@ class CoinBehavior : public IEntityBehavior {
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "CoinBehavior"; }
     float GetVisualScaleXModifier(const EntityState& state) const override;
+    void OnItemCollected(EntityState& state, Player& player,
+                         GameStateManager& gameState,
+                         UIManager& uiManager, Camera& camera) override;
 };
 
 }  // namespace Mario

@@ -45,6 +45,9 @@
    - 1.10 ServiceLocator & EventSystem & ILevelService
    - 1.11 IInputHandler 繼承樹 (DIP)
    - 1.12 IPlayerForm 繼承樹 (State Pattern)
+   - 1.13 IESCMenuItem 繼承樹 (Command Pattern)
+   - 1.14 ISpriteResolver 繼承樹 (Strategy Pattern)
+   - 1.15 ITitleMenuItem 繼承樹 (Command Pattern)
 2. [設計模式簡介 — 3 句話版](#2-設計模式簡介--3-句話版)
    - 2.1 Pattern 對照表
 3. [遊戲主迴圈 — 17 Phase 架構](#3-遊戲主迴圈--17-phase-架構)
@@ -267,6 +270,7 @@ classDiagram
         <<interface>>
         +Update(state, level, player, timer)*
         +OnPlayerCollision(state, player, isFromAbove) bool*
+        +OnItemCollected(state, player, gameState, ui, camera)
         +Clone() unique_ptr~IEntityBehavior~*
         +GetName() const char**
         +AlwaysUpdate() bool
@@ -536,16 +540,25 @@ classDiagram
         -m_FlashCounter: int
     }
     class TitlePanel {
-        +SetMenuContext(selection) void
+        +SetMenuContext(selection, itemTexts) void
+        +SetShowControls(show) void
         +Refresh(gs) void
         -m_Selection: int
         -m_FrameCount: int
+        -m_ShowControls: bool
         -m_Logo: UIImage
-        -m_OnePlayerLabel: UIText
-        -m_QuitLabel: UIText
+        -m_MenuTexts: vector~UIText~
         -m_Cursor: UIImage
         -m_SubLabel: UIText
         -m_CreditLabel: UIText
+        -m_ControlsTitle: UIText
+        -m_HeaderEng: UIText
+        -m_HeaderChi: UIText
+        -m_HeaderKey: UIText
+        -m_ControlsEng: vector~UIText~
+        -m_ControlsChi: vector~UIText~
+        -m_ControlsKey: vector~UIText~
+        -m_ControlsBackHint: UIText
     }
     class LoadingPanel {
         +Refresh(gs) void
@@ -560,11 +573,27 @@ classDiagram
         -m_ScoreText: UIText
     }
     class ESCMenuPanel {
-        +SetMenuContext(sel, power) void
+        +SetMenuContext(sel, itemTexts, description) void
+        +SetShowControls(show) void
         +Refresh(gs) void
         -m_Selection: int
+        -m_Description: string
+        -m_ShowControls: bool
+        -m_FrameCount: int
+        -m_Overlay: UIImage
         -m_PausedLabel: UIText
+        -m_DescLabel: UIText
+        -m_HintLabel: UIText
+        -m_Cursor: UIImage
         -m_MenuTexts: vector~UIText~
+        -m_ControlsTitle: UIText
+        -m_HeaderEng: UIText
+        -m_HeaderChi: UIText
+        -m_HeaderKey: UIText
+        -m_ControlsEng: vector~UIText~
+        -m_ControlsChi: vector~UIText~
+        -m_ControlsKey: vector~UIText~
+        -m_ControlsBackHint: UIText
     }
     class AxeEndingPanel {
         +SetShowCredits(bool) void
@@ -897,6 +926,98 @@ classDiagram
     IPlayerForm <|.. FirePlayerForm
     IPlayerForm <|.. SmallStarPlayerForm
     IPlayerForm <|.. BigStarPlayerForm
+```
+
+---
+
+### 1.13 IESCMenuItem 繼承樹 (Command Pattern)
+
+```mermaid
+classDiagram
+    direction TB
+
+    class IESCMenuItem {
+        <<interface>>
+        +GetDisplayText(App& app) string*
+        +GetDescriptionText() string*
+        +Execute(App& app, ESCMenuSceneHandler& handler)*
+    }
+
+    class ResumeMenuItem
+    class LevelWarpMenuItem {
+        -int m_World
+        -int m_Level
+    }
+    class PowerCheatMenuItem
+    class CheatToggleMenuItem
+    class ControlsESCMenuItem
+
+    IESCMenuItem <|.. ResumeMenuItem
+    IESCMenuItem <|.. LevelWarpMenuItem
+    IESCMenuItem <|.. PowerCheatMenuItem
+    IESCMenuItem <|.. CheatToggleMenuItem
+    IESCMenuItem <|.. ControlsESCMenuItem
+```
+
+---
+
+### 1.14 ISpriteResolver 繼承樹 (Strategy Pattern)
+
+將複雜的 Block / Player / Entity / Castle 圖片路徑解析演算法，透過多型 Strategy 解耦，並支持動態註冊自定義解析器，實踐 Open-Closed Principle (OCP)。
+
+```mermaid
+classDiagram
+    direction TB
+
+    class IBlockResolver {
+        <<interface>>
+        +Resolve(blockName, frame, levelName)* string
+    }
+    class IPlayerResolver {
+        <<interface>>
+        +Resolve(prefix, state, frame, starState)* string
+    }
+    class IEntityResolver {
+        <<interface>>
+        +Resolve(entityName, frame, levelName)* string
+    }
+    class ICastleResolver {
+        <<interface>>
+        +Resolve(blockID)* string
+    }
+
+    class DefaultBlockResolver
+    class DefaultPlayerResolver
+    class DefaultEntityResolver
+    class DefaultCastleResolver
+
+    IBlockResolver <|.. DefaultBlockResolver
+    IPlayerResolver <|.. DefaultPlayerResolver
+    IEntityResolver <|.. DefaultEntityResolver
+    ICastleResolver <|.. DefaultCastleResolver
+```
+
+---
+
+### 1.15 ITitleMenuItem 繼承樹 (Command Pattern)
+
+```mermaid
+classDiagram
+    direction TB
+
+    class ITitleMenuItem {
+        <<interface>>
+        +GetDisplayText(App& app) string*
+        +Execute(App& app, TitleSceneHandler& handler)*
+    }
+
+    class StartGameMenuItem
+    class ControlsMenuItem
+    class QuitGameMenuItem
+
+    ITitleMenuItem <|.. StartGameMenuItem
+    ITitleMenuItem <|.. ControlsMenuItem
+    ITitleMenuItem <|.. QuitGameMenuItem
 ```
 
 ---
@@ -1622,9 +1743,9 @@ stateDiagram-v2
     [*] --> BIG   : Init(state=1)
     [*] --> FIRE  : Init(state=2)
 
-    SMALL --> BIG        : Collect Mushroom\nMushroomBehavior.OnPlayerCollision
-    SMALL --> FIRE       : Collect Fire Flower\nFireFlowerBehavior.OnPlayerCollision
-    SMALL --> SMALL_STAR : Collect Star\nStarBehavior.OnPlayerCollision
+    SMALL --> BIG        : Collect Mushroom\nMushroomBehavior.OnItemCollected
+    SMALL --> FIRE       : Collect Fire Flower\nFireFlowerBehavior.OnItemCollected
+    SMALL --> SMALL_STAR : Collect Star\nStarBehavior.OnItemCollected
     BIG   --> FIRE       : Collect Fire Flower
     BIG   --> BIG_STAR   : Collect Star
     FIRE  --> BIG_STAR   : Collect Star
@@ -1996,9 +2117,13 @@ sequenceDiagram
 | `Mario/UI/UIPanel.hpp` | `IUIPanel` | None (interface) | Strategy UI 面板抽象介面。 |
 | `Mario/UI/HUDPanel.hpp` | `HUDPanel` | `IUIPanel` | HUD 面板（分數、世界、時間、金幣顯示與警告閃爍）。 |
 | `Mario/UI/TitlePanel.hpp` | `TitlePanel` | `IUIPanel` | 標題畫面面板（遊戲標題與開始提示）。 |
+| `Mario/UI/ITitleMenuItem.hpp` | `ITitleMenuItem` | None (interface) | 標題畫面命令抽象介面（Command Pattern）。 |
+| `Mario/UI/TitleMenuItems.hpp` | `StartGameMenuItem`, `ControlsMenuItem`, `QuitGameMenuItem` | `ITitleMenuItem` | 標題畫面具體命令實作。 |
 | `Mario/UI/LoadingPanel.hpp` | `LoadingPanel` | `IUIPanel` | 載入畫面面板（關卡名稱、生命數及角色預覽）。 |
 | `Mario/UI/SimpleTextPanel.hpp` | `SimpleTextPanel` | `IUIPanel` | 通用文字面板（遊戲結束及通關結算畫面）。 |
 | `Mario/UI/ESCMenuPanel.hpp` | `ESCMenuPanel` | `IUIPanel` | 暫停選單面板（關卡跳轉與力量作弊狀態選擇）。 |
+| `Mario/UI/IESCMenuItem.hpp` | `IESCMenuItem` | None (interface) | 暫停選單命令抽象介面（Command Pattern）。 |
+| `Mario/UI/ESCMenuItems.hpp` | `ResumeMenuItem`, `LevelWarpMenuItem`, `PowerCheatMenuItem`, `CheatToggleMenuItem`, `ControlsESCMenuItem` | `IESCMenuItem` | 暫停選單具體命令實作。 |
 | `Mario/UI/AxeEndingPanel.hpp` | `AxeEndingPanel` | `IUIPanel` | 8-4 終局城堡過場致謝文字面板。 |
 | `Mario/UI/UIManager.hpp` | `UIManager` | None | 薄型 UI 分派器；持有所有 Panel 實體。 |
 | `Mario/UI/UIWidgets.hpp` | `UIImage`, `UIText` | `Util::GameObject` | 輕量化 UI 貼圖與文字元件。 |
@@ -2033,18 +2158,18 @@ sequenceDiagram
 | Mario/CollisionManager.cpp | 65 | **Facade門面**：公開 API 將碰撞分派給 Collision/ 目錄下的 4 個 Strategy Handler。 |
 | `Mario/Collision/BlockContactResolver.cpp` | 116 | 靜態 Snap helpers（Down/Up/Right/Left）與 BodyRect 全高碰撞體建立。 |
 | `Mario/Collision/PlayerBlockHandler.cpp` | 330 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
-| `Mario/Collision/PlayerEntityHandler.cpp` | 271 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
+| `Mario/Collision/PlayerEntityHandler.cpp` | 213 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
 | `Mario/Collision/EntityBlockHandler.cpp` | 160 | 實體-方塊碰撞：處理反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
 | `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
 | `Mario/Level/GameStateManager.cpp` | 107 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
-| `Mario/Scenes/MenuSceneHandlers.cpp` | 147 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
+| `Mario/Scenes/MenuSceneHandlers.cpp` | 169 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
 | `Mario/Scenes/LoadingSceneHandler.cpp` | 47 | 加載畫面（預載貼圖，強制黑色背景）。 |
-| `Mario/Scenes/PlayingSceneHandler.cpp` | 596 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
+| `Mario/Scenes/PlayingSceneHandler.cpp` | 606 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，消除 dynamic_cast。 |
 | `Mario/Scenes/FlagpoleSceneHandler.cpp` | 202 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
 | `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
 | `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 169 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
-| `Mario/Scenes/ESCMenuSceneHandler.cpp` | 136 | 暫停選單邏輯，包含 5-item（RESUME/1-1/1-2/8-4/POWER作弊變身切換）。 |
-| `Mario/UI/UIManager.cpp` | 169 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
+| `Mario/Scenes/ESCMenuSceneHandler.cpp` | 79 | 暫停選單場景，使用 `IESCMenuItem` 命令集合多型執行 Update/OnRender，完全移除 hardcoded switch-case。 |
+| `Mario/UI/UIManager.cpp` | 162 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
 | `Mario/Services/AudioManager.cpp` | 236 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
 | `Mario/Services/AudioPathResolver.cpp` | 8 | 音效與音樂路徑靜態解析 helper。 |
 | `Mario/Services/InputHandler.cpp` | 111 | 鍵盤輸入實作。 |
@@ -2052,10 +2177,12 @@ sequenceDiagram
 | `Mario/Services/KeyboardInputProfile.cpp` | 78 | 預設鍵盤按鍵映射策略實作。 |
 | `Mario/Services/LevelManager.cpp` | 154 | ILevelService 實作：LoadLevel, StartLevel, BGM 播放；StartLevel 消除 inline 旗幟尋找。 |
 | `Mario/UI/HUDPanel.cpp` | 115 | HUD 面板實作，處理計分、金幣動畫更新及時間警告閃爍。 |
-| `Mario/UI/TitlePanel.cpp` | 108 | 標題畫面面板實作。 |
+| `Mario/UI/TitlePanel.cpp` | 192 | 標題畫面面板實作，渲染選項列表並支援展示 controls guide 面板。 |
+| `Mario/UI/TitleMenuItems.cpp` | 48 | 實作標題選單的各個具體命令類別（StartGame/Controls/QuitGame）。 |
 | `Mario/UI/LoadingPanel.cpp` | 46 | 關卡加載畫面面板實作，載入並擺放角色預覽精靈。 |
 | `Mario/UI/SimpleTextPanel.cpp` | 32 | 通用文字結算面板實作。 |
-| `Mario/UI/ESCMenuPanel.cpp` | 56 | 暫停選單面板實作，渲染選項列表並標示紅色高亮。 |
+| `Mario/UI/ESCMenuPanel.cpp` | 197 | 暫停選單面板實作，渲染選項列表並支援展示 controls guide 面板。 |
+| `Mario/UI/ESCMenuItems.cpp` | 145 | 實作暫停選單的各個具體命令類別（Resume/Warp/Cheat/Power/Controls）。 |
 | `Mario/UI/AxeEndingPanel.cpp` | 36 | 終局城堡謝幕面板實作。 |
 | `Mario/UI/CoinUI.cpp` | 85 | HUD 金幣閃爍與計數動畫實作。 |
 | `Mario/UI/FloatingText.cpp` | 44 | 漂浮分數文字 60 幀 Alpha 漸進式淡出與向上漂移。 |
@@ -2064,14 +2191,14 @@ sequenceDiagram
 | `Mario/Behaviors/BowserBehavior.cpp` | 363 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
 | `Mario/Behaviors/CastleFireSpawnerBehavior.cpp` | 81 | 隱形越屏定時向左發射火球 AI。 |
 | `Mario/Behaviors/FireballBehavior.cpp` | 107 | 火球拋物線與碰撞爆炸物理。 |
-| `Mario/Behaviors/ItemBehaviors.cpp` | 154 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
+| `Mario/Behaviors/ItemBehaviors.cpp` | 299 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
 | `Mario/Behaviors/StaticEntityBehaviors.cpp` | 116 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（合併實作）。 |
 | `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 163 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 2.5×TILE 檢查與冒出取消（防偷襲）。 |
 | `Mario/Behaviors/PodobooBehavior.cpp` | 107 | 岩漿火球定時向上彈跳無視地形 AI。 |
 | `Mario/Behaviors/DefaultEntityBehavior.cpp` | 51 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 52 | 破碎磚塊碎屑粒子策略。 |
 
-**Total: 47 source files, 9,170 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
+**Total: 49 source files, 9,634 lines of C++17 OOP code** (排除 entry `main.cpp`；已永久刪除舊孤兒殘留 `src/Mario/UIManager.cpp` 以杜絕編譯/連結衝突)。
 
 ---
 

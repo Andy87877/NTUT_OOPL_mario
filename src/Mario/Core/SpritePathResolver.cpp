@@ -1,19 +1,14 @@
 /**
  * @file SpritePathResolver.cpp
- * @brief Implementation of sprite path resolution.
- *        Handles the C# reference's sprite naming conventions.
- *
- *        Block sprites: name from IDList.csv + frame suffix
- *          - C# tries: name + "0" (e.g. "Ground0") but files are "Ground.png"
- *          - We try: name.png first, then name + frame + ".png"
- *
- *        Player sprites: "Mario" + prefix + state + frame
- *          - Small (state=0): "MarioIdle.png", "MarioRight1.png"
- *          - Big (state=1):   "MarioIdle1.png", "MarioRight11.png"
- *          - The state digit is omitted when 0, frame digit omitted when 0
- *
- * @inheritance None
+ * @brief Implementation of sprite path resolution using Strategy Pattern.
+ *        Decouples different resolution logic into specialized Strategy
+ * classes.
+ * @inheritance IBlockResolver -> DefaultBlockResolver,
+ *              IPlayerResolver -> DefaultPlayerResolver,
+ *              IEntityResolver -> DefaultEntityResolver,
+ *              ICastleResolver -> DefaultCastleResolver
  */
+
 #include "Mario/Core/SpritePathResolver.hpp"
 
 #include <SDL.h>
@@ -28,44 +23,20 @@
 namespace {
 
 // Static sprite mapping tables extracted from C# reference code (.resx files)
-// These mappings represent the exact correspondence between C# sprite names
-// and the actual PNG filenames. Do not modify without verification against
-// the reference C# code.
-
-/**
- * Entity sprite overrides for enemies that cannot be resolved by the normal
- * level-directory lookup.  Currently empty — all 8-4 entity sprites exist in
- * Resources/Sprites/8-4/ and are found automatically by GetEntitySpritePath.
- */
 static const std::unordered_map<std::string, std::string>
     ENTITY_SPRITE_OVERRIDE = {};
 
-/**
- * Entity name override: maps entity name (no frame) to PNG filename.
- * Used for entities whose name doesn't directly match the PNG filename.
- */
 static const std::unordered_map<std::string, std::string> ENTITY_NAME_OVERRIDE =
     {
         {"BrickBlock2Break", "BrickBlockBreak1.png"},
 };
 
-/**
- * Level-specific entity sprite name remapping.
- * Key format: "levelName/entityName".
- * Value: the display name to use when looking up sprites in the level subdir.
- * Example: in 8-4 the KoopaTroopa sprites are stored as Koopa1.png/Koopa2.png
- * instead of KoopaTroopa1.png/KoopaTroopa2.png.
- */
 static const std::unordered_map<std::string, std::string>
     LEVEL_ENTITY_NAME_OVERRIDE = {
         {"8-4/KoopaTroopa", "Koopa"},
         {"8-4/KoopaTroopaSquish", "KoopaSquish"},
 };
 
-/**
- * Block sprite mapping: C# resource name -> PNG filename
- * Example: C# "BrickBlock20" -> actual file "BrickBlock1.png"
- */
 static const std::unordered_map<std::string, std::string> BLOCK_SPRITE_MAP = {
     // Brick blocks
     {"BrickBlock20", "BrickBlock1.png"},
@@ -107,11 +78,6 @@ static const std::unordered_map<std::string, std::string> BLOCK_SPRITE_MAP = {
     {"MarioStartBlue0", "Sky.png"},
 };
 
-/**
- * Player sprite mapping: C# animation name -> PNG filename
- * Format: "Mario" + prefix + state + frame
- * Example: "MarioRight00" -> "MarioRight1.png"
- */
 static const std::unordered_map<std::string, std::string> PLAYER_SPRITE_MAP = {
     // Idle animations
     {"MarioIdle00", "MarioIdle.png"},
@@ -164,26 +130,19 @@ static std::unordered_map<std::string, std::string> s_ResolvedPathCache;
 
 namespace Mario {
 
-const std::string SpritePathResolver::SPRITE_BASE_PATH =
-    std::string(RESOURCE_DIR) + "/Sprites/";
-
-std::string SpritePathResolver::GetSpritePath(const std::string& name,
-                                              const std::string& suffix) {
-    return SPRITE_BASE_PATH + name + suffix + ".png";
-}
-
-std::string SpritePathResolver::GetBlockSpritePath(
-    const std::string& blockName, int frame, const std::string& levelName) {
-    std::string key = "block:" + levelName + ":" + blockName + ":" + std::to_string(frame);
-    auto cacheIt = s_ResolvedPathCache.find(key);
-    if (cacheIt != s_ResolvedPathCache.end()) {
-        return cacheIt->second;
-    }
-
-    auto resolve = [&]() -> std::string {
+/**
+ * @class DefaultBlockResolver
+ * @brief Default strategy implementation for block sprite path resolution.
+ * @inheritance IBlockResolver -> DefaultBlockResolver
+ */
+class DefaultBlockResolver : public IBlockResolver {
+   public:
+    std::string Resolve(const std::string& blockName, int frame,
+                        const std::string& levelName) override {
         // Check level-specific directory first (e.g. 1-2/BrickBlock1.png)
         if (!levelName.empty()) {
-            std::string levelDir = SPRITE_BASE_PATH + levelName + "/";
+            std::string levelDir =
+                SpritePathResolver::SPRITE_BASE_PATH + levelName + "/";
 
             // Try exact name match first
             std::string exactPath = levelDir + blockName + ".png";
@@ -207,12 +166,14 @@ std::string SpritePathResolver::GetBlockSpritePath(
         auto it = BLOCK_SPRITE_MAP.find(csName);
         if (it != BLOCK_SPRITE_MAP.end()) {
             std::string filename = it->second;
-            // MarioStartBlue should be mapped to a black tile in castle/underground levels
+            // MarioStartBlue should be mapped to a black tile in
+            // castle/underground levels
             if (blockName == "MarioStartBlue" &&
-                (levelName == "8-4" || levelName == "1-2" || levelName.find('u') != std::string::npos)) {
+                (levelName == "8-4" || levelName == "1-2" ||
+                 levelName.find('u') != std::string::npos)) {
                 filename = "Black.png";
             }
-            std::string path = SPRITE_BASE_PATH + filename;
+            std::string path = SpritePathResolver::SPRITE_BASE_PATH + filename;
             std::ifstream test(path);
             if (test.good()) return path;
         }
@@ -223,7 +184,7 @@ std::string SpritePathResolver::GetBlockSpritePath(
             targetFile = blockName + std::to_string(frame) + ".png";
         }
 
-        std::string path = SPRITE_BASE_PATH + targetFile;
+        std::string path = SpritePathResolver::SPRITE_BASE_PATH + targetFile;
         std::ifstream test(path);
         if (test.good()) return path;
 
@@ -233,91 +194,128 @@ std::string SpritePathResolver::GetBlockSpritePath(
             strippedName.pop_back();
         }
         if (strippedName != blockName) {
-            std::string fallbackPath = SPRITE_BASE_PATH + strippedName + ".png";
+            std::string fallbackPath =
+                SpritePathResolver::SPRITE_BASE_PATH + strippedName + ".png";
             std::ifstream testFallback(fallbackPath);
             if (testFallback.good()) return fallbackPath;
         }
 
         // Ultimate fallback
-        return SPRITE_BASE_PATH + blockName +
+        return SpritePathResolver::SPRITE_BASE_PATH + blockName +
                (frame > 0 ? std::to_string(frame) : "") + ".png";
-    };
-
-    std::string resolvedPath = resolve();
-    s_ResolvedPathCache[key] = resolvedPath;
-    return resolvedPath;
-}
-
-std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
-                                                    int state, int frame,
-                                                    int starState) {
-    std::string key = "player:" + prefix + ":" + std::to_string(state) + ":" + std::to_string(frame) + ":" + std::to_string(starState);
-    auto cacheIt = s_ResolvedPathCache.find(key);
-    if (cacheIt != s_ResolvedPathCache.end()) {
-        return cacheIt->second;
     }
+};
 
-    // C# reference name: "Mario" + prefix + state + frame + (starState if
-    // state==3||4)
-    std::string csName =
-        "Mario" + prefix + std::to_string(state) + std::to_string(frame);
+/**
+ * @class DefaultPlayerResolver
+ * @brief Default strategy implementation for player sprite path resolution.
+ *        Handles star mode color variants with fallbacks to avoid terminal
+ * errors.
+ * @inheritance IPlayerResolver -> DefaultPlayerResolver
+ */
+class DefaultPlayerResolver : public IPlayerResolver {
+   public:
+    std::string Resolve(const std::string& prefix, int state, int frame,
+                        int starState) override {
+        // C# reference name: "Mario" + prefix + state + frame + (starState if
+        // state==3||4)
+        std::string csName =
+            "Mario" + prefix + std::to_string(state) + std::to_string(frame);
 
-    if (state == 3 || state == 4) {
-        csName += std::to_string(starState);
-    }
-
-    std::string resolvedPath;
-
-    // Check the sprite mapping table FIRST.
-    // Important: direct file lookup must NOT run first for regular states
-    // because some C# logical names collide with existing PNG filenames that
-    // belong to a different state.  Example: Big Mario running frame 2 builds
-    // csName="MarioRight12", and MarioRight12.png exists — but that file is
-    // the Fire Mario sprite.  The map correctly remaps to MarioRight31.png.
-    auto it = PLAYER_SPRITE_MAP.find(csName);
-    if (it != PLAYER_SPRITE_MAP.end()) {
-        std::string path = SPRITE_BASE_PATH + it->second;
-        std::ifstream test(path);
-        if (test.good()) {
-            resolvedPath = path;
-        }
-    }
-
-    if (resolvedPath.empty()) {
-        // For Star states (3/4) the sprite names are unique enough that a direct
-        // file match is safe and avoids needing an exhaustive map entry for every
-        // star-color variant.
         if (state == 3 || state == 4) {
-            std::string directPath = SPRITE_BASE_PATH + csName + ".png";
-            std::ifstream directTest(directPath);
-            if (directTest.good()) {
-                resolvedPath = directPath;
-            } else {
-                resolvedPath = directPath;  // Return even if missing; caller handles fallback
-            }
-        } else {
-            // Default fallback (should rarely be reached after map lookup above)
-            resolvedPath = SPRITE_BASE_PATH + "MarioIdle.png";
+            csName += std::to_string(starState);
         }
+
+        std::string resolvedPath;
+
+        // Check the sprite mapping table FIRST.
+        auto it = PLAYER_SPRITE_MAP.find(csName);
+        if (it != PLAYER_SPRITE_MAP.end()) {
+            std::string path =
+                SpritePathResolver::SPRITE_BASE_PATH + it->second;
+            std::ifstream test(path);
+            if (test.good()) {
+                resolvedPath = path;
+            }
+        }
+
+        if (resolvedPath.empty()) {
+            // For Star states (3/4) the sprite names are unique enough that a
+            // direct file match is safe and avoids needing an exhaustive map
+            // entry for every star-color variant.
+            if (state == 3 || state == 4) {
+                std::string directPath =
+                    SpritePathResolver::SPRITE_BASE_PATH + csName + ".png";
+                std::ifstream directTest(directPath);
+                if (directTest.good()) {
+                    resolvedPath = directPath;
+                } else {
+                    // If the specific star-color variant is missing, attempt to
+                    // fall back to color index 0
+                    std::string altName = "Mario" + prefix +
+                                          std::to_string(state) +
+                                          std::to_string(frame) + "0";
+                    std::string altPath =
+                        SpritePathResolver::SPRITE_BASE_PATH + altName + ".png";
+                    std::ifstream altTest(altPath);
+                    if (altTest.good()) {
+                        resolvedPath = altPath;
+                    } else {
+                        // Fall back to the base (non-star) state sprite
+                        // State 3 (Small Star) -> State 0 (Small)
+                        // State 4 (Big Star) -> State 1 (Big)
+                        int baseState = (state == 3) ? 0 : 1;
+                        std::string baseCsName = "Mario" + prefix +
+                                                 std::to_string(baseState) +
+                                                 std::to_string(frame);
+                        auto baseIt = PLAYER_SPRITE_MAP.find(baseCsName);
+                        if (baseIt != PLAYER_SPRITE_MAP.end()) {
+                            std::string baseFilename = baseIt->second;
+                            std::string baseFilePath =
+                                SpritePathResolver::SPRITE_BASE_PATH +
+                                baseFilename;
+                            std::ifstream baseTest(baseFilePath);
+                            if (baseTest.good()) {
+                                resolvedPath = baseFilePath;
+                            }
+                        }
+                        if (resolvedPath.empty()) {
+                            // Ultimate fallback: standard idle sprites
+                            std::string fallbackFile = (baseState == 0)
+                                                           ? "MarioIdle.png"
+                                                           : "MarioIdle1.png";
+                            resolvedPath =
+                                SpritePathResolver::SPRITE_BASE_PATH +
+                                fallbackFile;
+                        }
+                    }
+                }
+            } else {
+                // Default fallback (should rarely be reached after map lookup
+                // above)
+                resolvedPath =
+                    SpritePathResolver::SPRITE_BASE_PATH + "MarioIdle.png";
+            }
+        }
+
+        return resolvedPath;
     }
+};
 
-    s_ResolvedPathCache[key] = resolvedPath;
-    return resolvedPath;
-}
-
-std::string SpritePathResolver::GetEntitySpritePath(
-    const std::string& entityName, int frame, const std::string& levelName) {
-    std::string key = "entity:" + levelName + ":" + entityName + ":" + std::to_string(frame);
-    auto cacheIt = s_ResolvedPathCache.find(key);
-    if (cacheIt != s_ResolvedPathCache.end()) {
-        return cacheIt->second;
-    }
-
-    auto resolve = [&]() -> std::string {
+/**
+ * @class DefaultEntityResolver
+ * @brief Default strategy implementation for entity sprite path resolution.
+ * @inheritance IEntityResolver -> DefaultEntityResolver
+ */
+class DefaultEntityResolver : public IEntityResolver {
+   public:
+    std::string Resolve(const std::string& entityName, int frame,
+                        const std::string& levelName) override {
         // Check entity name overrides (frame-independent remapping)
         auto nit = ENTITY_NAME_OVERRIDE.find(entityName);
         if (nit != ENTITY_NAME_OVERRIDE.end()) {
-            std::string path = SPRITE_BASE_PATH + nit->second;
+            std::string path =
+                SpritePathResolver::SPRITE_BASE_PATH + nit->second;
             std::ifstream test(path);
             if (test.good()) return path;
         }
@@ -327,17 +325,18 @@ std::string SpritePathResolver::GetEntitySpritePath(
             std::string overrideKey = entityName + std::to_string(frame + 1);
             auto oit = ENTITY_SPRITE_OVERRIDE.find(overrideKey);
             if (oit != ENTITY_SPRITE_OVERRIDE.end()) {
-                std::string path = SPRITE_BASE_PATH + oit->second;
+                std::string path =
+                    SpritePathResolver::SPRITE_BASE_PATH + oit->second;
                 std::ifstream test(path);
                 if (test.good()) return path;
             }
         }
 
         // Build level-specific sprite path
-        std::string levelDir = SPRITE_BASE_PATH + levelName + "/";
+        std::string levelDir =
+            SpritePathResolver::SPRITE_BASE_PATH + levelName + "/";
 
-        // Apply level-specific entity name remapping (e.g. 8-4 KoopaTroopa ->
-        // Koopa)
+        // Apply level-specific entity name remapping
         std::string resolvedName = entityName;
         std::string levelKey = levelName + "/" + entityName;
         auto lit = LEVEL_ENTITY_NAME_OVERRIDE.find(levelKey);
@@ -365,36 +364,153 @@ std::string SpritePathResolver::GetEntitySpritePath(
 
         // If level-specific not found, try main Sprites directory (fallback)
         if (frame >= 0) {
-            std::string path =
-                SPRITE_BASE_PATH + entityName + std::to_string(frame) + ".png";
+            std::string path = SpritePathResolver::SPRITE_BASE_PATH +
+                               entityName + std::to_string(frame) + ".png";
             std::ifstream test2(path);
             if (test2.good()) return path;
 
-            std::string path1based = SPRITE_BASE_PATH + entityName +
-                                     std::to_string(frame + 1) + ".png";
+            std::string path1based = SpritePathResolver::SPRITE_BASE_PATH +
+                                     entityName + std::to_string(frame + 1) +
+                                     ".png";
             std::ifstream test1based(path1based);
             if (test1based.good()) return path1based;
         }
 
-        std::string mainPath = SPRITE_BASE_PATH + entityName + ".png";
+        std::string mainPath =
+            SpritePathResolver::SPRITE_BASE_PATH + entityName + ".png";
         std::ifstream test3(mainPath);
         if (test3.good()) return mainPath;
 
-        // If nothing found, return empty string to indicate missing sprite
+        // If nothing found, return empty string
         return "";
-    };
+    }
+};
 
-    std::string path = resolve();
-    s_ResolvedPathCache[key] = path;
-    if (path.empty()) {
-        // LOG_WARN(
-        //     "GetEntitySpritePath: No sprite found for '{}' (frame: {}) in "
-        //     "level '{}'",
-        //     entityName, frame, levelName);
-        return "";  // Return empty path, caller should handle this
+/**
+ * @class DefaultCastleResolver
+ * @brief Default strategy implementation for 8-4 castle sprite path resolution.
+ * @inheritance ICastleResolver -> DefaultCastleResolver
+ */
+class DefaultCastleResolver : public ICastleResolver {
+   public:
+    std::string Resolve(int blockID) override {
+        int actualID = blockID;
+        if (actualID == 905) {
+            actualID = 826;  // render as tile_0026
+        }
+
+        if (actualID >= 801 && actualID <= 904) {
+            int tileIdx = actualID - 800;
+            char buffer[256];
+            snprintf(buffer, sizeof(buffer), "%s8-4/tile_%04d.png",
+                     SpritePathResolver::SPRITE_BASE_PATH.c_str(), tileIdx);
+
+            std::string path = buffer;
+            std::ifstream test(path);
+            if (test.good()) {
+                return path;
+            }
+        }
+
+        return "";
+    }
+};
+
+const std::string SpritePathResolver::SPRITE_BASE_PATH =
+    std::string(RESOURCE_DIR) + "/Sprites/";
+
+std::unique_ptr<IBlockResolver> SpritePathResolver::s_BlockResolver = nullptr;
+std::unique_ptr<IPlayerResolver> SpritePathResolver::s_PlayerResolver = nullptr;
+std::unique_ptr<IEntityResolver> SpritePathResolver::s_EntityResolver = nullptr;
+std::unique_ptr<ICastleResolver> SpritePathResolver::s_CastleResolver = nullptr;
+
+void SpritePathResolver::SetBlockResolver(
+    std::unique_ptr<IBlockResolver> resolver) {
+    s_BlockResolver = std::move(resolver);
+}
+
+void SpritePathResolver::SetPlayerResolver(
+    std::unique_ptr<IPlayerResolver> resolver) {
+    s_PlayerResolver = std::move(resolver);
+}
+
+void SpritePathResolver::SetEntityResolver(
+    std::unique_ptr<IEntityResolver> resolver) {
+    s_EntityResolver = std::move(resolver);
+}
+
+void SpritePathResolver::SetCastleResolver(
+    std::unique_ptr<ICastleResolver> resolver) {
+    s_CastleResolver = std::move(resolver);
+}
+
+void SpritePathResolver::EnsureResolversInitialized() {
+    if (!s_BlockResolver) {
+        s_BlockResolver = std::make_unique<DefaultBlockResolver>();
+    }
+    if (!s_PlayerResolver) {
+        s_PlayerResolver = std::make_unique<DefaultPlayerResolver>();
+    }
+    if (!s_EntityResolver) {
+        s_EntityResolver = std::make_unique<DefaultEntityResolver>();
+    }
+    if (!s_CastleResolver) {
+        s_CastleResolver = std::make_unique<DefaultCastleResolver>();
+    }
+}
+
+std::string SpritePathResolver::GetSpritePath(const std::string& name,
+                                              const std::string& suffix) {
+    return SPRITE_BASE_PATH + name + suffix + ".png";
+}
+
+std::string SpritePathResolver::GetBlockSpritePath(
+    const std::string& blockName, int frame, const std::string& levelName) {
+    std::string key =
+        "block:" + levelName + ":" + blockName + ":" + std::to_string(frame);
+    auto cacheIt = s_ResolvedPathCache.find(key);
+    if (cacheIt != s_ResolvedPathCache.end()) {
+        return cacheIt->second;
     }
 
-    return path;
+    EnsureResolversInitialized();
+    std::string resolvedPath =
+        s_BlockResolver->Resolve(blockName, frame, levelName);
+    s_ResolvedPathCache[key] = resolvedPath;
+    return resolvedPath;
+}
+
+std::string SpritePathResolver::GetPlayerSpritePath(const std::string& prefix,
+                                                    int state, int frame,
+                                                    int starState) {
+    std::string key = "player:" + prefix + ":" + std::to_string(state) + ":" +
+                      std::to_string(frame) + ":" + std::to_string(starState);
+    auto cacheIt = s_ResolvedPathCache.find(key);
+    if (cacheIt != s_ResolvedPathCache.end()) {
+        return cacheIt->second;
+    }
+
+    EnsureResolversInitialized();
+    std::string resolvedPath =
+        s_PlayerResolver->Resolve(prefix, state, frame, starState);
+    s_ResolvedPathCache[key] = resolvedPath;
+    return resolvedPath;
+}
+
+std::string SpritePathResolver::GetEntitySpritePath(
+    const std::string& entityName, int frame, const std::string& levelName) {
+    std::string key =
+        "entity:" + levelName + ":" + entityName + ":" + std::to_string(frame);
+    auto cacheIt = s_ResolvedPathCache.find(key);
+    if (cacheIt != s_ResolvedPathCache.end()) {
+        return cacheIt->second;
+    }
+
+    EnsureResolversInitialized();
+    std::string resolvedPath =
+        s_EntityResolver->Resolve(entityName, frame, levelName);
+    s_ResolvedPathCache[key] = resolvedPath;
+    return resolvedPath;
 }
 
 std::string SpritePathResolver::GetCastleSpritePathByID(int blockID) {
@@ -404,29 +520,8 @@ std::string SpritePathResolver::GetCastleSpritePathByID(int blockID) {
         return cacheIt->second;
     }
 
-    std::string resolvedPath = "";
-
-    // 8-4 castle sprites: ID 801-904 -> Sprites/8-4/tile_XXX.png
-    // ID 905 (PiranhaPipeTop spawner) reuses the pipe-body-right tile (826 =
-    // tile_0026) so the pipe opening row looks visually correct.
-    int actualID = blockID;
-    if (actualID == 905) {
-        actualID = 826;  // render as tile_0026 (right side of pipe body)
-    }
-
-    if (actualID >= 801 && actualID <= 904) {
-        int tileIdx = actualID - 800;  // 801 -> 1, 904 -> 104
-        char buffer[256];
-        snprintf(buffer, sizeof(buffer), "%s8-4/tile_%04d.png",
-                 SPRITE_BASE_PATH.c_str(), tileIdx);
-
-        std::string path = buffer;
-        std::ifstream test(path);
-        if (test.good()) {
-            resolvedPath = path;  // File exists, return as-is
-        }
-    }
-
+    EnsureResolversInitialized();
+    std::string resolvedPath = s_CastleResolver->Resolve(blockID);
     s_ResolvedPathCache[key] = resolvedPath;
     return resolvedPath;
 }

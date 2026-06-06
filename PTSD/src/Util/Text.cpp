@@ -37,11 +37,12 @@ Text::Text(const std::string &font, int fontSize, const std::string &text,
         LOG_ERROR("{}", TTF_GetError());
     }
 
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, surface->pitch / surface->format->BytesPerPixel);
     m_Texture = std::make_unique<Core::Texture>(
         Core::SdlFormatToGlFormat(surface->format->format),
-        surface->pitch / surface->format->BytesPerPixel, surface->h,
-        surface->pixels);
-    m_Size = {surface->pitch / surface->format->BytesPerPixel, surface->h};
+        surface->w, surface->h, surface->pixels);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    m_Size = {surface->w, surface->h};
 }
 
 void Text::Draw(const Core::Matrices &data) {
@@ -113,10 +114,11 @@ void Text::ApplyTexture() {
         LOG_ERROR("Failed to create text: {}", TTF_GetError());
     }
 
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, surface->pitch / surface->format->BytesPerPixel);
     m_Texture->UpdateData(Core::SdlFormatToGlFormat(surface->format->format),
-                          surface->pitch / surface->format->BytesPerPixel,
-                          surface->h, surface->pixels);
-    m_Size = {surface->pitch / surface->format->BytesPerPixel, surface->h};
+                          surface->w, surface->h, surface->pixels);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    m_Size = {surface->w, surface->h};
 }
 
 std::unique_ptr<Core::Program> Text::s_Program = nullptr;

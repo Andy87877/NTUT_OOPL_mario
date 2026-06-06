@@ -14,6 +14,7 @@
 
 #include "App.hpp"
 #include "Mario/Services/AudioManager.hpp"
+#include "Mario/UI/TitleMenuItems.hpp"
 #include "Util/Input.hpp"
 #include "Util/Keycode.hpp"
 #include "Util/Logger.hpp"
@@ -34,37 +35,58 @@ void ISceneHandler::OnRender(App& app) {
 // TitleSceneHandler
 // ============================================================================
 
-void TitleSceneHandler::Update(App& app) {
-    bool upDown = Util::Input::IsKeyDown(Util::Keycode::UP);
-    bool wDown = Util::Input::IsKeyDown(Util::Keycode::W);
-    if (upDown || wDown) {
-        m_Selection = (m_Selection - 1 + 2) % 2;
-    }
-    bool downDown = Util::Input::IsKeyDown(Util::Keycode::DOWN);
-    bool sDown = Util::Input::IsKeyDown(Util::Keycode::S);
-    if (downDown || sDown) {
-        m_Selection = (m_Selection + 1) % 2;
-    }
+TitleSceneHandler::TitleSceneHandler() {
+    m_MenuItems.push_back(std::make_unique<StartGameMenuItem>());
+    m_MenuItems.push_back(std::make_unique<ControlsMenuItem>());
+    m_MenuItems.push_back(std::make_unique<QuitGameMenuItem>());
+}
 
-    if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
-        if (m_Selection == 0) {
-            app.GetGameState().NewGame();
-            app.TransitionTo(App::State::LOADING);
-            LOG_INFO("Starting game - entering LOADING state");
-        } else {
-            app.TransitionTo(App::State::END);
-            LOG_INFO("Exiting game from title screen selection");
+TitleSceneHandler::~TitleSceneHandler() = default;
+
+void TitleSceneHandler::Update(App& app) {
+    if (m_SubState == SubState::MENU) {
+        int size = static_cast<int>(m_MenuItems.size());
+        bool upDown = Util::Input::IsKeyDown(Util::Keycode::UP);
+        bool wDown = Util::Input::IsKeyDown(Util::Keycode::W);
+        if (upDown || wDown) {
+            m_Selection = (m_Selection - 1 + size) % size;
         }
-    }
-    if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
-        app.TransitionTo(App::State::END);
+        bool downDown = Util::Input::IsKeyDown(Util::Keycode::DOWN);
+        bool sDown = Util::Input::IsKeyDown(Util::Keycode::S);
+        if (downDown || sDown) {
+            m_Selection = (m_Selection + 1) % size;
+        }
+
+        if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
+            if (m_Selection >= 0 && m_Selection < size) {
+                m_MenuItems[m_Selection]->Execute(app, *this);
+            }
+        }
+        if (Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
+            app.TransitionTo(App::State::END);
+        }
+    } else if (m_SubState == SubState::CONTROLS) {
+        if (Util::Input::IsKeyDown(Util::Keycode::RETURN) ||
+            Util::Input::IsKeyDown(Util::Keycode::ESCAPE)) {
+            m_SubState = SubState::MENU;
+            LOG_INFO("Returning to title menu");
+        }
     }
 }
 
 void TitleSceneHandler::OnRender(App& app) {
     app.ApplyBackground(false);  // Sky-blue title screen
     app.GetRenderer().Update();
-    app.GetUIManager().Update(Mario::UIManager::State::TITLE, m_Selection);
+
+    std::vector<std::string> displayTexts;
+    for (const auto& item : m_MenuItems) {
+        displayTexts.push_back(item->GetDisplayText(app));
+    }
+
+    auto& panel = app.GetUIManager().GetTitlePanel();
+    panel.SetShowControls(m_SubState == SubState::CONTROLS);
+    panel.SetMenuContext(m_Selection, displayTexts);
+    app.GetUIManager().Update(Mario::UIManager::State::TITLE);
 }
 
 // ============================================================================
