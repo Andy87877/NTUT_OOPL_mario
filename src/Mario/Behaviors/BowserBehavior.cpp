@@ -39,7 +39,13 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
 
     if (m_Phase == BowserPhase::DAMAGED) {
         UpdateDamaged(state);
-        return;
+    }
+
+    // Sync patrol direction from the current physical velocity (allows wall check flips to propagate)
+    if (state.GetVelX() > 0.0f) {
+        m_PatrolDirection = 1;
+    } else if (state.GetVelX() < 0.0f) {
+        m_PatrolDirection = -1;
     }
 
     // Dynamic Bridge Scanning (zero-allocation lookup)
@@ -137,10 +143,11 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
 
     switch (m_Phase) {
         case BowserPhase::PATROL:
+        case BowserPhase::DAMAGED:
             UpdatePatrol(state, level, player);
             break;
         case BowserPhase::FIRE_ATTACK:
-            UpdateFireAttackPhase(state, player);
+            UpdateFireAttackPhase(state, level, player);
             break;
         case BowserPhase::JUMP_ATTACK:
             UpdateJumpAttack(state, level, player);
@@ -217,10 +224,12 @@ void BowserBehavior::UpdatePatrol(EntityState& state, const Level& level,
     ResolveWallAndEdge(state, level);
 }
 
-void BowserBehavior::UpdateFireAttackPhase([[maybe_unused]] const EntityState& state,
+void BowserBehavior::UpdateFireAttackPhase(EntityState& state, const Level& level,
                                            [[maybe_unused]] const Player& player) {
-    // Fire spitting is now handled continuously in Update() to enable
-    // off-screen spitting right from the start of the level.
+    // Move at slower patrol speed while spitting fire
+    float moveSpeed = 3.0f;
+    state.SetVelX(moveSpeed * m_PatrolDirection);
+    ResolveWallAndEdge(state, level);
 }
 
 void BowserBehavior::UpdateJumpAttack(EntityState& state, const Level& level,
@@ -234,7 +243,7 @@ void BowserBehavior::UpdateJumpAttack(EntityState& state, const Level& level,
     // Jump randomly toward player
     if (m_PhaseTimer % 80 == 0 && state.IsGrounded()) {
         state.SetGrounded(false);
-        state.SetFallHeight(50.0f);  // High jump
+        state.SetFallHeight(22.0f);  // Reasonable jump height (approx 4.5 tiles), not 50.0f!
     }
     ResolveWallAndEdge(state, level);
 }
@@ -266,22 +275,6 @@ void BowserBehavior::UpdateDefeated(EntityState& state) {
 void BowserBehavior::ResolveWallAndEdge(EntityState& state,
                                         const Level& level) {
     AABB box = state.GetCollider();
-    int topTile = static_cast<int>(box.top) / GameConfig::TILE_SIZE;
-    int bottomTile = static_cast<int>(box.bottom - 1) / GameConfig::TILE_SIZE;
-
-    // --- Wall check in direction of movement ---
-    bool hitWall = false;
-    int sideTile = (m_PatrolDirection > 0)
-                       ? static_cast<int>(box.right) / GameConfig::TILE_SIZE
-                       : static_cast<int>(box.left) / GameConfig::TILE_SIZE;
-    for (int y = topTile; y <= bottomTile; ++y) {
-        const Block* block = level.GetBlockAt(sideTile, y);
-        if (block && block->IsSolid() && box.Intersects(block->GetAABB())) {
-            hitWall = true;
-            break;
-        }
-    }
-    if (hitWall) m_PatrolDirection *= -1;
 
     // --- Ground check (three sample points under feet) ---
     bool isGrounded = false;
@@ -301,7 +294,10 @@ void BowserBehavior::ResolveWallAndEdge(EntityState& state,
             (m_PatrolDirection > 0) ? box.right + 2.0f : box.left - 2.0f;
         const Block* edgeBlock =
             level.GetBlockAtWorld(edgeX, box.bottom + 2.0f);
-        if (!edgeBlock || !edgeBlock->IsSolid()) m_PatrolDirection *= -1;
+        if (!edgeBlock || !edgeBlock->IsSolid()) {
+            m_PatrolDirection *= -1;
+            state.SetVelX(std::abs(state.GetVelX()) * m_PatrolDirection);
+        }
     }
 
     state.SetGrounded(isGrounded);

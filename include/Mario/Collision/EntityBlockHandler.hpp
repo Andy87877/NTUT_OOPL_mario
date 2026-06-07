@@ -45,6 +45,9 @@ class EntityBlockHandler : public ICollisionHandler {
     /** Snap entity feet to the tile top when sinking below a solid block. */
     void CheckGround(Entity& entity, Level& level);
 
+    /** Snap entity head to the tile bottom when rising below a solid block. */
+    void CheckCeiling(Entity& entity, Level& level);
+
     /**
      * Flip direction (or destroy Fireball) when the entity's leading edge
      * penetrates a solid tile wall.

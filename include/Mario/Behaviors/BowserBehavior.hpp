@@ -147,7 +147,8 @@ class BowserBehavior : public IEntityBehavior {
     // Helper methods
     void UpdatePatrol(EntityState& state, const Level& level,
                       const Player& player);
-    void UpdateFireAttackPhase(const EntityState& state, const Player& player);
+    void UpdateFireAttackPhase(EntityState& state, const Level& level,
+                               const Player& player);
     void UpdateJumpAttack(EntityState& state, const Level& level,
                           const Player& player);
     void UpdateDamaged(EntityState& state);

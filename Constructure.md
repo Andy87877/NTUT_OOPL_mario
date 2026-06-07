@@ -3,8 +3,7 @@
 > **Last synced:** 2026-06-07
 > **關卡:** 1-1 (Ground) → 1-2 (Underground) → 8-4 (Castle + Boss)
 
-本專案將 C# 版本的 God Class (`Form1.cs`) 徹底解耦，轉換為符合現代 C++ 標準的  
-**深度物件導向架構 (Deep OOP Architecture)**。  
+本專案為符合現代 C++ 標準的 **深度物件導向架構 (Deep OOP Architecture)**。  
 設計上大量運用**繼承 (Inheritance)**、**多型 (Polymorphism)**、**介面 (Interfaces)**  
 與十大**設計模式 (Design Patterns)**：
 
@@ -1136,7 +1135,7 @@ classDiagram
 | Pattern | 解決的問題 | 本專案的角色 | 新增需要改哪裡 |
 |---------|-----------|------------|---------------|
 | **[State](include/Mario/Scenes/ISceneHandler.hpp)** (狀態) | `App.cpp` 曾是一個 800 行 switch 怪物 | [`ISceneHandler`](include/Mario/Scenes/ISceneHandler.hpp) — 每個畫面一個子類，`App::Update()` 剩兩行；[`IPlayerForm`](include/Mario/Player/PlayerForm.hpp) 管力量型態 | 新增畫面：加一個 .hpp/.cpp + 一個 enum + 一個 case |
-| **[Strategy](include/Mario/Behaviors/IEntityBehavior.hpp)** (策略) | C# Entity 用 `if (type==Goomba)` 滿天飛 | [`IEntityBehavior`](include/Mario/Behaviors/IEntityBehavior.hpp) — Goomba/Koopa/Bowser… 各一個 class | 新增敵人：加 XxxBehavior + Registry 一個 lambda |
+| **[Strategy](include/Mario/Behaviors/IEntityBehavior.hpp)** (策略) | Entity 用 `if (type==Goomba)` 滿天飛 | [`IEntityBehavior`](include/Mario/Behaviors/IEntityBehavior.hpp) — Goomba/Koopa/Bowser… 各一個 class | 新增敵人：加 XxxBehavior + Registry 一個 lambda |
 | **[MVC](include/Mario/Player/PlayerState.hpp)** | 渲染邏輯和遊戲邏輯混在一起 | Model=[`PlayerState`](include/Mario/Player/PlayerState.hpp), View=[`Player`](include/Mario/Player/Player.hpp), Controller=[`InputHandler`](include/Mario/Services/InputHandler.hpp) | — |
 | **[Factory](include/Mario/Level/EntityFactory.hpp)** | 到處散落 `new Entity(...)` 很難維護 | [`EntityFactory`](include/Mario/Level/EntityFactory.hpp) 是唯一建立 Entity 的地方；[`BlockFactory`](include/Mario/Level/BlockFactory.hpp) 建立 Block | 新增實體種類：只改 Factory |
 | **[DIP](include/Mario/Services/IAudioService.hpp)** (依賴反轉) | 呼叫者依賴具體 class → 難測試 | [`IAudioService`](include/Mario/Services/IAudioService.hpp), [`IInputHandler`](include/Mario/Services/IInputHandler.hpp), `ILevelService` 介面隔離 | 換實作：只換注入點 |
@@ -1160,7 +1159,7 @@ PHASE  1: PROCESS INPUT     — InputHandler::HandleInput(PlayerState, speed)
 PHASE  2: UPDATE PHYSICS    — PlayerState::ApplyGravity() -> velY += gravity
 PHASE  3: APPLY POSITION    — state.SetX/Y += velX/velY (velocity integration)
 PHASE  4: COLLISION DETECT  — CollisionManager::CheckPlayerBlockCollision()
-                               PIPELINE (matches C# Form1.cs onTick exactly):
+                               PIPELINE (matches onTick exactly):
                                  Step 1: FallDetect — 4px strip below feet; no block → SetGrounded(false)
                                  Step 2: Ceiling trigger (narrow hitbox) — head bump → snap + TriggerBlockHit
                                  Step 3: Per-block loop (full-body rect):
@@ -1272,12 +1271,12 @@ m_CurrentHandler->OnRender(*this);  // drawing
 
 ### 5.2 Strategy Pattern — IEntityBehavior
 
-**原問題：** C# Entity.cs 使用大量 `if (type == Goomba)` 判斷，難以擴展。  
+**原問題：** 使用大量 `if (type == Goomba)` 判斷，難以擴展。  
 **解法：** Strategy Pattern — Entity 持有 `unique_ptr<IEntityBehavior>`，多型 dispatch。
 
 | EntityType | Behavior 類 | 對應敵人 | 特性 |
 |-----------|------------|---------|------|
-| GOOMBA | GoombaBehavior | 栗寶寶 | Standard C# patrol (walk + wall flip + squish on stomp) |
+| GOOMBA | GoombaBehavior | 栗寶寶 | Standard patrol (walk + wall flip + squish on stomp) |
 | KOOPA_TROOPA | KoopaBehavior (TROOPA) | 烏龜兵 | 巡邏->Shell |
 | KOOPA_SHELL | KoopaBehavior (SHELL) | 龜殼 | 靜止或反彈 |
 | PARAKOOPA | ParaKoopaBehavior | 飛翔烏龜 | 正弦波浮動->著陸 |
@@ -1380,7 +1379,7 @@ events.Unsubscribe(id);
 
 - `CollisionManager` 本身被重構為一個極其簡潔的 **Facade（外觀門面）**，它不包含任何具體的碰撞計算邏輯，而是將職責徹底委派給 4 個特化的策略處理器（均繼承自 `ICollisionHandler` 標記基類）。
 - **四個特化處理器：**
-  1. `PlayerBlockHandler`：處理玩家與方塊的碰撞（採用 C# 經典的三步驟物理 Snap 管線）。
+  1. `PlayerBlockHandler`：處理玩家與方塊的碰撞（採用經典的三步驟物理 Snap 管線）。
   2. `PlayerEntityHandler`：處理玩家與各類敵方/道具實體的碰撞（Stomp Combo 踩踏、星星無敵殺敵、硬幣收集等）。
   3. `EntityBlockHandler`：處理所有敵人與場景方塊的碰撞（地面 Snap、面牆反向、落坑刪除）。
   4. `EntityEntityHandler`：處理實體與實體間的碰撞（玩家火球擊殺敵人、移動龜殼擊殺敵人），並透過 thread-local 快取與視口剔除將碰撞迴圈由 $O(N^2)$ 優化至 $O(M^2)$。
@@ -2111,7 +2110,7 @@ sequenceDiagram
 
 ### 6.8 每幀碰撞解析 Pipeline 序列圖 (Collision Pipeline)
 
-本圖呈現 `PlayingSceneHandler::Update()` 中 PHASE 4 ～ PHASE 10 的完整碰撞解析流程，對應 C# `Form1.cs::onTick()` 的精確移植順序。
+本圖呈現 `PlayingSceneHandler::Update()` 中 PHASE 4 ～ PHASE 10 的完整碰撞解析流程，對應 `onTick()` 的精確移植順序。
 
 ```mermaid
 sequenceDiagram
@@ -2423,7 +2422,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Collision/BlockContactResolver.hpp` | `BlockContactResolver` | None (static utility) | 靜態 Down/Up/Right/Left AABB Snap helpers；`INTERSECT_STRICTNESS` (0.35f) 地面邊緣調優。 |
 | `Mario/Collision/PlayerBlockHandler.hpp` | `PlayerBlockHandler` | `ICollisionHandler` | 玩家-方塊三步驟管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
 | `Mario/Collision/PlayerEntityHandler.hpp` | `PlayerEntityHandler` | `ICollisionHandler` | 玩家-實體碰撞：踩踏 NES Combo / 傷害 / 道具收集。 |
-| `Mario/Collision/EntityBlockHandler.hpp` | `EntityBlockHandler` | `ICollisionHandler` | 實體-方塊碰撞：地面 Snap / 牆壁翻向 / Fireball爆炸 / 落坑刪除。 |
+| `Mario/Collision/EntityBlockHandler.hpp` | `EntityBlockHandler` | `ICollisionHandler` | 實體-方塊碰撞：地面 Snap / 天花板 Check / 牆壁翻向 / Fireball爆炸 / 落坑刪除。 |
 | `Mario/Collision/EntityEntityHandler.hpp` | `EntityEntityHandler` | `ICollisionHandler` | 實體-實體碰撞：火球 vs 敵人 / 移動龜殼 vs 敵人；快取過濾。 |
 | `Mario/Level/GameStateManager.hpp` | `GameStateManager` | None (Service) | 分數/生命/金幣/時間/關卡進度與 Warp 傳送 Context。 |
 | `Mario/Scenes/ISceneHandler.hpp` | `ISceneHandler` | None (interface) | State Pattern 純虛介面（10 個實作）。 |
@@ -2495,7 +2494,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Collision/BlockContactResolver.cpp` | 116 | 靜態 Snap helpers（Down/Up/Right/Left）與 BodyRect 全高碰撞體建立。 |
 | `Mario/Collision/PlayerBlockHandler.cpp` | 329 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
 | `Mario/Collision/PlayerEntityHandler.cpp` | 216 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
-| `Mario/Collision/EntityBlockHandler.cpp` | 159 | 實體-方塊碰撞：處理反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
+| `Mario/Collision/EntityBlockHandler.cpp` | 197 | 實體-方塊碰撞：處理地平/天花板 Snap/反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
 | `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
 | `Mario/Level/GameStateManager.cpp` | 139 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
 | `Mario/Scenes/MenuSceneHandlers.cpp` | 168 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
@@ -2517,15 +2516,15 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/UI/TitleMenuItems.cpp` | 51 | 實作標題選單的各個具體命令類別（StartGame/Controls/QuitGame）。 |
 | `Mario/UI/LoadingPanel.cpp` | 71 | 關卡加載畫面面板實作，載入並擺放角色預覽精靈。 |
 | `Mario/UI/GameOverPanel.cpp` | 84 | 專用遊戲結束文字結算面板實作。 |
-| `Mario/UI/GameWonPanel.cpp` | 132 | 專用遊戲勝利恭喜及角色謝幕面板實作。 |
+| `Mario/UI/GameWonPanel.cpp` | 132 | 專用遊戲勝利恭喜及角色謝幕面板實作. |
 | `Mario/UI/ESCMenuPanel.cpp` | 239 | 暫停選單面板實作，渲染選項列表並支援展示 controls guide 面板。 |
 | `Mario/UI/ESCMenuItems.cpp` | 144 | 實作暫停選單的各個具體命令類別（Resume/Warp/Cheat/Power/Controls）。 |
 | `Mario/UI/AxeEndingPanel.cpp` | 47 | 終局城堡謝幕面板實作。 |
 | `Mario/UI/CoinUI.cpp` | 85 | HUD 金幣閃爍與計數動畫實作。 |
 | `Mario/UI/FloatingText.cpp` | 44 | 漂浮分數文字 60 幀 Alpha 漸進式淡出與向上漂移。 |
 | `Mario/Behaviors/GoombaBehavior.cpp` | 70 | Goomba 巡邏與面牆反向、踩扁 AI。 |
-| `Mario/Behaviors/KoopaFamily.cpp` | 361 | 紅綠烏龜兵、飛龜、擲斧龜多型 AI；以 KoopaType 區分，消除 string 逐幀比較。 |
-| `Mario/Behaviors/BowserBehavior.cpp` | 371 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
+| `Mario/Behaviors/KoopaFamily.cpp` | 335 | 烏龜兵、飛龜、擲斧龜多型 AI；以 KoopaType 區分，消除 string 逐幀比較。 |
+| `Mario/Behaviors/BowserBehavior.cpp` | 367 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
 | `Mario/Behaviors/CastleFireSpawnerBehavior.cpp` | 119 | 隱形越屏定時向左發射火球 AI。 |
 | `Mario/Behaviors/FireballBehavior.cpp` | 106 | 火球拋物線與碰撞爆炸物理。 |
 | `Mario/Behaviors/ItemBehaviors.cpp` | 253 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
@@ -2657,8 +2656,8 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | PHASE 9 | ✅ DONE | AudioManager 整合；BGM/SFX 全面音訊測試。 |
 | FINAL | ✅ DONE | 1-1 ➔ 1-2 ➔ 8-4 完整流程驗證。 |
 | BUG SESSION 1 | ✅ DONE | Bug #1–9：碰撞/磚塊碎片/旗幟Z軸/水管定位/Bowser HP 機制修復。 |
-| COLLISION REWRITE | ✅ DONE | CheckPlayerBlockCollision 全面 C# 移植；FallDetect 與 per-block 迴圈重構。 |
-| PIPE FIX | ✅ DONE | CheckPipeCollision: full-body AABB +1px；下管/右管條件 C# 精確移植 (Bug #10)。 |
+| COLLISION REWRITE | ✅ DONE | CheckPlayerBlockCollision；FallDetect 與 per-block 迴圈重構。 |
+| PIPE FIX | ✅ DONE | CheckPipeCollision: full-body AABB +1px；下管/右管條件精確移植 (Bug #10)。 |
 | BUG SESSION 2 | ✅ DONE | Bug #11–14：Sticky Wall/邊緣飄浮 / 渲染縫隙 / 出生點視覺偏移 / 城堡材質修復。 |
 | BUG SESSION 3 | ✅ DONE | Bug #15–18：旗杆序列 / 載入畫面黑屏修復 / 8-4 鏡頭鎖屏 / PiranhaPlant 居中。 |
 | BUG SESSION 4 | ✅ DONE | Bug #19–22：死亡動畫策略 / 蹲下碰撞 hitbox 調整 / 右管傳送 / FPS 顯示。 |

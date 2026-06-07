@@ -120,8 +120,13 @@ void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
                               int gameTimer) {
     if (state.IsSquished() || state.IsDead()) return;
 
-    // 1. Initialize decoupled patrol movement direction
-    if (!m_PatrolInitialized) {
+    // 1. Sync patrol direction from current velocity (allows physical wall bounces from CheckWalls to propagate)
+    if (state.GetVelX() > 0.0f) {
+        m_PatrolDirection = 1;
+    } else if (state.GetVelX() < 0.0f) {
+        m_PatrolDirection = -1;
+    } else if (!m_PatrolInitialized) {
+        // Initial setup
         m_PatrolDirection = (state.GetDirection() == 0) ? -1 : 1;
         m_PatrolInitialized = true;
     }
@@ -169,37 +174,6 @@ void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
     // 5. Decoupled patrol movement
     float walkSpeed = GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
     state.SetVelX(static_cast<float>(m_PatrolDirection) * walkSpeed);
-
-    // 6. Grid-based wall bounce collision checking
-    AABB enemyBox = state.GetCollider();
-    int topTile = static_cast<int>(enemyBox.top) / GameConfig::TILE_SIZE;
-    int bottomTile =
-        static_cast<int>(enemyBox.bottom - 1) / GameConfig::TILE_SIZE;
-    bool hitWall = false;
-
-    if (m_PatrolDirection > 0) {
-        int rightTile =
-            static_cast<int>(enemyBox.right) / GameConfig::TILE_SIZE;
-        for (int y = topTile; y <= bottomTile && !hitWall; y++) {
-            const Block* block = level.GetBlockAt(rightTile, y);
-            if (block && block->IsSolid() &&
-                enemyBox.Intersects(block->GetAABB()))
-                hitWall = true;
-        }
-    } else {
-        int leftTile = static_cast<int>(enemyBox.left) / GameConfig::TILE_SIZE;
-        for (int y = topTile; y <= bottomTile && !hitWall; y++) {
-            const Block* block = level.GetBlockAt(leftTile, y);
-            if (block && block->IsSolid() &&
-                enemyBox.Intersects(block->GetAABB()))
-                hitWall = true;
-        }
-    }
-
-    if (hitWall) {
-        m_PatrolDirection *= -1;
-        state.SetVelX(static_cast<float>(m_PatrolDirection) * walkSpeed);
-    }
 
     if (state.IsAnimated() && gameTimer % 10 == 0) {
         state.AdvanceAnimationFrame();

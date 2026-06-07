@@ -37,6 +37,7 @@ void EntityBlockHandler::Resolve(
     }
 
     CheckGround(entity, level);
+    CheckCeiling(entity, level);
     CheckWalls(entity, level, outNewEntities);
 
     // Pit fall: deactivate entities that fall below the level floor.
@@ -152,6 +153,43 @@ void EntityBlockHandler::CheckWalls(
                 }
                 break;
             }
+        }
+    }
+}
+
+// ============================================================================
+// CheckCeiling
+// Snap head of entity to the bottom of solid block when rising.
+// ============================================================================
+void EntityBlockHandler::CheckCeiling(Entity& entity, Level& level) {
+    EntityState& state = entity.GetState();
+
+    // Only check ceiling if the entity is moving upward (rising in a jump/bounce).
+    if (state.GetVelY() >= 0.0 && state.GetFallHeight() <= 0.0) {
+        return;
+    }
+
+    AABB box = entity.GetHitbox();
+    const int tileSize = GameConfig::TILE_SIZE;
+
+    // Shift 1.0f upward to check the block directly above the entity.
+    float checkY = box.top - 1.0f;
+    int leftTile = static_cast<int>(box.left) / tileSize;
+    int rightTile = static_cast<int>(box.right - 1) / tileSize;
+    int topTile = static_cast<int>(checkY) / tileSize;
+
+    // Boundary check
+    if (topTile < 0) return;
+
+    for (int x = leftTile; x <= rightTile; x++) {
+        Block* block = level.GetBlockAt(x, topTile);
+        if (block && block->IsSolid()) {
+            AABB bb = block->GetAABB();
+            // Snap entity top to the bottom of the ceiling block
+            state.SetY(bb.bottom);
+            state.SetVelY(0.0);
+            state.SetFallHeight(0.0);
+            break;
         }
     }
 }
