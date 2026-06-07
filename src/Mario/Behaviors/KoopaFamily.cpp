@@ -96,6 +96,14 @@ std::unique_ptr<IEntityBehavior> KoopaBehavior::Clone() const {
     return std::make_unique<KoopaBehavior>(*this);
 }
 
+AABB KoopaBehavior::GetHitbox(const EntityState& state) const {
+    float w = static_cast<float>(state.GetWidth());
+    float h = static_cast<float>(state.GetHeight());
+    float hitW = w * 0.75f;
+    float offsetX = (w - hitW) * 0.5f;
+    return AABB::FromPosSize(state.GetX() + offsetX, state.GetY(), hitW, h);
+}
+
 bool KoopaBehavior::IsShell() const { return m_Type == KoopaType::SHELL; }
 
 float KoopaBehavior::GetVisualYOffset(const std::string& levelName) const {
@@ -207,6 +215,14 @@ bool AxeKoopaBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
 
 std::unique_ptr<IEntityBehavior> AxeKoopaBehavior::Clone() const {
     return std::make_unique<AxeKoopaBehavior>(*this);
+}
+
+AABB AxeKoopaBehavior::GetHitbox(const EntityState& state) const {
+    float w = static_cast<float>(state.GetWidth());
+    float h = static_cast<float>(state.GetHeight());
+    float hitW = w * 0.75f;
+    float offsetX = (w - hitW) * 0.5f;
+    return AABB::FromPosSize(state.GetX() + offsetX, state.GetY(), hitW, h);
 }
 
 bool AxeKoopaBehavior::ConsumeSpawnRequest(EntityType& outType, float& outX,
@@ -325,6 +341,14 @@ bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state,
 
 std::unique_ptr<IEntityBehavior> ParaKoopaBehavior::Clone() const {
     return std::make_unique<ParaKoopaBehavior>(*this);
+}
+
+AABB ParaKoopaBehavior::GetHitbox(const EntityState& state) const {
+    float w = static_cast<float>(state.GetWidth());
+    float h = static_cast<float>(state.GetHeight());
+    float hitW = w * 0.75f;
+    float offsetX = (w - hitW) * 0.5f;
+    return AABB::FromPosSize(state.GetX() + offsetX, state.GetY(), hitW, h);
 }
 
 bool ParaKoopaBehavior::IsShell() const { return m_Mode == Mode::SHELL; }

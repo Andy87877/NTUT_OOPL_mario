@@ -121,6 +121,12 @@ class PlayerState {
     bool IsDeathAnimActive() const {
         return m_DeathAnimation && m_DeathAnimation->IsActive();
     }
+    float GetDeathRotation() const {
+        return m_DeathAnimation ? m_DeathAnimation->GetRotation() : 0.0f;
+    }
+    float GetDeathScaleY() const {
+        return m_DeathAnimation ? m_DeathAnimation->GetScaleY() : 1.0f;
+    }
 
     void StartDeathAnimation();
     void UpdateDeathAnimation();

@@ -61,6 +61,9 @@ void App::Start() {
     Mario::ServiceLocator::GetInstance().RegisterService<Mario::IAudioService>(
         audioService);
 
+    // Preload all audio assets to prevent mid-game/on-death frame rate drops
+    audioService->PreloadAll();
+
     TransitionTo(State::TITLE);
     LOG_INFO("Game initialized - entering TITLE state");
 }
@@ -176,7 +179,10 @@ void App::AdvanceToNextLevel() {
 // ============================================================================
 // End
 // ============================================================================
-void App::End() { LOG_TRACE("End"); }
+void App::End() {
+    LOG_TRACE("End");
+    Mario::ServiceLocator::GetInstance().Clear();
+}
 
 // NOTE: CheckFlagpoleCollision, CheckPipeCollision, CheckAxeCollision,
 //       CheckPlayerEntityCollision, CheckEntityEntityCollision, and

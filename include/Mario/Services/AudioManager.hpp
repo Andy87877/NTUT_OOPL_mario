@@ -56,6 +56,7 @@ class AudioManager : public IAudioService {
     void SetVolume(float volume) override;
     void SetMuted(bool muted) override;
     void PlayBGMForLevel(BGMTheme theme, int timeRemaining) override;
+    void PreloadAll() override;
 
    private:
     float m_Volume = 1.0f;

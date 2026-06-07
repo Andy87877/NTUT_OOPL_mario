@@ -55,6 +55,14 @@ bool GoombaBehavior::OnPlayerCollision(EntityState& state, [[maybe_unused]] Play
     return false;
 }
 
+AABB GoombaBehavior::GetHitbox(const EntityState& state) const {
+    float w = static_cast<float>(state.GetWidth());
+    float h = static_cast<float>(state.GetHeight());
+    float hitW = w * 0.75f;
+    float offsetX = (w - hitW) * 0.5f;
+    return AABB::FromPosSize(state.GetX() + offsetX, state.GetY(), hitW, h);
+}
+
 std::unique_ptr<IEntityBehavior> GoombaBehavior::Clone() const {
     return std::make_unique<GoombaBehavior>(*this);
 }

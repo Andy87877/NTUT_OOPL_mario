@@ -99,7 +99,7 @@ void DeathSceneHandler::OnEnter(App& app) {
     if (player) {
         player->GetState().StartDeathAnimation();
     }
-    app.GetDeathTimer() = app.GetTimer() + 96;
+    app.GetDeathTimer() = app.GetTimer() + 150;
     Mario::AudioManager::GetInstance().PlayBGM(Mario::BGMName::LostALifeTheme);
     LOG_INFO("Player died - entering DEATH state (Lives remaining: {})",
              app.GetGameState().GetLives());

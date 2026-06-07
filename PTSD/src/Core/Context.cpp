@@ -168,12 +168,19 @@ void Context::Update() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     constexpr ms_t frameTime = FPS_CAP != 0 ? 1000.0F / FPS_CAP : 0;
-    ms_t afterUpdate = Util::Time::GetElapsedTimeMs();
-    ms_t updateTime = afterUpdate - m_BeforeUpdateTime;
-    // Use a safety margin of 2.0ms to prevent double-buffering delay when VSync is active.
-    // This ensures we do not sleep if we are already close to the 60 FPS cap limit.
-    if (updateTime < frameTime - 2.0F) {
-        SDL_Delay(static_cast<Uint32>(frameTime - updateTime));
+    if (frameTime > 0) {
+        ms_t targetTime = m_BeforeUpdateTime + frameTime;
+        ms_t now = Util::Time::GetElapsedTimeMs();
+
+        // Coarse sleep if we have more than 3.0ms remaining (lowers CPU usage when VSync is off)
+        if (targetTime - now > 3.0F) {
+            SDL_Delay(static_cast<Uint32>(targetTime - now - 3.0F));
+        }
+
+        // Precise busy-wait for sub-millisecond precision
+        while (Util::Time::GetElapsedTimeMs() < targetTime) {
+            // Spin/yield
+        }
     }
     m_BeforeUpdateTime = Util::Time::GetElapsedTimeMs();
 

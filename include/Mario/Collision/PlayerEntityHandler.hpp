@@ -53,7 +53,7 @@ class PlayerEntityHandler : public ICollisionHandler {
     // Handle overlap with an active enemy entity.
     void HandleEnemyCollision(Player& player, Entity& entity, Camera& camera,
                               GameStateManager& gameState,
-                              UIManager& uiManager);
+                              UIManager& uiManager, bool isStomp);
 
     // Handle overlap with a power-up or coin entity.
     void HandleItemCollision(Player& player, Entity& entity, Camera& camera,

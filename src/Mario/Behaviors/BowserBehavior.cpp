@@ -356,6 +356,14 @@ bool BowserBehavior::ConsumeSpawnRequest(EntityType& outType, float& outX,
     return true;
 }
 
+AABB BowserBehavior::GetHitbox(const EntityState& state) const {
+    float w = static_cast<float>(state.GetWidth());
+    float h = static_cast<float>(state.GetHeight());
+    float hitW = w * 0.70f;
+    float offsetX = (w - hitW) * 0.5f;
+    return AABB::FromPosSize(state.GetX() + offsetX, state.GetY(), hitW, h);
+}
+
 std::unique_ptr<IEntityBehavior> BowserBehavior::Clone() const {
     return std::make_unique<BowserBehavior>(*this);
 }

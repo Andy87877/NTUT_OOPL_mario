@@ -19,7 +19,7 @@
 namespace Mario {
 
 PlayerState::PlayerState()
-    : m_DeathAnimation(std::make_unique<ClassicPlayerDeathAnimation>()),
+    : m_DeathAnimation(std::make_unique<TumblePlayerDeathAnimation>()),
       m_Form(std::make_unique<SmallPlayerForm>()) {}
 
 PlayerState::~PlayerState() = default;
@@ -51,7 +51,7 @@ void PlayerState::Init(float worldX, float worldY, int startState) {
     m_TransitionTimer = 0;
     m_PrevPowerState = PowerState::SMALL;
     m_CheatStarActive = false;
-    m_DeathAnimation = std::make_unique<ClassicPlayerDeathAnimation>();
+    m_DeathAnimation = std::make_unique<TumblePlayerDeathAnimation>();
 }
 
 void PlayerState::Tick() {
@@ -409,7 +409,7 @@ void PlayerState::StartDeathAnimation() {
     m_VelY = 0.0;
 
     if (!m_DeathAnimation) {
-        m_DeathAnimation = std::make_unique<ClassicPlayerDeathAnimation>();
+        m_DeathAnimation = std::make_unique<TumblePlayerDeathAnimation>();
     }
     m_DeathAnimation->Start();
 }

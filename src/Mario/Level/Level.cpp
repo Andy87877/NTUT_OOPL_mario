@@ -49,6 +49,7 @@ bool Level::Load(const std::string& levelName) {
     m_LevelName = levelName;
     m_Blocks.clear();
     m_GridBlocks.clear();
+    m_MovingPlatforms.clear();
     m_SpawnPoints.clear();
     m_Grid.clear();
     m_GoalBlocks.clear();

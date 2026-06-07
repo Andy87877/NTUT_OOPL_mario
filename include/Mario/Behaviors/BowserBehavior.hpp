@@ -82,6 +82,8 @@ class BowserBehavior : public IEntityBehavior {
      */
     std::unique_ptr<IEntityBehavior> Clone() const override;
 
+    AABB GetHitbox(const EntityState& state) const override;
+
     const char* GetName() const override { return "BowserBehavior"; }
 
     bool AlwaysUpdate() const override { return true; }

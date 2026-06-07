@@ -34,6 +34,11 @@ void PlayerEntityHandler::Resolve(
         m_StompCombo = 0;
     }
 
+    // Pre-calculate stomp state at the beginning of the frame so that multiple stomps
+    // in a single frame are correctly processed (instead of subsequent stomps turning into
+    // damage because of the bounce upward velocity change).
+    bool isStomp = !ps.IsGrounded() && ps.GetFallHeight() <= 0.0;
+
     for (auto& entity : entities) {
         EntityState& es = entity->GetState();
         if (!es.IsActive()) continue;
@@ -43,7 +48,7 @@ void PlayerEntityHandler::Resolve(
         if (!playerBox.Intersects(entityBox)) continue;
 
         if (es.IsEnemy()) {
-            HandleEnemyCollision(player, *entity, camera, gameState, uiManager);
+            HandleEnemyCollision(player, *entity, camera, gameState, uiManager, isStomp);
         } else if (es.IsPowerUp() || es.IsCoin()) {
             HandleItemCollision(player, *entity, camera, gameState, uiManager);
         }
@@ -57,7 +62,7 @@ void PlayerEntityHandler::Resolve(
 void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
                                                Camera& camera,
                                                GameStateManager& gameState,
-                                               UIManager& uiManager) {
+                                               UIManager& uiManager, bool isStomp) {
     PlayerState& ps = player.GetState();
     EntityState& es = entity.GetState();
     AABB playerBox = ps.GetHitbox();
@@ -113,7 +118,6 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
     // The old overlapY < TILE_SIZE*0.5 check caused false negatives after
     // ~20 frames of free fall (VelY accumulates past 22.5 px/frame), and
     // ps.GetVelY() >= 0 could transiently fail at the rise→fall transition.
-    bool isStomp = !ps.IsGrounded() && ps.GetFallHeight() <= 0.0;
 
     if (isStomp) {
         // --- Stomp-immune enemies (Bowser, Podoboo, etc.) ------------------

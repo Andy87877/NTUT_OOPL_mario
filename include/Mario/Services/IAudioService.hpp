@@ -58,6 +58,11 @@ class IAudioService {
      * @param timeRemaining  Remaining level time; <= 100 triggers hurry-up.
      */
     virtual void PlayBGMForLevel(BGMTheme theme, int timeRemaining) = 0;
+
+    /**
+     * Preload all audio assets (BGM and SFX) to prevent mid-game frame drops.
+     */
+    virtual void PreloadAll() = 0;
 };
 
 }  // namespace Mario

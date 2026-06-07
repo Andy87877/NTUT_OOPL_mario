@@ -89,14 +89,19 @@ void Player::UpdateView(float cameraOffset) {
 
     // Flip sprite based on facing direction, maintaining scale
     float absScaleX = GameConfig::DRAW_SCALE;
-    m_Transform.scale.y = GameConfig::DRAW_SCALE;
 
     if (m_State.IsDeathAnimActive()) {
         m_Transform.scale.x = absScaleX;
-    } else if (m_State.IsFacingRight()) {
-        m_Transform.scale.x = absScaleX;
+        m_Transform.scale.y = GameConfig::DRAW_SCALE * m_State.GetDeathScaleY();
+        m_Transform.rotation = m_State.GetDeathRotation();
     } else {
-        m_Transform.scale.x = -absScaleX;
+        m_Transform.scale.y = GameConfig::DRAW_SCALE;
+        m_Transform.rotation = 0.0f;
+        if (m_State.IsFacingRight()) {
+            m_Transform.scale.x = absScaleX;
+        } else {
+            m_Transform.scale.x = -absScaleX;
+        }
     }
 
     // Handle invincibility flicker effect.

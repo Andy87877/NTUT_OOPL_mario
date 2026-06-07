@@ -42,6 +42,7 @@ class KoopaBehavior : public IEntityBehavior {
     bool OnPlayerCollision(EntityState& state, Player& player,
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
+    AABB GetHitbox(const EntityState& state) const override;
     const char* GetName() const override { return "KoopaBehavior"; }
     bool IsShell() const override;
     float GetVisualYOffset(const std::string& levelName) const override;
@@ -72,6 +73,7 @@ class AxeKoopaBehavior : public IEntityBehavior {
     bool ConsumeSpawnRequest(EntityType& outType, float& outX, float& outY,
                              int& outDir) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
+    AABB GetHitbox(const EntityState& state) const override;
     const char* GetName() const override { return "AxeKoopaBehavior"; }
 
     /** AxeKoopa spawns enemy axe projectiles (OCP — no EntityType check). */
@@ -114,6 +116,7 @@ class ParaKoopaBehavior : public IEntityBehavior {
     bool OnPlayerCollision(EntityState& state, Player& player,
                            bool isFromAbove) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
+    AABB GetHitbox(const EntityState& state) const override;
     const char* GetName() const override { return "ParaKoopaBehavior"; }
     bool IsShell() const override;
     float GetVisualYOffset(const std::string& levelName) const override;

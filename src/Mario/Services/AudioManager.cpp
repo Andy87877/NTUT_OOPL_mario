@@ -233,4 +233,40 @@ void AudioManager::PlayBGMForLevel(BGMTheme theme, int timeRemaining) {
     PlayBGM(bgm);
 }
 
+void AudioManager::PreloadAll() {
+    LOG_INFO("Preloading all BGM and SFX assets to prevent frame drops...");
+    
+    // Preload BGMs
+    for (size_t i = 0; i < BGMPaths.size(); ++i) {
+        BGMName name = static_cast<BGMName>(i);
+        if (m_BGMs.find(name) == m_BGMs.end()) {
+            std::string relativePath = BGMPaths[i];
+            std::string filename = relativePath.substr(relativePath.find_last_of("/\\") + 1);
+            std::string fullPath = AudioPathResolver::GetBGMPath(filename);
+            try {
+                m_BGMs[name] = std::make_shared<Util::BGM>(fullPath);
+            } catch (const std::exception& e) {
+                LOG_WARN("Failed to preload BGM {}: {}", filename, e.what());
+            }
+        }
+    }
+
+    // Preload SFXs
+    for (size_t i = 0; i < SFXPaths.size(); ++i) {
+        SFXName name = static_cast<SFXName>(i);
+        if (m_SFXs.find(name) == m_SFXs.end()) {
+            std::string relativePath = SFXPaths[i];
+            std::string filename = relativePath.substr(relativePath.find_last_of("/\\") + 1);
+            std::string fullPath = AudioPathResolver::GetSFXPath(filename);
+            try {
+                m_SFXs[name] = std::make_shared<Util::SFX>(fullPath);
+            } catch (const std::exception& e) {
+                LOG_WARN("Failed to preload SFX {}: {}", filename, e.what());
+            }
+        }
+    }
+    
+    LOG_INFO("BGM and SFX preloading completed successfully.");
+}
+
 }  // namespace Mario
