@@ -22,47 +22,95 @@
 
 ### 遊戲規則
 
-- **操作方式** - 按鍵
-  - ← → (或 A / D) - 控制 Mario 左右移動
-  - ↑ / W - 跳躍（按得越久可以跳得越高）
-  - ↓ / S - 蹲下（只有在大瑪利歐或火焰瑪利歐狀態下才可以蹲下）
-  - E - 發射火球（在火焰瑪利歐狀態下）
-  - LShift - 加速跑步，或是
-  - ESC - 開啟暫停選單（可以進行變身、開關外掛）
-  - Enter - 開始遊戲，或是確認選單
-- **遊戲機制**
-  - **生命系統**：Mario 一開始有 3 條命，如果掉進懸崖、被敵人碰到（沒踩到的話）、或是時間歸零，就會死掉並扣一條命。命扣完就 Game Over。
-  - **力量型態 (Power State)**：
-    - **小瑪利歐 (Small)**：最基本的狀態，被敵人碰到就會死。
-    - **大瑪利歐 (Big)**：吃紅香菇變大，可以撞碎磚塊。被敵人碰到的話會縮小成小瑪利歐，不會直接死。
-    - **火焰瑪利歐 (Fire)**：吃火焰花變身，可以按 Shift/E 丟火球打倒敵人。
-    - **無敵星星 (Star)**：吃星星之後會閃爍，這段時間是無敵的，碰到敵人直接把敵人撞飛。
-  - **金幣與分數**：路上收集金幣可以加分，每收集滿 100 枚金幣會額外獲得一條命。
-  - **時間限制**：每個關卡限時 400 秒，如果時間低於 100 秒，遊戲背景音樂會自動變快，提醒玩家要抓緊時間。
-  - **踩踏連擊**：如果連續踩踏多個敵人而且中間沒有落地，獲得的分數會一直翻倍（100 -> 200 -> 400 -> 800 -> 1000）。
-- **關卡流程**
-  - 遊戲共有三個關卡：World 1-1 (經典地面關卡) -> 觸碰旗桿 -> World 1-2 (地下關卡，有食人花與平台) -> 進入傳送水管 -> World 8-4 (城堡關卡，有岩漿與 Boss 庫巴) -> 踩下橋頭斧頭擊敗庫巴 -> 通關！
-- **敵人行為**
-  - **栗寶寶 (Goomba)**：最基礎的敵人，只會左右巡邏，碰到牆壁會折返。玩家可以直接跳起來踩扁它，或是用火球打飛。
-  - **烏龜兵 (Koopa Troopa)**：被踩了之後會縮入龜殼。玩家可以走過去踢飛龜殼，龜殼會快速滑動並砸死路上的其他敵人。
-  - **飛天龜 (ParaKoopa)**：有翅膀的烏龜，會成正弦波浮動飛行。被玩家踩中一次後會失去翅膀，降為普通烏龜兵。
-  - **擲斧烏龜 (AxeKoopa)**：會左右走動、避開坑洞，並主動往玩家的方向跳躍及投擲斧頭，是比較棘手的敵人。
-  - **Boss 庫巴 (Bowser)**：關卡 8-4 的終極 Boss。它有五個 AI 階段，會左右走動、朝玩家噴吐火球、活潑地跳躍。玩家需要射出多個火球才能擊殺它，或者直接衝到它身後砍斷吊橋。
-  - **食人花 (Piranha Plant)**：藏在綠色水管裡，定時上下伸縮。我設計了安全偵測，如果玩家站得離水管太近，食人花就不會伸出來，避免玩家剛好走過去被偷襲。
-  - **岩漿泡泡 (Podoboo)**：從 8-4 關卡的熔岩中定時往上跳起，再掉回岩漿中，這種敵人是不能踩踏的。
-  - **城堡火柱 (Castle Fire)**：在 8-4 城堡裡旋轉的越屏火柱，會動態追蹤並傷害玩家。
-- **道具介紹**
-  - **紅香菇 (Mushroom)**：吃掉後可以從小瑪利歐變身為大瑪利歐，身體變高且能敲碎一般磚塊。
-  - **火焰花 (Fire Flower)**：吃掉後可以升級為火焰瑪利歐，按 E / Shift 鍵可以投擲火球。
-  - **無敵星星 (Star)**：吃掉後會有一段時間無敵，此時碰到任何敵人都可以直接撞飛消滅。
-  - **綠香菇 (1-UP Mushroom)**：吃掉後可以額外增加一條命。
-  - **金幣 (Coin)**：路上或磚塊裡的金幣，每收集滿 100 枚金幣就能加一條命。
-- **外掛模式 (Cheat Mode)**
-  - 在遊戲中按下 ESC 叫出暫停選單，我寫了外掛功能可以自由切換：
-    - 可以自由變身成小瑪利歐、大瑪利歐或火焰狀態。
-    - 可以開啟「無限無敵星星」讓 Mario 永久無敵。
-    - 可以開啟「火球射擊能力」，讓小瑪利歐也能射火球。
-    - 可以開啟「虛空救援」，掉進深淵時會自動傳送回上一個起跳平台，不用擔心死掉。
+#### 🎮 操作方式
+
+<!-- ![Control Guide](2026OOPL_Final_imgs/control_guide.png) -->
+
+| 按鍵 | 功能 |
+|:---:|---|
+| `← →` 或 `A` `D` | 左右移動 |
+| `↑` 或 `W` | 跳躍（按住越久跳越高） |
+| `↓` 或 `S` | 蹲下（限大瑪利歐、火焰瑪利歐） |
+| `E` / `LShift` | 發射火球（火焰型態），加速跑步 |
+| `ESC` | 開啟暫停選單（變身 / 外掛 / 關卡跳轉） |
+| `Enter` | 開始遊戲 / 確認選單 |
+
+---
+
+#### ⭐ 力量型態 (Power State)
+
+| 圖示 | 型態 | 說明 |
+|:---:|:---:|---|
+| <img src="Resources/Sprites/MarioIdle.png" width="32"> | **小瑪利歐 (Small)** | 最基本狀態，被敵人碰到直接死亡 |
+| <img src="Resources/Sprites/MarioIdle1.png" width="32"> | **大瑪利歐 (Big)** | 吃紅香菇變大，可撞碎磚塊。被敵人碰到縮小，不會直接死 |
+| <img src="Resources/Sprites/MarioFire2.png" width="32"> | **火焰瑪利歐 (Fire)** | 吃火焰花升級，可按 `E`/`LShift` 發射火球消滅敵人 |
+| <img src="Resources/Sprites/Star1.png" width="32"> | **無敵星星 (Star)** | 吃星星後閃爍無敵，碰到任何敵人直接撞飛 |
+
+---
+
+#### 👾 敵人介紹
+
+| 圖示 | 名稱 | 特性 |
+|:---:|:---:|---|
+| <img src="Resources/Sprites/Goomba1.png" width="36"> | **栗寶寶 (Goomba)** | 最基礎敵人，左右巡邏碰牆折返。可跳踩扁或用火球打飛 |
+| <img src="Resources/Sprites/KoopaTroopa1.png" width="36"> | **烏龜兵 (Koopa)** | 被踩後縮入龜殼。踢飛龜殼可連鎖擊殺其他敵人 |
+| <img src="Resources/Sprites/8-4/ParaKoopa1.png" width="36"> | **飛天龜 (ParaKoopa)** | 有翅膀的烏龜，正弦波飛行。踩一次失去翅膀變普通烏龜兵 |
+| <img src="Resources/Sprites/8-4/AxeKoopa1.png" width="36"> | **擲斧烏龜 (AxeKoopa)** | 會避坑、主動追蹤玩家、定期投擲斧頭，頗為棘手 |
+| <img src="Resources/Sprites/8-4/Bowser1.png" width="48"> | **Boss 庫巴 (Bowser)** | 8-4 終極 Boss，5 階段 AI：巡邏 → 噴火 → 跳躍 → 受傷 → 擊敗。需多發火球擊殺，或直接砍斷橋頭斧頭 |
+| <img src="Resources/Sprites/8-4/PiranhaPlant1.png" width="36"> | **食人花 (Piranha Plant)** | 藏在水管裡定時伸縮。玩家太靠近水管時，食人花不會出現（安全偵測防偷襲） |
+| <img src="Resources/Sprites/8-4/Podoboo1.png" width="32"> | **岩漿泡泡 (Podoboo)** | 從熔岩中定時向上彈跳，無法被踩踏 |
+
+---
+
+#### 🎁 道具介紹
+
+| 圖示 | 名稱 | 效果 |
+|:---:|:---:|---|
+| <img src="Resources/Sprites/Mushroom.png" width="32"> | **紅香菇 (Mushroom)** | 小 → 大瑪利歐，身體變高且能敲碎磚塊 |
+| <img src="Resources/Sprites/FireFlower1.png" width="32"> | **火焰花 (Fire Flower)** | 升級為火焰瑪利歐，可投擲火球 |
+| <img src="Resources/Sprites/Star1.png" width="32"> | **無敵星星 (Star)** | 短時間無敵，碰到敵人直接撞飛 |
+| <img src="Resources/Sprites/OneUpShroom.png" width="32"> | **綠香菇 (1-UP)** | 額外增加一條命 |
+| <img src="Resources/Sprites/Coin.png" width="32"> | **金幣 (Coin)** | 加分，集滿 100 枚獲得額外 1 命 |
+
+---
+
+#### 🗺️ 關卡流程
+
+```
+World 1-1 (地面關卡)
+    ↓ 觸碰旗桿
+World 1-2 (地下關卡 — 有食人花與移動平台)
+    ↓ 蹲入傳送水管
+World 8-4 (庫巴城堡 — 有熔岩、岩漿泡泡與 Boss 庫巴)
+    ↓ 踩下橋頭斧頭 / 射爆庫巴
+★ 通關！拯救公主！
+```
+
+---
+
+#### 🕹️ 外掛模式 (Cheat Mode)
+
+按 `ESC` 叫出暫停選單，可開啟以下外掛功能：
+
+| 功能 | 說明 |
+|---|---|
+| 自由變身 | 隨時切換小瑪利歐 / 大瑪利歐 / 火焰瑪利歐 |
+| 無限無敵星星 | Mario 永久閃爍無敵 |
+| 火球射擊能力 | 任何型態都能射火球 |
+| 虛空救援 | 掉進深淵自動傳送回上一個起跳平台 |
+
+---
+
+#### 💡 遊戲機制補充
+
+| 機制 | 說明 |
+|---|---|
+| **生命系統** | 起始 3 條命。掉入懸崖、被敵人碰到（未踩踏）、時間歸零均扣命；命數歸零則 Game Over |
+| **時間限制** | 每關限時 400 秒。低於 100 秒時，背景音樂自動切換為加速版提醒玩家 |
+| **踩踏連擊** | 連續踩踏多個敵人且中間未落地，得分持續翻倍：100 → 200 → 400 → 800 → 1000 |
+| **金幣獎命** | 收集滿 100 枚金幣，額外獲得 1 條命 |
+
+---
 
 ### 遊戲畫面
 
@@ -79,8 +127,9 @@
 | 踩踏敵方 (Stomp Goomba) | <img src="2026OOPL_Final_imgs/stomp_enemy.png"> |
 | 食人花與水管傳送 (Pipe Warp) | <img src="2026OOPL_Final_imgs/pipe_warp.png"> |
 | 庫巴 Boss 戰 (Bowser Battle) | <img src="2026OOPL_Final_imgs/bowser_battle.png"> |
-| 拯救公主 (Game Won Screen) | <img src="2026OOPL_Final_imgs/game_won_screen.png"> |
 | 死亡畫面 (Death Screen) | <img src="2026OOPL_Final_imgs/death_scene.png"> |
+| 拯救公主 (Game Won Screen) | <img src="2026OOPL_Final_imgs/game_won_screen.png"> |
+| 遊戲通過 (Game World Cleared) | <img src="2026OOPL_Final_imgs/game_world_won_screen.png"> |
 | 遊戲結束 (Game Over Screen) | <img src="2026OOPL_Final_imgs/game_over_screen.png"> |
 
 ## 程式設計
@@ -218,35 +267,6 @@ classDiagram
   - `FirePlayerForm`：火焰瑪利歐狀態。
   - `SmallStarPlayerForm` / `BigStarPlayerForm`：小/大瑪利歐的無敵星星狀態。
 
-##### 5. 輸入動作命令樹 (ICommand)
-
-為了讓輸入層符合 OCP 與 DIP，我將所有「玩家按鍵動作」封裝為繼承自 `ICommand` 的具體命令物件，`InputHandler` 只依賴抽象介面：
-
-```mermaid
-classDiagram
-    direction LR
-    class ICommand {
-        <<interface>>
-        +Execute(state, level)*
-    }
-    ICommand <|.. MoveRightCommand
-    ICommand <|.. MoveLeftCommand
-    ICommand <|.. JumpCommand
-    ICommand <|.. CrouchCommand
-    ICommand <|.. RunCommand
-    ICommand <|.. ShootFireballCommand
-    ICommand <|.. ApplyPhysicsMovementCommand
-    ICommand <|.. StopMovingRightCommand
-    ICommand <|.. StopMovingLeftCommand
-    ICommand <|.. StopHorizontalMovementCommand
-    ICommand <|.. StandUpCommand
-    ICommand <|.. StopRunningCommand
-```
-
-- 每個命令（如 `MoveRightCommand`、`JumpCommand`）只做一件事，完全符合 SRP。
-- `InputHandler` 在每幀依照 `IInputProfile` 讀取的按鍵狀態，選擇並執行對應的 `ICommand::Execute(state, level)`，和具體命令邏輯完全解耦。
-- 未來新增輸入動作（如衝刺、蹲跳），只需新增一個 `ICommand` 子類，無需改動 `InputHandler` 核心代碼。
-
 #### 遊戲狀態移轉圖 (App State Machine)
 
 這是整個遊戲主程式的狀態機運作流程：
@@ -368,7 +388,7 @@ sequenceDiagram
 - **架構發想與重構建議**：當我遇到 God Class 義大利麵程式碼崩潰的時候，我請 AI 幫我分析並給予重構建議。AI 幫我提出了使用 State Pattern 拆解 App 和 IPlayerForm，以及使用 Strategy Pattern 拆解 AI 行為的點子。我根據它的點子，畫出 UML 繼承圖，定義好類別介面後，再由我引導 AI 寫出具體實作。
 - **輔助撰寫核心程式碼**：在定義好 `IEntityBehavior` 和 `ISceneHandler` 的空殼後，我讓 AI 協助生成一些重覆性高但繁瑣的實作，例如 19 種 Behaviors 的具體狀態邏輯，以及 10 個場景狀態的跳轉流程，大幅節省了我的打字時間。
 - **協助除錯與優化效能**：在碰撞物理管線調優的過程中，瑪利歐常會出現卡牆或抖動的 Bug，我把程式碼片段和 Bug 狀況貼給 AI，AI 幫我分析出是物理 Snap 的順序問題（必須先做 FallDetect，再做 BodyResolution），並提供了 Viewport Culling 的優化邏輯，幫助我解決了效能瓶頸。
-- **自動化工具腳本**：為了快速編輯 8-4 的 CSV 地圖與裁切 Sprite 圖片，我請 AI 幫我用 Python 寫了 15 個小工具腳本，讓地圖產生的工作快了許多。
+- **自動化工具腳本**：為了快速編輯 8-4 的 CSV 地圖與裁切 Sprite 圖片，我請 AI 幫我用 Python 寫了小工具腳本，讓地圖產生的工作快了許多。
 - **我與 AI 協作的開發流程**：
   我嚴格遵守著「架構設計先行」的原則。每次做重大修改前，我都會先整理好我的 implementation_plan 檔案，確認邏輯沒問題才動手。我也會及時更新 Constructure.md 確保架構與程式碼同步。
 
