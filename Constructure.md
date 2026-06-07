@@ -37,13 +37,13 @@
 | §4 狀態機轉移圖 | ⭐⭐⭐ 中級 | App 狀態流程與關卡順序 |
 | §5 設計模式深度解析 | ⭐⭐⭐⭐ 進階 | 每個 Pattern 的完整動機與解法 |
 | §6 深度互動 UML 圖 | ⭐⭐⭐⭐⭐ 專家 | 跨系統序列圖、生命週期、AI 狀態機 |
-| 附錄 A 檔案清單 | 📋 參考 | 所有 .hpp/.cpp 一覽表與行數 |
-| 附錄 B OOP 原則確認 | 📋 參考 | 設計原則遵守確認表 |
-| 附錄 C Refactoring 進度 | 📋 參考 | 歷史重構階段記錄 |
-| **§10 Memory Leak 建筑分析** | 🛡️ 實戰 | RAII/智慧指標全面分析，零漏水證明 |
-| **§11 時間複雜度分析** | 🛡️ 實戰 | 核心路徑 Big-O 分析與優化證明 |
+| §7 Memory Leak 建筑分析 | 🛡️ 實戰 | RAII/智慧指標全面分析，零漏水證明 |
+| §8 時間複雜度分析 | 🛡️ 實戰 | 核心路徑 Big-O 分析與優化證明 |
+| §9 附錄 A 檔案清單 | 📋 參考 | 所有 .hpp/.cpp 一覽表與行數 |
+| §10 附錄 B OOP 原則確認 | 📋 參考 | 設計原則遵守確認表 |
+| §11 附錄 C Refactoring 進度 | 📋 參考 | 歷史重構階段記錄 |
 
-> **建議閱讀順序：** §1 → §2 → §3 → §4 → 視需求跳到 §5/§6 或附錄
+> **建議閱讀順序：** §1 → §2 → §3 → §4 → 視需求跳到 §5/§6/§7/§8 或附錄
 
 ---
 
@@ -100,27 +100,27 @@
    - 6.6 關卡載入序列圖 (Level Loading Sequence)
    - 6.7 磚塊命中 Template Method 序列圖 (Block::OnHit)
    - 6.8 每幀碰撞解析 Pipeline 序列圖 (Collision Pipeline)
-7. [附錄 A — 所有檔案清單](#7-附錄-a--所有檔案清單)
+7. [Memory Leak 建筑分析 — 零漏水證明](#7-memory-leak-建筑分析--零漏水證明)
+   - 7.1 RAII 全面覆蓋 — 絕不出現裸指標 new
+   - 7.2 `unique_ptr` vs `shared_ptr` 使用原則
+   - 7.3 專案內動態分配一覽表
+   - 7.4 循環引用處理
+   - 7.5 驗證工具 (Valgrind)
+8. [時間複雜度分析 — 核心路徑 Big-O](#8-時間複雜度分析--核心路徑-big-o)
+   - 8.1 每幀迴圈路徑分析
+   - 8.2 Viewport Culling 效益證明
+   - 8.3 Sprite Path Cache O(1) 說明
+   - 8.4 碰撞系統複雜度
+   - 8.5 資料結構選擇一覽
+   - 8.6 主要效能優化技術總表
+9. [附錄 A — 所有檔案清單](#9-附錄-a--所有檔案清單)
    - A.1 Include Headers
    - A.2 Source Files
    - A.3 Resources
    - A.4 GameConfig 關鍵常數
    - A.5 Python 工具腳本
-8. [附錄 B — OOP 原則遵守確認](#8-附錄-b--oop-原則遵守確認)
-9. [附錄 C — Refactoring 進度總覽](#9-附錄-c--refactoring-進度總覽)
-10. [§10 Memory Leak 建筑分析 — 零漏水證明](#10-memory-leak-建筑分析--零漏水證明)
-    - 10.1 RAII 全面覆蓋 — 絕不出現裸指標 new
-    - 10.2 `unique_ptr` vs `shared_ptr` 使用原則
-    - 10.3 專案內動態分配一覽表
-    - 10.4 循環引用處理
-    - 10.5 驗證工具 (Valgrind)
-11. [§11 時間複雜度分析 — 核心路徑 Big-O](#11-時間複雜度分析--核心路徑-big-o)
-    - 11.1 每幀迴圈路徑分析
-    - 11.2 Viewport Culling 效益證明
-    - 11.3 Sprite Path Cache O(1) 說明
-    - 11.4 碰撞系統複雜度
-    - 11.5 資料結構選擇一覽
-    - 11.6 主要效能優化技術總表
+10. [附錄 B — OOP 原則遵守確認](#10-附錄-b--oop-原則遵守確認)
+11. [附錄 C — Refactoring 進度總覽](#11-附錄-c--refactoring-進度總覽)
 
 ---
 
@@ -2204,8 +2204,184 @@ sequenceDiagram
 
 ---
 
+## 7. Memory Leak 建筑分析 — 零漏水證明
 
-## 7. 附錄 A — 所有檔案清單
+> 本專案全面據棄裸指標 `new`/`delete`，改用 C++17 RAII 智慧指標管理所有動態記憶體。
+
+### 7.1 RAII 全面覆蓋 — 絕不出現裸 `new`/`delete`
+
+**設計原則：** 資源取得即初始化（Resource Acquisition Is Initialization）。所有動態配置的物件必須透過 RAII 包裝器持有，確保超出作用域時自動釋放。
+
+**全專案負責動態記憶體的物件地圖：**
+
+```mermaid
+graph TD
+    A["App (持有 unique_ptr&lt;ISceneHandler&gt;)"] --> B["PlayingSceneHandler (持有 Level, Player, PlayerState)"]
+    B --> C["Level (持有 vector&lt;shared_ptr&lt;Block&gt;&gt;)"]
+    B --> D["PlayerState (持有 unique_ptr&lt;IPlayerForm&gt;, unique_ptr&lt;IPlayerDeathAnimation&gt;)"]
+    B --> E["Entities (持有 vector&lt;shared_ptr&lt;Entity&gt;&gt;)"]
+    E --> F["EntityState (持有 unique_ptr&lt;IEnemyDeathAnimation&gt;)"]
+```
+
+### 7.2 `unique_ptr` vs `shared_ptr` 使用原則
+
+| 指標類型 | 使用場景 | 代碼示例 |
+|---|---|---|
+| **`unique_ptr`** | **單一擁有者**：物件生命週期由單一父主管理 | `unique_ptr<ISceneHandler> m_CurrentScene`<br>`unique_ptr<IPlayerForm> m_Form`<br>`unique_ptr<IPlayerDeathAnimation> m_DeathAnimation` |
+| **`shared_ptr`** | **共享擁有**：多方需要存取同一物件 | `shared_ptr<Block>` 在 `m_Blocks`<br>`shared_ptr<Entity>` 在 entities 列表<br>`shared_ptr<IAudioService>` 在 ServiceLocator |
+| **Raw pointer (`T*`)** | **紀錄但不擁有** (observer pointer)，不負責釋放 | `MovingPlatform* m_MovingPlatforms`<br>`Block* m_GridBlocks`<br>`Block* m_GoalBlocks` — 均指向由 `shared_ptr<Block>` 擁有的物件 |
+
+> **黃金規則：** Raw pointer 在本專案中僅用於 non-owning observer，絕不呼叫 `delete`。擁有權必由 `unique_ptr` 或 `shared_ptr` 持有。
+
+### 7.3 專案內動態分配一覽表
+
+| 模組 | 容器 / 成員 | 指標類型 | 釋放方式 |
+|---|---|---|---|
+| `App` | `m_CurrentScene` | `unique_ptr<ISceneHandler>` | 超出 `App` 作用域自動釋放 |
+| `PlayingSceneHandler` | entities vector | `vector<shared_ptr<Entity>>` | Phase 17 CLEANUP 移除 dead 後自動釋放 |
+| `Level` | `m_Blocks` | `vector<shared_ptr<Block>>` | `Level` 解構則自動釋放 |
+| `Level` | `m_GridBlocks` / `m_GoalBlocks` / `m_BridgeBlocks` / `m_MovingPlatforms` | `vector<Block*>` / `vector<MovingPlatform*>` | **Non-owning**，不負責釋放；擁有者是 `m_Blocks` |
+| `PlayerState` | `m_Form` | `unique_ptr<IPlayerForm>` | 變身或 `PlayerState` 解構自動釋放 |
+| `PlayerState` | `m_DeathAnimation` | `unique_ptr<IPlayerDeathAnimation>` | 死亡後 `PlayerState` 解構自動釋放 |
+| `EntityState` | `m_DeathAnimation` | `unique_ptr<IEnemyDeathAnimation>` | `EntityState` 解構自動釋放 |
+| `AudioManager` | `m_BGMs` / `m_SFXs` | `map<..., shared_ptr<Util::BGM/SFX>>` | Singleton 解構則自動釋放 |
+| `ServiceLocator` | `m_Services` | `map<string, shared_ptr<void>>` | `Clear()` 或 Singleton 解構則自動釋放 |
+| `SpritePathResolver` | `s_BlockResolver` / `s_PlayerResolver` 等 | `unique_ptr<IXxxResolver>` | 靜態生命週期，程式結束自動釋放 |
+| `BehaviorRegistry` | 登錄表 map | `unordered_map<EntityType, Creator>` | 靜態生命週期，Lambda 內為輕量操作，無堆積配置 |
+
+### 7.4 循環引用處理
+
+**問題：** `shared_ptr` 循環引用會導致引用計數永不歸零。
+
+**本專案的解法：**
+
+- `Level` 持有 `shared_ptr<Block>`，`Block*` observer 指標由 `Level` 提供給 `CollisionManager` / `PlayingSceneHandler` — 後者均為 non-owning raw pointer，不形成循環。
+- `ServiceLocator` 持有 `shared_ptr<IAudioService>`，`AudioManager` 本身不持有回 `ServiceLocator` 的指標 — 單向。
+- `Entity` 跟 `EntityState` 之間：`Entity` 持有 `EntityState`（by value），`IEntityBehavior` 擁有 `EntityState*` non-owning — 無循環。
+
+### 7.5 驗證工具 (Valgrind 等效)
+
+本專案在 Linux 環境下可透過以下指令執行 Valgrind 記憶體檢測：
+
+```bash
+# 在專案根目錄執行 (Release 建置)
+valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
+         --track-origins=yes --error-exitcode=1 \
+         ./build/MarioBros
+```
+
+**預期結果語言：**
+
+```
+==PID== HEAP SUMMARY:
+==PID==     in use at exit: 0 bytes in 0 blocks
+==PID==
+==PID== LEAK SUMMARY:
+==PID==    definitely lost: 0 bytes in 0 blocks   ← 絕對漏水：零
+==PID==    indirectly lost: 0 bytes in 0 blocks   ← 間接漏水：零
+==PID==      possibly lost: 0 bytes in 0 blocks   ← 可能漏水：零
+==PID==    still reachable: N bytes in M blocks   ← 僅有 PTSD 框架內部靜態 Singleton（框架已知行為）
+==PID==
+==PID== ERROR SUMMARY: 0 errors from 0 contexts
+```
+
+> **結論：** 透過全面 RAII 設計，本專案理論上與實際測試均可達到 `definitely lost = 0`，`indirectly lost = 0`，`possibly lost = 0` 的零漏水標準。`still reachable` 部分僅屬 PTSD 框架本身的靜態 Singleton，為框架已知行為，非本專案代碼洩漏。
+
+---
+
+---
+
+## 8. 時間複雜度分析 — 核心路徑 Big-O
+
+> **核心指標：** 主要遊戲迴圈（Phase 0–17）在 1080p / 60FPS 設備上穩定執行，不出現幀率驟降。
+
+### 8.1 每幀迴圈路徑分析
+
+| Phase | 操作 | 複雜度 | 說明 |
+|------|------|---|------|
+| Phase 1: PROCESS INPUT | `InputHandler::HandleInput()` 執行 12 個命令 | **O(c)** | c = 12 命令數量，固定常數 |
+| Phase 2: UPDATE PHYSICS | `PhysicsEngine::ApplyGravity()` | **O(1)** | 單一玩家容器 |
+| Phase 3: APPLY POSITION | 移動積分 | **O(1)** | 單次加法 |
+| Phase 4: COLLISION DETECT (Player-Block) | `PlayerBlockHandler` | **O(k)** | k = 視口內有效方塊數（Viewport Culling 限制 ≈ 20~40）|
+| Phase 5: MOVING PLATFORM | `TryCarryPlayer` | **O(p)** | p = 移動平台數量（≤ 5）|
+| Phase 7: ENTITY AI UPDATE | 所有 Entity AI | **O(n · b)** | n = 視口內實體數（Culling 後 ≈ 5~15），b = 每個 AI 分支常數 |
+| Phase 9: PLAYER-ENTITY COL | `PlayerEntityHandler` | **O(n)** | n = 實體數（視口小）|
+| Phase 10: ENTITY-ENTITY COL | `EntityEntityHandler` | **O(n²)** 常數低 | 常演 n≤10，實際 n² 不超過 100 次比較 |
+| Phase 12: CAMERA + BLOCKS UPDATE | `Level::UpdateBlocks(cameraOffset)` | **O(k)** | k = 視口內方塊數，隔常 ≈ 30 |
+| Phase 14: ENTITY BLOCK COL | `EntityBlockHandler` | **O(n · 4)** ≡ **O(n)** | 每實體只查 2×2 鄰居 block（4 個）|
+| Phase 17: CLEANUP | `erase-remove_if` dead entities | **O(n)** | 通常 n≤30 |
+
+**整體每幀複雜度：O(k + n²) 其中 n, k 都經 Viewport Culling 限刻**
+
+### 8.2 Viewport Culling 效益證明
+
+**實作位置：** `Level::UpdateBlocks()` 與 `PlayingSceneHandler::Update()`
+
+```
+未使用 Culling 此前暴力種定義：
+  全地圖 1-1 = 220 x 16 = 3,520 格（Block 渲染）
+  全地圖 8-4 = 392 x 15 = 5,880 格（Block 渲染）
+
+使用 Culling 後：
+  視口可見 = 1280 / 45 ≈ 28 欄 x 16 列 = 448 格
+  最大渲染量減少 87.3%（1-1），92.4%（8-4）
+```
+
+**實作方法：**
+
+- `Level::QueryBlocksInRange(leftX, rightX, out)` 使用從 `m_GridBlocks[y * m_Width + x]` 的 O(k) 選取
+- 方塊按欄 startCol / endCol 計算加係數，跳過畫面外的方塊
+- `m_PrevStartCol` / `m_PrevEndCol` 加速判斷視口是否變動，未變動則跳過更新
+
+### 8.3 Sprite Path Cache — O(1) 查詢
+
+**實作位置：** `SpritePathResolver.cpp` 內部靜態 `unordered_map`
+
+| 查詢次數 | 行為 | 複雜度 |
+|---|---|---|
+| 第 1 次（Cache Miss） | 建構完整路徑字串，寫入 cache | O(string_len) ≈ O(1) |
+| 第 2+ 次（Cache Hit） | `unordered_map::find()` | **O(1)** 平均 |
+
+**效益：** 第一幀之後所有 Sprite 路徑查詢均為 O(1) memory lookup，完全避免磁碟 I/O。
+
+### 8.4 碰撞系統複雜度
+
+| 子處理器 | 複雜度 | 說明 |
+|---|---|---|
+| `PlayerBlockHandler` | **O(k)** | k = 還未凸出視口內方塊，經 Culling |
+| `PlayerEntityHandler` | **O(n)** | n = 視口內實體 |
+| `EntityBlockHandler` | **O(n · 4) ≡ O(n)** | n 個實體 x 僅查 2×2 鄰居 block（4 個）|
+| `EntityEntityHandler` | **O(n²)** | 實際 n≤10，在視口內 n²≤100 比較 |
+| `Level::QueryBlocksInRange` | **O(k)** | k 為返回的方塊數 |
+
+### 8.5 資料結構選擇一覽
+
+| 資料結構 | 使用場景 | 時間複雜度 | 選擇理由 |
+|---|---|---|---|
+| `vector<shared_ptr<Block>>` | `Level::m_Blocks` 所有方塊 | O(1) 隨機存取 | 搜尋直接用 `m_GridBlocks` 踢 index |
+| `vector<Block*> m_GridBlocks` | 座標快查 y\*W+x | **O(1)** lookup | 2D 座標層轉一維，直接儲存 non-owning pointer |
+| `unordered_map<EntityType, Creator>` | `BehaviorRegistry` 行為分派 | **O(1)** 平均 | 取代 switch-case 的 O(n) 口 |
+| `unordered_map<string, string>` | `SpritePathResolver` cache | **O(1)** 平均 | 避免字串拼接重複磁碟 I/O |
+| `map<SFXName, shared_ptr<SFX>>` | `AudioManager` SFX 快取 | O(log n) | SFX 數量固定（其實常數）|
+| `unordered_map<int, BlockDef>` | `Level` Block 定義查表 | **O(1)** | CSV 讀入後就不再修改 |
+| `unordered_map<int, EntityDef>` | `Level` Entity 定義查表 | **O(1)** | 同上 |
+
+### 8.6 主要效能優化技術總表
+
+| 優化技術 | 作用範圍 | 效益 | 執行地點 |
+|---|---|---|---|
+| **Viewport Culling** | Block 渲染 + Entity AI 更新 | -87%~92% 計算量 | `Level::UpdateBlocks()`, `PlayingSceneHandler` |
+| **Sprite Path Cache** | 精靈路徑查詢 | O(n)→O(1)，殲滅全部磁碟 I/O | `SpritePathResolver` |
+| **BehaviorRegistry O(1)** | 實體行為分派 | O(n)→O(1)，小常數精準 | `BehaviorRegistry::Create()` |
+| **FixedTimestep** | 物理更新頻率 | 防止 Spiral of Death，確保物理一致性 | `FixedTimestep::Accumulate()` |
+| **RAII 佇列釋放** | Entity 消滅 | Phase 17 一次性批次 erase-remove | `PlayingSceneHandler::Cleanup()` |
+| **QueryBlocksInRange** | 碰撞方塊查詢 | O(k) | `Level::QueryBlocksInRange()` |
+| **Goal Block 快取** | 旗桿/斧頭碰發檢查 | O(n)→O(m)，m=GoalBlock數量 | `Level::GetGoalBlocks()` |
+| **GridBlocks O(1) 查詢** | 座標→方塊 lookup | O(n)→O(1)，2D 座標直接 index | `Level::GetBlockAt(x, y)` |
+
+---
+
+## 9. 附錄 A — 所有檔案清單
 
 ### A.1 Include Headers (`include/`)
 
@@ -2443,7 +2619,7 @@ sequenceDiagram
 
 ---
 
-## 8. 附錄 B — OOP 原則遵守確認
+## 10. 附錄 B — OOP 原則遵守確認
 
 | 原則 | 實現方式 | 狀態 |
 |------|---------|------|
@@ -2466,7 +2642,7 @@ sequenceDiagram
 
 ---
 
-## 9. 附錄 C — Refactoring 進度總覽
+## 11. 附錄 C — Refactoring 進度總覽
 
 | Phase | 狀態 | 主要內容 |
 |-------|------|---------|
@@ -2515,175 +2691,3 @@ sequenceDiagram
 | RESOURCE RESOLVER | ✅ DONE | 導入 `ResourceResolver.cpp` 動態偵測 exe 同目錄 `./Resources` 是否存在，否則回退至編譯期 `RESOURCE_DIR` macro，解決部署/IDE 路徑差異問題。 |
 
 ---
-
-## 10. Memory Leak 建筑分析 — 零漏水證明
-
-> 本專案全面據棄裸指標 `new`/`delete`，改用 C++17 RAII 智慧指標管理所有動態記憶體。
-
-### 10.1 RAII 全面覆蓋 — 絕不出現裸 `new`/`delete`
-
-**設計原則：** 資源取得即初始化（Resource Acquisition Is Initialization）。所有動態配置的物件必須透過 RAII 包裝器持有，確保超出作用域時自動釋放。
-
-**全專案負責動態記憶體的物件地圖：**
-
-```mermaid
-graph TD
-    A["App (持有 unique_ptr&lt;ISceneHandler&gt;)"] --> B["PlayingSceneHandler (持有 Level, Player, PlayerState)"]
-    B --> C["Level (持有 vector&lt;shared_ptr&lt;Block&gt;&gt;)"]
-    B --> D["PlayerState (持有 unique_ptr&lt;IPlayerForm&gt;, unique_ptr&lt;IPlayerDeathAnimation&gt;)"]
-    B --> E["Entities (持有 vector&lt;shared_ptr&lt;Entity&gt;&gt;)"]
-    E --> F["EntityState (持有 unique_ptr&lt;IEnemyDeathAnimation&gt;)"]
-```
-
-### 10.2 `unique_ptr` vs `shared_ptr` 使用原則
-
-| 指標類型 | 使用場景 | 代碼示例 |
-|---|---|---|
-| **`unique_ptr`** | **單一擁有者**：物件生命週期由單一父主管理 | `unique_ptr<ISceneHandler> m_CurrentScene`<br>`unique_ptr<IPlayerForm> m_Form`<br>`unique_ptr<IPlayerDeathAnimation> m_DeathAnimation` |
-| **`shared_ptr`** | **共享擁有**：多方需要存取同一物件 | `shared_ptr<Block>` 在 `m_Blocks`<br>`shared_ptr<Entity>` 在 entities 列表<br>`shared_ptr<IAudioService>` 在 ServiceLocator |
-| **Raw pointer (`T*`)** | **紀錄但不擁有** (observer pointer)，不負責釋放 | `MovingPlatform* m_MovingPlatforms`<br>`Block* m_GridBlocks`<br>`Block* m_GoalBlocks` — 均指向由 `shared_ptr<Block>` 擁有的物件 |
-
-> **黃金規則：** Raw pointer 在本專案中僅用於 non-owning observer，絕不呼叫 `delete`。擁有權必由 `unique_ptr` 或 `shared_ptr` 持有。
-
-### 10.3 專案內動態分配一覽表
-
-| 模組 | 容器 / 成員 | 指標類型 | 釋放方式 |
-|---|---|---|---|
-| `App` | `m_CurrentScene` | `unique_ptr<ISceneHandler>` | 超出 `App` 作用域自動釋放 |
-| `PlayingSceneHandler` | entities vector | `vector<shared_ptr<Entity>>` | Phase 17 CLEANUP 移除 dead 後自動釋放 |
-| `Level` | `m_Blocks` | `vector<shared_ptr<Block>>` | `Level` 解構則自動釋放 |
-| `Level` | `m_GridBlocks` / `m_GoalBlocks` / `m_BridgeBlocks` / `m_MovingPlatforms` | `vector<Block*>` / `vector<MovingPlatform*>` | **Non-owning**，不負責釋放；擁有者是 `m_Blocks` |
-| `PlayerState` | `m_Form` | `unique_ptr<IPlayerForm>` | 變身或 `PlayerState` 解構自動釋放 |
-| `PlayerState` | `m_DeathAnimation` | `unique_ptr<IPlayerDeathAnimation>` | 死亡後 `PlayerState` 解構自動釋放 |
-| `EntityState` | `m_DeathAnimation` | `unique_ptr<IEnemyDeathAnimation>` | `EntityState` 解構自動釋放 |
-| `AudioManager` | `m_BGMs` / `m_SFXs` | `map<..., shared_ptr<Util::BGM/SFX>>` | Singleton 解構則自動釋放 |
-| `ServiceLocator` | `m_Services` | `map<string, shared_ptr<void>>` | `Clear()` 或 Singleton 解構則自動釋放 |
-| `SpritePathResolver` | `s_BlockResolver` / `s_PlayerResolver` 等 | `unique_ptr<IXxxResolver>` | 靜態生命週期，程式結束自動釋放 |
-| `BehaviorRegistry` | 登錄表 map | `unordered_map<EntityType, Creator>` | 靜態生命週期，Lambda 內為輕量操作，無堆積配置 |
-
-### 10.4 循環引用處理
-
-**問題：** `shared_ptr` 循環引用會導致引用計數永不歸零。
-
-**本專案的解法：**
-
-- `Level` 持有 `shared_ptr<Block>`，`Block*` observer 指標由 `Level` 提供給 `CollisionManager` / `PlayingSceneHandler` — 後者均為 non-owning raw pointer，不形成循環。
-- `ServiceLocator` 持有 `shared_ptr<IAudioService>`，`AudioManager` 本身不持有回 `ServiceLocator` 的指標 — 單向。
-- `Entity` 跟 `EntityState` 之間：`Entity` 持有 `EntityState`（by value），`IEntityBehavior` 擁有 `EntityState*` non-owning — 無循環。
-
-### 10.5 驗證工具 (Valgrind 等效)
-
-本專案在 Linux 環境下可透過以下指令執行 Valgrind 記憶體檢測：
-
-```bash
-# 在專案根目錄執行 (Release 建置)
-valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
-         --track-origins=yes --error-exitcode=1 \
-         ./build/MarioBros
-```
-
-**預期結果語言：**
-
-```
-==PID== HEAP SUMMARY:
-==PID==     in use at exit: 0 bytes in 0 blocks
-==PID==
-==PID== LEAK SUMMARY:
-==PID==    definitely lost: 0 bytes in 0 blocks   ← 絕對漏水：零
-==PID==    indirectly lost: 0 bytes in 0 blocks   ← 間接漏水：零
-==PID==      possibly lost: 0 bytes in 0 blocks   ← 可能漏水：零
-==PID==    still reachable: N bytes in M blocks   ← 僅有 PTSD 框架內部靜態 Singleton（框架已知行為）
-==PID==
-==PID== ERROR SUMMARY: 0 errors from 0 contexts
-```
-
-> **結論：** 透過全面 RAII 設計，本專案理論上與實際測試均可達到 `definitely lost = 0`，`indirectly lost = 0`，`possibly lost = 0` 的零漏水標準。`still reachable` 部分僅屬 PTSD 框架本身的靜態 Singleton，為框架已知行為，非本專案代碼洩漏。
-
----
-
-## 11. 時間複雜度分析 — 核心路徑 Big-O
-
-> **核心指標：** 主要遊戲迴圈（Phase 0–17）在 1080p / 60FPS 設備上穩定執行，不出現幀率驟降。
-
-### 11.1 每幀迴圈路徑分析
-
-| Phase | 操作 | 複雜度 | 說明 |
-|------|------|---|------|
-| Phase 1: PROCESS INPUT | `InputHandler::HandleInput()` 執行 12 個命令 | **O(c)** | c = 12 命令數量，固定常數 |
-| Phase 2: UPDATE PHYSICS | `PhysicsEngine::ApplyGravity()` | **O(1)** | 單一玩家容器 |
-| Phase 3: APPLY POSITION | 移動積分 | **O(1)** | 單次加法 |
-| Phase 4: COLLISION DETECT (Player-Block) | `PlayerBlockHandler` | **O(k)** | k = 視口內有效方塊數（Viewport Culling 限制 ≈ 20~40）|
-| Phase 5: MOVING PLATFORM | `TryCarryPlayer` | **O(p)** | p = 移動平台數量（≤ 5）|
-| Phase 7: ENTITY AI UPDATE | 所有 Entity AI | **O(n · b)** | n = 視口內實體數（Culling 後 ≈ 5~15），b = 每個 AI 分支常數 |
-| Phase 9: PLAYER-ENTITY COL | `PlayerEntityHandler` | **O(n)** | n = 實體數（視口小）|
-| Phase 10: ENTITY-ENTITY COL | `EntityEntityHandler` | **O(n²)** 常數低 | 常演 n≤10，實際 n² 不超過 100 次比較 |
-| Phase 12: CAMERA + BLOCKS UPDATE | `Level::UpdateBlocks(cameraOffset)` | **O(k)** | k = 視口內方塊數，隔常 ≈ 30 |
-| Phase 14: ENTITY BLOCK COL | `EntityBlockHandler` | **O(n · 4)** ≡ **O(n)** | 每實體只查 2×2 鄰居 block（4 個）|
-| Phase 17: CLEANUP | `erase-remove_if` dead entities | **O(n)** | 通常 n≤30 |
-
-**整體每幀複雜度：O(k + n²) 其中 n, k 都經 Viewport Culling 限刻**
-
-### 11.2 Viewport Culling 效益證明
-
-**實作位置：** `Level::UpdateBlocks()` 與 `PlayingSceneHandler::Update()`
-
-```
-未使用 Culling 此前暴力種定義：
-  全地圖 1-1 = 220 x 16 = 3,520 格（Block 渲染）
-  全地圖 8-4 = 392 x 15 = 5,880 格（Block 渲染）
-
-使用 Culling 後：
-  視口可見 = 1280 / 45 ≈ 28 欄 x 16 列 = 448 格
-  最大渲染量減少 87.3%（1-1），92.4%（8-4）
-```
-
-**實作方法：**
-- `Level::QueryBlocksInRange(leftX, rightX, out)` 使用從 `m_GridBlocks[y * m_Width + x]` 的 O(k) 選取
-- 方塊按欄 startCol / endCol 計算加係數，跳過畫面外的方塊
-- `m_PrevStartCol` / `m_PrevEndCol` 加速判斷視口是否變動，未變動則跳過更新
-
-### 11.3 Sprite Path Cache — O(1) 查詢
-
-**實作位置：** `SpritePathResolver.cpp` 內部靜態 `unordered_map`
-
-| 查詢次數 | 行為 | 複雜度 |
-|---|---|---|
-| 第 1 次（Cache Miss） | 建構完整路徑字串，寫入 cache | O(string_len) ≈ O(1) |
-| 第 2+ 次（Cache Hit） | `unordered_map::find()` | **O(1)** 平均 |
-
-**效益：** 第一幀之後所有 Sprite 路徑查詢均為 O(1) memory lookup，完全避免磁碟 I/O。
-
-### 11.4 碰撞系統複雜度
-
-| 子處理器 | 複雜度 | 說明 |
-|---|---|---|
-| `PlayerBlockHandler` | **O(k)** | k = 還未凸出視口內方塊，經 Culling |
-| `PlayerEntityHandler` | **O(n)** | n = 視口內實體 |
-| `EntityBlockHandler` | **O(n · 4) ≡ O(n)** | n 個實體 x 僅查 2×2 鄰居 block（4 個）|
-| `EntityEntityHandler` | **O(n²)** | 實際 n≤10，在視口內 n²≤100 比較 |
-| `Level::QueryBlocksInRange` | **O(k)** | k 為返回的方塊數 |
-
-### 11.5 資料結構選擇一覽
-
-| 資料結構 | 使用場景 | 時間複雜度 | 選擇理由 |
-|---|---|---|---|
-| `vector<shared_ptr<Block>>` | `Level::m_Blocks` 所有方塊 | O(1) 隨機存取 | 搜尋直接用 `m_GridBlocks` 踢 index |
-| `vector<Block*> m_GridBlocks` | 座標快查 y\*W+x | **O(1)** lookup | 2D 座標層轉一維，直接儲存 non-owning pointer |
-| `unordered_map<EntityType, Creator>` | `BehaviorRegistry` 行為分派 | **O(1)** 平均 | 取代 switch-case 的 O(n) 口 |
-| `unordered_map<string, string>` | `SpritePathResolver` cache | **O(1)** 平均 | 避免字串拼接重複磁碟 I/O |
-| `map<SFXName, shared_ptr<SFX>>` | `AudioManager` SFX 快取 | O(log n) | SFX 數量固定（其實常數）|
-| `unordered_map<int, BlockDef>` | `Level` Block 定義查表 | **O(1)** | CSV 讀入後就不再修改 |
-| `unordered_map<int, EntityDef>` | `Level` Entity 定義查表 | **O(1)** | 同上 |
-
-### 11.6 主要效能優化技術總表
-
-| 優化技術 | 作用範圍 | 效益 | 執行地點 |
-|---|---|---|---|
-| **Viewport Culling** | Block 渲染 + Entity AI 更新 | -87%~92% 計算量 | `Level::UpdateBlocks()`, `PlayingSceneHandler` |
-| **Sprite Path Cache** | 精靈路徑查詢 | O(n)→O(1)，殲滅全部磁碟 I/O | `SpritePathResolver` |
-| **BehaviorRegistry O(1)** | 實體行為分派 | O(n)→O(1)，小常數精準 | `BehaviorRegistry::Create()` |
-| **FixedTimestep** | 物理更新頻率 | 防止 Spiral of Death，確保物理一致性 | `FixedTimestep::Accumulate()` |
-| **RAII 佇列釋放** | Entity 消滅 | Phase 17 一次性批次 erase-remove | `PlayingSceneHandler::Cleanup()` |
-| **QueryBlocksInRange** | 碰撞方塊查詢 | 假天過悲助成 O(k) | `Level::QueryBlocksInRange()` |
-| **Goal Block 快取** | 旗桿/斧頭碰發檢查 | O(n)→O(m)，m=GoalBlock數量 | `Level::GetGoalBlocks()` |
-| **GridBlocks O(1) 查詢** | 座標→方塊 lookup | O(n)→O(1)，2D 座標直接 index | `Level::GetBlockAt(x, y)` |
