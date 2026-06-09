@@ -57,14 +57,15 @@ class PiranhaPlantBehavior : public IEntityBehavior {
      * Returns true (entity stays alive; it retreats instead of dying).
      */
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
 
     /** Piranha Plants are immune to fireballs in this implementation. */
     bool OnFireballHit(EntityState& /*state*/) override { return false; }
 
     /** Piranha Plants cannot be stomped. */
     bool IsImmuneToStomp() const override { return true; }
- 
+
     /** Piranha Plants ignore solid block terrain snapping. */
     bool IgnoresBlocks() const override { return true; }
 

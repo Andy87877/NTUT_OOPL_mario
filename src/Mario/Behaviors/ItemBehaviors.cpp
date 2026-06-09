@@ -37,7 +37,10 @@ void MushroomBehavior::Update(EntityState& state,
 
 bool MushroomBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
                                          [[maybe_unused]] Player& player,
-                                         [[maybe_unused]] bool isFromAbove) {
+                                         [[maybe_unused]] bool isFromAbove,
+                                         [[maybe_unused]] GameStateManager& gameState,
+                                         [[maybe_unused]] UIManager& uiManager,
+                                         [[maybe_unused]] Camera& camera) {
     return true;
 }
 
@@ -87,7 +90,10 @@ void FireFlowerBehavior::Update([[maybe_unused]] EntityState& state,
 
 bool FireFlowerBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
                                            [[maybe_unused]] Player& player,
-                                           [[maybe_unused]] bool isFromAbove) {
+                                           [[maybe_unused]] bool isFromAbove,
+                                           [[maybe_unused]] GameStateManager& gameState,
+                                           [[maybe_unused]] UIManager& uiManager,
+                                           [[maybe_unused]] Camera& camera) {
     return true;
 }
 
@@ -143,7 +149,10 @@ void StarBehavior::Update(EntityState& state,
 
 bool StarBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
                                      [[maybe_unused]] Player& player,
-                                     [[maybe_unused]] bool isFromAbove) {
+                                     [[maybe_unused]] bool isFromAbove,
+                                     [[maybe_unused]] GameStateManager& gameState,
+                                     [[maybe_unused]] UIManager& uiManager,
+                                     [[maybe_unused]] Camera& camera) {
     return true;
 }
 
@@ -181,7 +190,10 @@ void OneUpBehavior::Update(EntityState& state,
 
 bool OneUpBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
                                       [[maybe_unused]] Player& player,
-                                      [[maybe_unused]] bool isFromAbove) {
+                                      [[maybe_unused]] bool isFromAbove,
+                                      [[maybe_unused]] GameStateManager& gameState,
+                                      [[maybe_unused]] UIManager& uiManager,
+                                      [[maybe_unused]] Camera& camera) {
     return true;
 }
 
@@ -218,7 +230,10 @@ void CoinBehavior::Update([[maybe_unused]] EntityState& state,
 
 bool CoinBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
                                      [[maybe_unused]] Player& player,
-                                     [[maybe_unused]] bool isFromAbove) {
+                                     [[maybe_unused]] bool isFromAbove,
+                                     [[maybe_unused]] GameStateManager& gameState,
+                                     [[maybe_unused]] UIManager& uiManager,
+                                     [[maybe_unused]] Camera& camera) {
     return true;
 }
 

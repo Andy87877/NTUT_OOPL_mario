@@ -12,6 +12,8 @@
 #include <memory>
 #include <string>
 
+#include <unordered_map>
+
 #include "Util/Color.hpp"
 #include "Util/GameObject.hpp"
 #include "Util/Image.hpp"
@@ -30,7 +32,7 @@ namespace Mario {
 class UIImage : public Util::GameObject {
    public:
     explicit UIImage(const std::string& imagePath) {
-        m_Image = std::make_shared<Util::Image>(imagePath);
+        m_Image = GetOrLoadImage(imagePath);
         SetDrawable(m_Image);
         SetZIndex(100.0f);  // UI always rendered on top of game objects
     }
@@ -40,11 +42,22 @@ class UIImage : public Util::GameObject {
     void SetPosition(float x, float y) { m_Transform.translation = {x, y}; }
 
     void SetImagePath(const std::string& imagePath) {
-        m_Image = std::make_shared<Util::Image>(imagePath);
+        m_Image = GetOrLoadImage(imagePath);
         SetDrawable(m_Image);
     }
 
    private:
+    static std::shared_ptr<Util::Image> GetOrLoadImage(const std::string& path) {
+        static std::unordered_map<std::string, std::shared_ptr<Util::Image>> s_ImageCache;
+        auto it = s_ImageCache.find(path);
+        if (it != s_ImageCache.end()) {
+            return it->second;
+        }
+        auto img = std::make_shared<Util::Image>(path);
+        s_ImageCache[path] = img;
+        return img;
+    }
+
     std::shared_ptr<Util::Image> m_Image;
 };
 

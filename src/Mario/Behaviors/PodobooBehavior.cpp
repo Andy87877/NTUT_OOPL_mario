@@ -83,7 +83,10 @@ void PodobooBehavior::Update(EntityState& state,
 }
 
 bool PodobooBehavior::OnPlayerCollision(EntityState& state, Player& player,
-                                        [[maybe_unused]] bool isFromAbove) {
+                                        [[maybe_unused]] bool isFromAbove,
+                                        [[maybe_unused]] GameStateManager& gameState,
+                                        [[maybe_unused]] UIManager& uiManager,
+                                        [[maybe_unused]] Camera& camera) {
     // Podoboo always damages Mario — cannot be stomped
     if (state.IsHidden()) return false;
 
@@ -91,8 +94,8 @@ bool PodobooBehavior::OnPlayerCollision(EntityState& state, Player& player,
     if (!ps.IsInvincible()) {
         ps.TakeDamage();
     }
-    // Return false: Podoboo is never removed on player contact
-    return false;
+    // Return true: collision handled, but do not delete entity (since state remains active)
+    return true; 
 }
 
 bool PodobooBehavior::OnFireballHit([[maybe_unused]] EntityState& state) {

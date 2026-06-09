@@ -306,7 +306,10 @@ void BowserBehavior::ResolveWallAndEdge(EntityState& state,
 
 bool BowserBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
                                        Player& player,
-                                       [[maybe_unused]] bool isFromAbove) {
+                                       [[maybe_unused]] bool isFromAbove,
+                                       [[maybe_unused]] GameStateManager& gameState,
+                                       [[maybe_unused]] UIManager& uiManager,
+                                       [[maybe_unused]] Camera& camera) {
     // Bowser's body is always lethal to Mario — immune to stomping.
     // Star power never reaches here: the handler's star-kill path fires first.
     // HP is only reduced by fireballs (OnFireballHit).

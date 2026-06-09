@@ -12,6 +12,7 @@
 
 #include "Mario/Core/SpritePathResolver.hpp"
 #include "Mario/Level/BlockFactory.hpp"
+#include "Mario/Level/LevelConfig.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {
@@ -58,15 +59,8 @@ bool Level::Load(const std::string& levelName) {
     m_PrevStartCol = -1;
     m_PrevEndCol = -1;
 
-    // Determine sub-level name.
-    // 1-1 has a bonus underground area accessed via its down-pipes.
-    // 1-2 IS the underground level; its exit pipe advances to the next level
-    // in sequence (8-4). No "1-2u" file exists.
-    if (levelName == "1-1") {
-        m_SubLevelName = "1-1u";  // Underground bonus area
-    } else {
-        m_SubLevelName = "";  // No sub-level
-    }
+    // Determine sub-level name from registry configuration (OCP)
+    m_SubLevelName = LevelConfig::GetProfile(levelName).subLevelName;
 
     std::string path =
         std::string(RESOURCE_DIR) + "/Levels/" + levelName + ".csv";
@@ -531,8 +525,16 @@ std::vector<std::string> Level::SplitCSVLine(const std::string& line) const {
 // special cases "1-2" and "8-4" are always considered underground/castle.
 // ============================================================================
 bool Level::IsUnderground() const {
-    return m_LevelName.find('u') != std::string::npos || m_LevelName == "1-2" ||
-           m_LevelName == "8-4";
+    return LevelConfig::GetProfile(m_LevelName).isUnderground;
+}
+
+// ============================================================================
+// IsBossLevel
+// Returns true when this is a boss level (e.g. 8-4).
+// Decoupled from hardcoded string checks using level configuration profile.
+// ============================================================================
+bool Level::IsBossLevel() const {
+    return LevelConfig::HasBoss(m_LevelName);
 }
 
 // ============================================================================

@@ -165,11 +165,10 @@ class Level {
     bool IsUnderground() const;
 
     /**
-     * Returns true when this is the final boss level (8-4).
-     * Use this instead of comparing GetLevelName() == "8-4" at call sites:
-     * all level-identity knowledge is encapsulated here (OCP / DRY).
+     * Returns true when this is a boss level (e.g. 8-4).
+     * Decoupled from hardcoded string checks using level configuration profile.
      */
-    bool IsBossLevel() const { return m_LevelName == "8-4"; }
+    bool IsBossLevel() const;
 
     /**
      * Return the BGM theme for this level so callers (e.g. AudioManager) never

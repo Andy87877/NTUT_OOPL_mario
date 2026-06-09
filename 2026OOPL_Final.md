@@ -29,9 +29,10 @@
 | 按鍵 | 功能 |
 |:---:|---|
 | `← →` 或 `A` `D` | 左右移動 |
-| `↑` 或 `W` | 跳躍（按住越久跳越高） |
+| `↑` 或 `W` 或 `Space` | 跳躍（按住越久跳越高） |
 | `↓` 或 `S` | 蹲下（限大瑪利歐、火焰瑪利歐） |
-| `E` / `LShift` | 發射火球（火焰型態），加速跑步 |
+| `LShift` | 加速跑步 |
+| `E`  | 發射火球（火焰瑪利歐型態） |
 | `ESC` | 開啟暫停選單（變身 / 外掛 / 關卡跳轉） |
 | `Enter` | 開始遊戲 / 確認選單 |
 
@@ -43,7 +44,7 @@
 |:---:|:---:|---|
 | <img src="Resources/Sprites/MarioIdle.png" width="32"> | **小瑪利歐 (Small)** | 最基本狀態，被敵人碰到直接死亡 |
 | <img src="Resources/Sprites/MarioIdle1.png" width="32"> | **大瑪利歐 (Big)** | 吃紅香菇變大，可撞碎磚塊。被敵人碰到縮小，不會直接死 |
-| <img src="Resources/Sprites/MarioFire2.png" width="32"> | **火焰瑪利歐 (Fire)** | 吃火焰花升級，可按 `E`/`LShift` 發射火球消滅敵人 |
+| <img src="Resources/Sprites/MarioFire2.png" width="32"> | **火焰瑪利歐 (Fire)** | 吃火焰花升級，可按 `E` 發射火球消滅敵人 |
 | <img src="Resources/Sprites/Star1.png" width="32"> | **無敵星星 (Star)** | 吃星星後閃爍無敵，碰到任何敵人直接撞飛 |
 
 ---
@@ -212,25 +213,6 @@ classDiagram
 ##### 2. 場景切換狀態樹 (ISceneHandler)
 
 為了避免 switch-case 爆炸，我用 State Pattern 做了場景管理，每一個畫面都繼承自 `ISceneHandler`：
-
-```mermaid
-classDiagram
-    class ISceneHandler {
-        <<interface>>
-        +Update()*
-        +OnRender()*
-    }
-    ISceneHandler <|.. TitleSceneHandler
-    ISceneHandler <|.. LoadingSceneHandler
-    ISceneHandler <|.. PlayingSceneHandler
-    ISceneHandler <|.. FlagpoleSceneHandler
-    ISceneHandler <|.. PipeWarpSceneHandler
-    ISceneHandler <|.. AxeSequenceSceneHandler
-    ISceneHandler <|.. DeathSceneHandler
-    ISceneHandler <|.. GameOverSceneHandler
-    ISceneHandler <|.. GameWonSceneHandler
-    ISceneHandler <|.. ESCMenuSceneHandler
-```
 
 - `TitleSceneHandler`：標頭選單畫面。
 - `LoadingSceneHandler`：關卡過場載入畫面（會顯示剩餘命數）。
@@ -439,7 +421,7 @@ sequenceDiagram
 
 剛開始寫這個瑪利歐專案時，我心裡其實非常放鬆，甚至有點小得意。我想著：「反正現在有 VS Code Copilot 和 Antigravity 這些超強的 AI 工具，我只要用口語講一下需求，程式碼不就劈哩啪啦生出來了，寫專案超輕鬆的吧！」（想起來，這簡直是沒受過扎實資工系課程洗禮才會講出來的幼稚發言）。
 
-確實，前幾天開發過程簡集像蜜月期一樣爽快。AI 寫程式碼的速度飛快，給個指令就產出一大堆代碼，遊戲也真的能跑能動了，Mario 會跑、會跳，看起來有模有樣。但因為我當時太過依賴 AI 的即時產出，完全沒有靜下心來規劃整體的 OOP 架構。結果，代碼不知不覺塞成一團，程式裡充斥著幾百個 if-else 和硬編碼，不知不覺寫出了一大坨令人頭疼的義大利麵代碼。
+確實，前幾天開發過程非常爽快。AI 寫程式碼的速度飛快，給個指令就產出一大堆代碼，遊戲也真的能跑能動了，Mario 會跑、會跳，看起來有模有樣。但因為我當時太過依賴 AI 的即時產出，完全沒有靜下心來規劃整體的 OOP 架構。結果，代碼不知不覺塞成一團，程式裡充斥著幾百個 if-else 和硬編碼，不知不覺寫出了一大坨令人頭疼的義大利麵代碼。
 
 雖然遊戲能動，但隨著專案規模擴大，真正的考驗來了：當我想新增水管傳送，或者是 8-4 的 Boss 關時，代碼開始全面崩潰。只要改了 A 就會壞了 B，到處都是牽一髮動全身的死結。我每天陷入了無止境的 Debug 地獄，看著幾千行亂成一團的代碼，我真的感到無比痛苦與挫折。
 

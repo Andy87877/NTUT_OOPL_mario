@@ -65,8 +65,6 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
                                                UIManager& uiManager, bool isStomp) {
     PlayerState& ps = player.GetState();
     EntityState& es = entity.GetState();
-    AABB playerBox = ps.GetHitbox();
-    AABB entityBox = entity.GetHitbox();
 
     // Helper: floating text at the entity's world centre.
     auto addScore = [&](int score) {
@@ -88,7 +86,7 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
         // Mario and disappears!
         if (behavior && behavior->IsEnemyProjectile() && behavior->IsImmuneToStarPower()) {
             ps.TakeDamage();
-            behavior->OnPlayerCollision(es, player, false);
+            behavior->OnPlayerCollision(es, player, false, gameState, uiManager, camera);
             if (es.IsActive()) es.Delete();
             return;
         }
@@ -99,103 +97,29 @@ void PlayerEntityHandler::HandleEnemyCollision(Player& player, Entity& entity,
         return;
     }
 
-    // --- Enemy projectiles: always damage Mario, consumed on contact -------
-    // Bowser fire (FIRE + isEnemy) and thrown axes (AXE_PROJECTILE) cannot
-    // be stomped; they are destroyed on contact just like in the NES game.
-    if (behavior && behavior->IsEnemyProjectile()) {
-        ps.TakeDamage();
-        // Consume the projectile: let the behavior clean up first; if the
-        // behavior does not delete it, fall back to a direct delete.
-        behavior->OnPlayerCollision(es, player, false);
-        if (es.IsActive()) es.Delete();
-        return;
-    }
-
-    // --- Stomp: player falling from above ----------------------------------
-    // C# reference (Form1.cs): stomp fires when tempMovingDown is true.
-    // tempMovingDown = !grounded && previousJumpHeight <= 0
-    // C++ equivalent: !IsGrounded() && GetFallHeight() <= 0.0
-    // The old overlapY < TILE_SIZE*0.5 check caused false negatives after
-    // ~20 frames of free fall (VelY accumulates past 22.5 px/frame), and
-    // ps.GetVelY() >= 0 could transiently fail at the rise→fall transition.
-
     if (isStomp) {
         // --- Stomp-immune enemies (Bowser, Podoboo, etc.) ------------------
-        // Query via virtual method — adding a new immune enemy only requires
-        // overriding IsImmuneToStomp(); no changes needed here (OCP).
         if (behavior && behavior->IsImmuneToStomp()) {
-            // Mario cannot stomp them — contact damages Mario instead.
-            behavior->OnPlayerCollision(es, player, true);
+            behavior->OnPlayerCollision(es, player, true, gameState, uiManager, camera);
             return;
         }
-
-        bool handledByBehavior = false;
-
-        if (behavior) {
-            handledByBehavior = behavior->OnPlayerCollision(es, player, true);
-        }
-
-        if (!handledByBehavior) {
-            if (es.IsInShellMode()) {
-                // Stomp on shell: kick/propel it.
-                float playerCX =
-                    playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
-                float shellCX =
-                    entityBox.left + (entityBox.right - entityBox.left) * 0.5f;
-                float kickSpeed = (playerCX > shellCX) ? -GameConfig::SCALED_SPEED
-                                                       : GameConfig::SCALED_SPEED;
-                es.KickShell(kickSpeed);
-                ps.SetInvTimer(5);
-                handledByBehavior = true;
-            } else if (es.IsSquishable()) {
-                es.TriggerDeath(EnemyDeathCause::STOMP);
-                AudioManager::GetInstance().PlaySFX(SFXName::Squish);
-            } else if (es.IsKoopaSquash()) {
-                es.TriggerDeath(EnemyDeathCause::STOMP);
-                AudioManager::GetInstance().PlaySFX(SFXName::Squish);
-            } else {
-                AudioManager::GetInstance().PlaySFX(SFXName::Squish);
-            }
-        }
-
-        // NES consecutive-stomp score: ×1, ×2, ×4, ×8, then cap at 1000.
-        m_StompCombo++;
-        int base = es.GetScoreWorth();
-        int score =
-            (m_StompCombo >= 5) ? 1000 : base * (1 << (m_StompCombo - 1));
-        addScore(score);
-
-        // Bounce Mario upward (half normal jump height).
-        ps.SetFallHeight(PhysicsEngine::GetJumpHeight(0) * 0.5);
-        ps.SetGrounded(false);
-        return;
     }
 
-    // --- Shell side collision (moving shell hurts; stationary = kick) ------
-    if ((behavior && behavior->IsShell()) || es.IsInShellMode()) {
-        if (std::abs(es.GetVelX()) < 0.1f) {
-            // Stationary shell: kick it.
-            AABB eBox = entityBox;
-            float playerCX =
-                playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
-            float shellCX = eBox.left + (eBox.right - eBox.left) * 0.5f;
-            float kickSpeed = GameConfig::SCALED_SPEED;
-            if (playerCX > shellCX)
-                kickSpeed = -kickSpeed;
-            else
-                kickSpeed = std::abs(kickSpeed);
-            es.KickShell(kickSpeed);
-            ps.SetInvTimer(5);
-        } else {
-            // Moving shell: damages player.
-            ps.TakeDamage();
-        }
-        return;
-    }
+    // --- Delegate stomp / side-collisions to the Behavior ---
+    if (behavior) {
+        bool handled = behavior->OnPlayerCollision(es, player, isStomp, gameState, uiManager, camera);
+        if (handled && isStomp) {
+            // NES consecutive-stomp score combo:
+            m_StompCombo++;
+            int base = es.GetScoreWorth();
+            int score =
+                (m_StompCombo >= 5) ? 1000 : base * (1 << (m_StompCombo - 1));
+            addScore(score);
 
-    // --- Regular side damage -----------------------------------------------
-    if (!es.IsSquished()) {
-        ps.TakeDamage();
+            // Bounce Mario upward (half normal jump height).
+            ps.SetFallHeight(PhysicsEngine::GetJumpHeight(0) * 0.5);
+            ps.SetGrounded(false);
+        }
     }
 }
 

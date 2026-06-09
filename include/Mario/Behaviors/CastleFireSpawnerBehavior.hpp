@@ -40,7 +40,8 @@ class CastleFireSpawnerBehavior : public IEntityBehavior {
      * Unused since spawner is invisible and doesn't participate in physics.
      */
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
 
     /**
      * Consumes pending fireball spawn requests.

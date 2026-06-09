@@ -443,25 +443,30 @@ void PlayingSceneHandler::CheckPipeCollision(App& app) const {
     app.GetLevel()->QueryBlocksInRange(playerBox.left - TS,
                                        playerBox.right + TS, nearBlocks);
     for (const auto* block : nearBlocks) {
+        if (!block || !block->IsWarpPipe()) continue;
         Mario::AABB bBox = block->GetAABB();
         if (!playerBox.Intersects(bBox)) continue;
-        int id = block->GetBlockID();
-        if (id == Mario::GameConfig::PIPE_DOWN_LEFT) {
-            pipeDown1 = true;
-            pipeDX = block->GetWorldX();
-            pipeDY = block->GetWorldY();
-        }
-        if (id == Mario::GameConfig::PIPE_DOWN_RIGHT) pipeDown2 = true;
-        if (id == Mario::GameConfig::PIPE_RIGHT_TOP) {
-            pipeRight1 = true;
-            pipeRX = block->GetWorldX();
-            pipeRY = block->GetWorldY();
-        }
-        if (id == Mario::GameConfig::PIPE_RIGHT_BOT) {
-            pipeRight2 = true;
-            if (!pipeRight1) {
+        
+        std::string dir = block->GetWarpDirection();
+        if (dir == "Down") {
+            if (block->IsWarpAnchor()) {
+                pipeDown1 = true;
+                pipeDX = block->GetWorldX();
+                pipeDY = block->GetWorldY();
+            } else {
+                pipeDown2 = true;
+            }
+        } else if (dir == "Right") {
+            if (block->IsWarpAnchor()) {
+                pipeRight1 = true;
                 pipeRX = block->GetWorldX();
                 pipeRY = block->GetWorldY();
+            } else {
+                pipeRight2 = true;
+                if (!pipeRight1) {
+                    pipeRX = block->GetWorldX();
+                    pipeRY = block->GetWorldY();
+                }
             }
         }
     }
@@ -534,16 +539,7 @@ void PlayingSceneHandler::CheckAxeCollision(App& app) const {
             // In 8-4 there are fake boss rooms with axes that should collapse
             // the bridge but NOT end the game.  Only the final real Axe (past
             // the last pipe warp, at ~col 342 = worldX 15390) ends the game.
-            // We detect the real axe by checking for a Princess entity — the
-            // Princess is only spawned in the final boss room.
-            bool hasPrincess = false;
-            for (const auto& e : app.GetEntities()) {
-                if (e && e->GetBehavior() && e->GetBehavior()->IsPrincess() &&
-                    e->GetState().IsActive()) {
-                    hasPrincess = true;
-                    break;
-                }
-            }
+            bool hasPrincess = entity->GetBehavior()->IsRealAxe(entity->GetState(), app.GetEntities());
 
             entity->GetState().SetActive(false);
             app.GetGameState().StopTime();

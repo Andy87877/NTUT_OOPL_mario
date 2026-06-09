@@ -32,7 +32,8 @@ class DefaultEntityBehavior : public IEntityBehavior {
      * Behavior depends on entity type (coin score, power-up state, etc).
      */
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
 
     /**
      * Clone this behavior.

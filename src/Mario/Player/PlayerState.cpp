@@ -260,6 +260,7 @@ void PlayerState::TakeDamage() {
                 SetY(GetY() + GameConfig::TILE_SIZE);
             }
             m_TransitionTimer = 36; // Shrink transition (scaled for 60Hz)
+            m_Crouching = false;    // Small Mario cannot crouch, reset state
         }
     }
 }
@@ -306,7 +307,10 @@ void PlayerState::ForceApplyPowerState(int idx) {
     if (!wasBig && willBeBig) {
         m_PosY -= static_cast<float>(GameConfig::TILE_SIZE);  // growing up
     } else if (wasBig && !willBeBig) {
-        m_PosY += static_cast<float>(GameConfig::TILE_SIZE);  // shrinking down
+        if (!m_Crouching) {
+            m_PosY += static_cast<float>(GameConfig::TILE_SIZE);  // shrinking down
+        }
+        m_Crouching = false;
     }
 
     // Cancel any pending damage-invincibility; the cheat is instant.

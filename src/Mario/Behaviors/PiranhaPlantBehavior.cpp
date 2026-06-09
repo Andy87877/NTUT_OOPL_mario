@@ -127,7 +127,9 @@ void PiranhaPlantBehavior::Update(EntityState& state,
 }
 
 bool PiranhaPlantBehavior::OnPlayerCollision(
-    EntityState& state, Player& player, [[maybe_unused]] bool isFromAbove) {
+    EntityState& state, Player& player, [[maybe_unused]] bool isFromAbove,
+    [[maybe_unused]] GameStateManager& gameState, [[maybe_unused]] UIManager& uiManager,
+    [[maybe_unused]] Camera& camera) {
     // Piranha Plant is not stompable — always damages Mario
     if (m_Phase == Phase::HIDING) return false;  // Can't be hit while hidden
 
@@ -135,7 +137,7 @@ bool PiranhaPlantBehavior::OnPlayerCollision(
     if (!ps.IsInvincible()) {
         ps.TakeDamage();
     }
-    return false;  // Plant stays alive
+    return true;  // Collision handled
 }
 
 AABB PiranhaPlantBehavior::GetHitbox(const EntityState& state) const {

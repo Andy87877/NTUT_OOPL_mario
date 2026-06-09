@@ -4,7 +4,7 @@
  *        Converts grid coordinates to PTSD screen coordinates.
  *        PTSD: (0,0) = screen center, +X right, +Y up.
  *        Level: row 0 = top, row 15 = bottom, 16 rows x 32px = 512px.
- * @inheritance Util::GameObject -> Block -> [MovingPlatform, StoneBlock, BrickBlock, QuestionBlock, InvisibleBlock, GoalBlock, BackgroundBlock, BridgeBlock]
+ * @inheritance Util::GameObject -> Block -> [MovingPlatform, StoneBlock, BrickBlock, QuestionBlock, InvisibleBlock, GoalBlock, BackgroundBlock, BridgeBlock, WarpPipeBlock]
  */
 #include "Mario/Level/Block.hpp"
 #include "Mario/Player/PlayerState.hpp"
@@ -380,6 +380,20 @@ void BridgeBlock::Update(float cameraOffset) {
 
 void BridgeBlock::HandleOnHit(int /*playerState*/) {
     // Bridge blocks do not bounce or break on hit (they only fall when collapsed by Axe)
+}
+
+std::string WarpPipeBlock::GetWarpDirection() const {
+    if (m_BlockID == GameConfig::PIPE_DOWN_LEFT || m_BlockID == GameConfig::PIPE_DOWN_RIGHT) {
+        return "Down";
+    }
+    if (m_BlockID == GameConfig::PIPE_RIGHT_TOP || m_BlockID == GameConfig::PIPE_RIGHT_BOT) {
+        return "Right";
+    }
+    return "";
+}
+
+bool WarpPipeBlock::IsWarpAnchor() const {
+    return (m_BlockID == GameConfig::PIPE_DOWN_LEFT || m_BlockID == GameConfig::PIPE_RIGHT_TOP);
 }
 
 }  // namespace Mario

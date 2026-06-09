@@ -25,7 +25,10 @@ void DefaultEntityBehavior::Update([[maybe_unused]] EntityState& state, [[maybe_
 
 bool DefaultEntityBehavior::OnPlayerCollision(EntityState& state,
                                               [[maybe_unused]] Player& player,
-                                              [[maybe_unused]] bool isFromAbove) {
+                                              [[maybe_unused]] bool isFromAbove,
+                                              [[maybe_unused]] GameStateManager& gameState,
+                                              [[maybe_unused]] UIManager& uiManager,
+                                              [[maybe_unused]] Camera& camera) {
     // For coins: add score, mark for removal
     if (state.IsCoin()) {
         state.Delete();

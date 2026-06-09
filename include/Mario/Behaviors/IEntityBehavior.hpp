@@ -9,6 +9,7 @@
 #define MARIO_I_ENTITY_BEHAVIOR_HPP
 
 #include <memory>
+#include <vector>
 
 #include "Mario/Core/Collider.hpp"
 #include "Mario/Level/EntityDef.hpp"  // EntityType
@@ -51,10 +52,14 @@ class IEntityBehavior {
      * @param state Entity state
      * @param player Player reference
      * @param isFromAbove True if player hit from above (jumping on enemy)
+     * @param gameState Reference to the game state manager
+     * @param uiManager Reference to the UI manager
+     * @param camera Reference to the camera
      * @return True if collision was special (consumed)
      */
     virtual bool OnPlayerCollision(EntityState& state, Player& player,
-                                   bool isFromAbove) = 0;
+                                   bool isFromAbove, GameStateManager& gameState,
+                                   UIManager& uiManager, Camera& camera) = 0;
 
     /**
      * Clone this behavior for a new entity instance.
@@ -219,6 +224,16 @@ class IEntityBehavior {
     /** True only for AxeBehavior — used by
      * PlayingSceneHandler::CheckAxeCollision. */
     virtual bool IsAxe() const { return false; }
+
+    /**
+     * For AxeBehavior, checks if it is the real end-of-game Axe (as opposed to a fake boss axe).
+     * Returns false by default.
+     */
+    virtual bool IsRealAxe(const EntityState& state, const std::vector<std::shared_ptr<Entity>>& allEntities) const {
+        (void)state;
+        (void)allEntities;
+        return false;
+    }
 
     /** True only for PrincessBehavior — used by Axe/FlagpoleSceneHandler. */
     virtual bool IsPrincess() const { return false; }

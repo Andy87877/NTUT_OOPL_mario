@@ -10,6 +10,7 @@
 #include "Mario/Behaviors/StaticEntityBehaviors.hpp"
 
 #include "Mario/Level/EntityState.hpp"
+#include "Mario/Level/Entity.hpp"
 #include "Mario/Level/Level.hpp"
 #include "Mario/Player/Player.hpp"
 #include "Mario/Services/AudioManager.hpp"
@@ -31,10 +32,23 @@ void AxeBehavior::Update(EntityState& state,
 
 bool AxeBehavior::OnPlayerCollision(EntityState& state,
                                     [[maybe_unused]] Player& player,
-                                    [[maybe_unused]] bool isFromAbove) {
+                                    [[maybe_unused]] bool isFromAbove,
+                                    [[maybe_unused]] GameStateManager& gameState,
+                                    [[maybe_unused]] UIManager& uiManager,
+                                    [[maybe_unused]] Camera& camera) {
     if (state.IsDead()) return false;
     state.Delete();  // App detects deletion to trigger bridge collapse
     return true;
+}
+
+bool AxeBehavior::IsRealAxe(const EntityState& /*state*/, const std::vector<std::shared_ptr<Entity>>& allEntities) const {
+    for (const auto& e : allEntities) {
+        if (e && e->GetBehavior() && e->GetBehavior()->IsPrincess() &&
+            e->GetState().IsActive()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // ============================================================================
@@ -51,7 +65,10 @@ void PrincessBehavior::Update(EntityState& state,
 
 bool PrincessBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
                                          [[maybe_unused]] Player& player,
-                                         [[maybe_unused]] bool isFromAbove) {
+                                         [[maybe_unused]] bool isFromAbove,
+                                         [[maybe_unused]] GameStateManager& gameState,
+                                         [[maybe_unused]] UIManager& uiManager,
+                                         [[maybe_unused]] Camera& camera) {
     // Level completion detected externally by LevelCompleteController
     return false;
 }
@@ -75,9 +92,13 @@ void AxeProjectileBehavior::Update(EntityState& state,
 }
 
 bool AxeProjectileBehavior::OnPlayerCollision(
-    EntityState& state, [[maybe_unused]] Player& player,
-    [[maybe_unused]] bool isFromAbove) {
+    EntityState& state, Player& player,
+    [[maybe_unused]] bool isFromAbove,
+    [[maybe_unused]] GameStateManager& gameState,
+    [[maybe_unused]] UIManager& uiManager,
+    [[maybe_unused]] Camera& camera) {
     if (state.IsDead()) return false;
+    player.GetState().TakeDamage();
     state.Delete();  // Consume and destroy projectile on player hit
     return true;
 }
@@ -102,7 +123,10 @@ void FlagBehavior::Update(EntityState& state,
 
 bool FlagBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
                                      [[maybe_unused]] Player& player,
-                                     [[maybe_unused]] bool isFromAbove) {
+                                     [[maybe_unused]] bool isFromAbove,
+                                     [[maybe_unused]] GameStateManager& gameState,
+                                     [[maybe_unused]] UIManager& uiManager,
+                                     [[maybe_unused]] Camera& camera) {
     return false;  // FlagpoleSceneHandler manages flag movement directly.
 }
 

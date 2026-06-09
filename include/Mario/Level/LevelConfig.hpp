@@ -9,12 +9,31 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <unordered_map>
 #include "Mario/Level/EntityDef.hpp"
 
 namespace Mario {
 
+struct LevelPropertyProfile {
+    bool hasFlag = false;
+    bool hasBoss = false;
+    bool spawnCastleFireSpawner = false;
+    bool hasCameraBossLock = false;
+    float cameraBossLockOffset = 0.0f;
+    std::vector<std::pair<int, int>> podobooSpawns;
+    std::unordered_map<EntityType, float> enemyWidthOverrides;
+    std::unordered_map<EntityType, float> projectileWidthOverrides;
+    bool isUnderground = false;
+    std::string subLevelName = "";
+};
+
 class LevelConfig {
    public:
+    /**
+     * Retrieve the configuration profile for a specific level.
+     */
+    static const LevelPropertyProfile& GetProfile(const std::string& levelName);
+
     /**
      * Check if flagpole sequence is present in this level.
      */

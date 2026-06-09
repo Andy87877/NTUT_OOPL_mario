@@ -65,13 +65,16 @@ void FireballBehavior::Update(EntityState& state,
 }
 
 bool FireballBehavior::OnPlayerCollision(EntityState& state,
-                                         [[maybe_unused]] Player& player,
-                                         [[maybe_unused]] bool isFromAbove) {
+                                         Player& player,
+                                         [[maybe_unused]] bool isFromAbove,
+                                         [[maybe_unused]] GameStateManager& gameState,
+                                         [[maybe_unused]] UIManager& uiManager,
+                                         [[maybe_unused]] Camera& camera) {
     // Player fireball: doesn't collide with player, only with enemies
     // This method is not called for player fireball hitting player
-    // Bowser fireball: damages player (handled at App level)
+    // Bowser fireball: damages player
     if (m_Type == FireballType::BOWSER) {
-        // Bowser fireball hit player - damage is handled by App
+        player.GetState().TakeDamage();
         state.Delete();
         return true;
     }

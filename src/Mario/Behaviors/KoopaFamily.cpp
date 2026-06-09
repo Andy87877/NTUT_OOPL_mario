@@ -74,20 +74,61 @@ void KoopaBehavior::Update(EntityState& state, const Level& level,
     }
 }
 
-bool KoopaBehavior::OnPlayerCollision(EntityState& state,
-                                      [[maybe_unused]] Player& player,
-                                      bool isFromAbove) {
-    if (isFromAbove && m_Type == KoopaType::TROOPA) {
-        m_Type = KoopaType::SHELL;
-        state.SetName("KoopaTroopaShell");
-        state.SetSquashed(true);
-        state.SetCollidable(true);
-        state.SetVelY(0.0f);
-        state.SetFallHeight(0.0f);
-        state.SetGrounded(false);
-        state.SetVelX(0.0f);
-        AudioManager::GetInstance().PlaySFX(SFXName::Squish);
-        return true;
+bool KoopaBehavior::OnPlayerCollision(EntityState& state, Player& player,
+                                      bool isFromAbove, [[maybe_unused]] GameStateManager& gameState,
+                                      [[maybe_unused]] UIManager& uiManager, [[maybe_unused]] Camera& camera) {
+    if (state.IsDead()) return false;
+
+    PlayerState& ps = player.GetState();
+    if (isFromAbove) {
+        if (m_Type == KoopaType::TROOPA || m_Type == KoopaType::RED_TROOPA) {
+            m_Type = KoopaType::SHELL;
+            state.SetName("KoopaTroopaShell");
+            state.SetSquashed(true);
+            state.SetCollidable(true);
+            state.SetVelY(0.0f);
+            state.SetFallHeight(0.0f);
+            state.SetGrounded(false);
+            state.SetVelX(0.0f);
+            AudioManager::GetInstance().PlaySFX(SFXName::Squish);
+            return true;
+        } else if (m_Type == KoopaType::SHELL) {
+            // Kick the shell
+            AABB playerBox = ps.GetHitbox();
+            AABB entityBox = state.GetHitbox();
+            float playerCX = playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
+            float shellCX = entityBox.left + (entityBox.right - entityBox.left) * 0.5f;
+            float kickSpeed = (playerCX > shellCX) ? -GameConfig::SCALED_SPEED : GameConfig::SCALED_SPEED;
+            state.KickShell(kickSpeed);
+            ps.SetInvTimer(5);
+            return true;
+        }
+    } else {
+        // Side collision
+        if (m_Type == KoopaType::SHELL) {
+            if (std::abs(state.GetVelX()) < 0.1f) {
+                // Stationary shell: kick it
+                AABB playerBox = ps.GetHitbox();
+                AABB entityBox = state.GetHitbox();
+                float playerCX = playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
+                float shellCX = entityBox.left + (entityBox.right - entityBox.left) * 0.5f;
+                float kickSpeed = (playerCX > shellCX) ? -GameConfig::SCALED_SPEED : GameConfig::SCALED_SPEED;
+                state.KickShell(kickSpeed);
+                ps.SetInvTimer(5);
+            } else {
+                // Moving shell: damage player
+                if (!ps.IsInvincible()) {
+                    ps.TakeDamage();
+                }
+            }
+            return true;
+        } else {
+            // Normal living Koopa
+            if (!ps.IsInvincible() && !state.IsSquished()) {
+                ps.TakeDamage();
+            }
+            return true;
+        }
     }
     return false;
 }
@@ -180,11 +221,14 @@ void AxeKoopaBehavior::Update(EntityState& state, const Level& level,
     }
 }
 
-bool AxeKoopaBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state,
-                                         [[maybe_unused]] Player& player,
-                                         [[maybe_unused]] bool isFromAbove) {
-    // Immune to stomp — only defeated by axe trap mechanism
-    return false;
+bool AxeKoopaBehavior::OnPlayerCollision([[maybe_unused]] EntityState& state, Player& player,
+                                         [[maybe_unused]] bool isFromAbove, [[maybe_unused]] GameStateManager& gameState,
+                                         [[maybe_unused]] UIManager& uiManager, [[maybe_unused]] Camera& camera) {
+    PlayerState& ps = player.GetState();
+    if (!ps.IsInvincible()) {
+        ps.TakeDamage();
+    }
+    return true;
 }
 
 std::unique_ptr<IEntityBehavior> AxeKoopaBehavior::Clone() const {
@@ -272,44 +316,77 @@ void ParaKoopaBehavior::Update(EntityState& state,
     if (gameTimer % 10 == 0) state.AdvanceAnimationFrame();
 }
 
-bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state,
-                                          [[maybe_unused]] Player& player,
-                                          bool isFromAbove) {
-    if (!isFromAbove) {
-        return false;
-    }
+bool ParaKoopaBehavior::OnPlayerCollision(EntityState& state, Player& player,
+                                          bool isFromAbove, [[maybe_unused]] GameStateManager& gameState,
+                                          [[maybe_unused]] UIManager& uiManager, [[maybe_unused]] Camera& camera) {
+    if (state.IsDead()) return false;
 
-    if (m_Mode == Mode::FLYING) {
-        // 1st stomp: winged koopa -> normal walking koopa.
-        m_Mode = Mode::WALKING;
-        state.SetName("KoopaTroopa");
-        state.SetSquashed(false);
-        state.SetCollidable(true);
-        state.SetVelY(0.0f);
-        state.SetFallHeight(0.0f);
-        state.SetGrounded(false);
-        float walkSpeed =
-            GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
-        state.SetVelX(state.GetDirection() == 0 ? -walkSpeed : walkSpeed);
-        AudioManager::GetInstance().PlaySFX(SFXName::Squish);
-        return true;
+    PlayerState& ps = player.GetState();
+    if (isFromAbove) {
+        if (m_Mode == Mode::FLYING) {
+            // 1st stomp: winged koopa -> normal walking koopa.
+            m_Mode = Mode::WALKING;
+            state.SetName("KoopaTroopa");
+            state.SetSquashed(false);
+            state.SetCollidable(true);
+            state.SetVelY(0.0f);
+            state.SetFallHeight(0.0f);
+            state.SetGrounded(false);
+            float walkSpeed =
+                GameConfig::SCALED_SPEED / GameConfig::ENEMY_SPEED_DIVISOR;
+            state.SetVelX(state.GetDirection() == 0 ? -walkSpeed : walkSpeed);
+            AudioManager::GetInstance().PlaySFX(SFXName::Squish);
+            return true;
+        } else if (m_Mode == Mode::WALKING) {
+            // 2nd stomp: walking koopa -> shell, starts stationary.
+            m_Mode = Mode::SHELL;
+            state.SetName("KoopaTroopaShell");
+            state.SetSquashed(true);
+            state.SetCollidable(true);
+            state.SetVelY(0.0f);
+            state.SetFallHeight(0.0f);
+            state.SetGrounded(false);
+            state.SetVelX(0.0f);
+            AudioManager::GetInstance().PlaySFX(SFXName::Squish);
+            return true;
+        } else if (m_Mode == Mode::SHELL) {
+            // Kick the shell
+            AABB playerBox = ps.GetHitbox();
+            AABB entityBox = state.GetHitbox();
+            float playerCX = playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
+            float shellCX = entityBox.left + (entityBox.right - entityBox.left) * 0.5f;
+            float kickSpeed = (playerCX > shellCX) ? -GameConfig::SCALED_SPEED : GameConfig::SCALED_SPEED;
+            state.KickShell(kickSpeed);
+            ps.SetInvTimer(5);
+            return true;
+        }
+    } else {
+        // Side collision
+        if (m_Mode == Mode::SHELL) {
+            if (std::abs(state.GetVelX()) < 0.1f) {
+                // Stationary shell: kick
+                AABB playerBox = ps.GetHitbox();
+                AABB entityBox = state.GetHitbox();
+                float playerCX = playerBox.left + (playerBox.right - playerBox.left) * 0.5f;
+                float shellCX = entityBox.left + (entityBox.right - entityBox.left) * 0.5f;
+                float kickSpeed = (playerCX > shellCX) ? -GameConfig::SCALED_SPEED : GameConfig::SCALED_SPEED;
+                state.KickShell(kickSpeed);
+                ps.SetInvTimer(5);
+            } else {
+                // Moving shell: damage player
+                if (!ps.IsInvincible()) {
+                    ps.TakeDamage();
+                }
+            }
+            return true;
+        } else {
+            // Normal living ParaKoopa
+            if (!ps.IsInvincible() && !state.IsSquished()) {
+                ps.TakeDamage();
+            }
+            return true;
+        }
     }
-
-    if (m_Mode == Mode::WALKING) {
-        // 2nd stomp: walking koopa -> shell, starts stationary.
-        m_Mode = Mode::SHELL;
-        state.SetName("KoopaTroopaShell");
-        state.SetSquashed(true);
-        state.SetCollidable(true);
-        state.SetVelY(0.0f);
-        state.SetFallHeight(0.0f);
-        state.SetGrounded(false);
-        state.SetVelX(0.0f);
-        AudioManager::GetInstance().PlaySFX(SFXName::Squish);
-        return true;
-    }
-
-    if (m_Mode == Mode::SHELL) return true;
     return false;
 }
 

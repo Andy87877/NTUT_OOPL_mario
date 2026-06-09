@@ -23,6 +23,11 @@ std::shared_ptr<Block> BlockFactory::CreateBlock(int blockID, int gridX, int gri
             levelName);
     }
 
+    if (blockID == GameConfig::PIPE_DOWN_LEFT || blockID == GameConfig::PIPE_DOWN_RIGHT ||
+        blockID == GameConfig::PIPE_RIGHT_TOP || blockID == GameConfig::PIPE_RIGHT_BOT) {
+        return std::make_shared<WarpPipeBlock>(blockID, gridX, gridY, def, levelName);
+    }
+
     if (def.isGoal) {
         return std::make_shared<GoalBlock>(blockID, gridX, gridY, def, levelName);
     }

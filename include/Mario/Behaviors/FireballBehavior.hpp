@@ -44,7 +44,8 @@ class FireballBehavior : public IEntityBehavior {
      * Bowser fireball hits player: deal damage.
      */
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
 
     /**
      * Clone this behavior.

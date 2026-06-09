@@ -24,7 +24,8 @@ class ParticleDebris : public IEntityBehavior {
                 int gameTimer) override;
 
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
 
     std::unique_ptr<IEntityBehavior> Clone() const override;
 

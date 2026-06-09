@@ -2,7 +2,7 @@
  * @file Block.hpp
  * @brief Block game object for terrain tiles (ground, bricks, pipes, etc.).
  *        Inherits from Util::GameObject for rendering in PTSD framework.
- * @inheritance Util::GameObject -> Block -> [MovingPlatform, StoneBlock, BrickBlock, QuestionBlock, InvisibleBlock, GoalBlock, BackgroundBlock, BridgeBlock]
+ * @inheritance Util::GameObject -> Block -> [MovingPlatform, StoneBlock, BrickBlock, QuestionBlock, InvisibleBlock, GoalBlock, BackgroundBlock, BridgeBlock, WarpPipeBlock]
  */
 #ifndef MARIO_BLOCK_HPP
 #define MARIO_BLOCK_HPP
@@ -122,6 +122,21 @@ class Block : public Util::GameObject {
      */
     std::string GetSpawnContents(int playerState) const;
 
+    /**
+     * Determine if this block is a warp pipe.
+     */
+    virtual bool IsWarpPipe() const { return false; }
+
+    /**
+     * Get warp direction if this block is a warp pipe ("Down", "Right", or "").
+     */
+    virtual std::string GetWarpDirection() const { return ""; }
+
+    /**
+     * Determine if this block acts as the coordinate anchor for pipe warps.
+     */
+    virtual bool IsWarpAnchor() const { return false; }
+
     virtual bool IsVisibleBeforeHit() const { return true; }
     virtual bool IsBridge() const { return false; }
     virtual bool IsCastleDoor() const { return false; }
@@ -238,6 +253,14 @@ class BridgeBlock : public Block {
     void Update(float cameraOffset) override;
     void HandleOnHit(int playerState) override;
     bool IsBridge() const override { return true; }
+};
+
+class WarpPipeBlock : public Block {
+   public:
+    using Block::Block;
+    bool IsWarpPipe() const override { return true; }
+    std::string GetWarpDirection() const override;
+    bool IsWarpAnchor() const override;
 };
 
 }  // namespace Mario

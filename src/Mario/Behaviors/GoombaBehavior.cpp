@@ -14,6 +14,7 @@
 #include "Mario/Core/PhysicsEngine.hpp"
 #include "Mario/Player/Player.hpp"
 #include "Mario/Player/PlayerState.hpp"
+#include "Mario/Services/AudioManager.hpp"
 #include "Util/Logger.hpp"
 
 namespace Mario {
@@ -42,14 +43,24 @@ void GoombaBehavior::Update(EntityState& state, const Level& level,
     }
 }
 
-bool GoombaBehavior::OnPlayerCollision(EntityState& state, [[maybe_unused]] Player& player,
-                                       bool isFromAbove) {
+bool GoombaBehavior::OnPlayerCollision(EntityState& state, Player& player,
+                                       bool isFromAbove, [[maybe_unused]] GameStateManager& gameState,
+                                       [[maybe_unused]] UIManager& uiManager, [[maybe_unused]] Camera& camera) {
     if (state.IsSquished() || state.IsDead()) {
         return false;
     }
 
-    if (isFromAbove && state.IsSquishable()) {
-        state.Squish();
+    if (isFromAbove) {
+        if (state.IsSquishable()) {
+            state.Squish();
+            AudioManager::GetInstance().PlaySFX(SFXName::Squish);
+            return true;
+        }
+    } else {
+        PlayerState& ps = player.GetState();
+        if (!ps.IsInvincible()) {
+            ps.TakeDamage();
+        }
         return true;
     }
     return false;

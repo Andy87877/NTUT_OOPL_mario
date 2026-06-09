@@ -40,7 +40,8 @@ class KoopaBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     AABB GetHitbox(const EntityState& state) const override;
     const char* GetName() const override { return "KoopaBehavior"; }
@@ -69,7 +70,8 @@ class AxeKoopaBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     bool ConsumeSpawnRequest(EntityType& outType, float& outX, float& outY,
                              int& outDir) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
@@ -114,7 +116,8 @@ class ParaKoopaBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     AABB GetHitbox(const EntityState& state) const override;
     const char* GetName() const override { return "ParaKoopaBehavior"; }

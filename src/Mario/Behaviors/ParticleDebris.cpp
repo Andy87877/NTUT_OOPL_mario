@@ -6,6 +6,7 @@
 #include "Mario/Behaviors/ParticleDebris.hpp"
 
 #include "Mario/Level/EntityState.hpp"
+#include "Mario/Core/GameConfig.hpp"
 
 namespace Mario {
 
@@ -31,14 +32,17 @@ void ParticleDebris::Update(EntityState& state, const Level& /*level*/,
 
     // Clean up if it falls off screen (safe assumption: low Y coordinate or
     // high lifetime limit)
-    if (m_LifetimeFrames > 180 || state.GetY() < -100.0f) {
+    if (m_LifetimeFrames > 180 || state.GetY() > GameConfig::LEVEL_HEIGHT_PX + 100.0f) {
         state.Delete();
     }
 }
 
 bool ParticleDebris::OnPlayerCollision(EntityState& /*state*/,
                                        Player& /*player*/,
-                                       bool /*isFromAbove*/) {
+                                       bool /*isFromAbove*/,
+                                       [[maybe_unused]] GameStateManager& gameState,
+                                       [[maybe_unused]] UIManager& uiManager,
+                                       [[maybe_unused]] Camera& camera) {
     // Debris doesn't interact with the player
     return false;
 }

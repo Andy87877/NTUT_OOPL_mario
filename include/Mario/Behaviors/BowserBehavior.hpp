@@ -62,7 +62,8 @@ class BowserBehavior : public IEntityBehavior {
      * Player normal contact deals damage to player.
      */
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
 
     /**
      * Handle fireball hit using Bowser's 3-HP system.

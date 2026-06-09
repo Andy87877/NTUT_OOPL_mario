@@ -96,7 +96,10 @@ void CastleFireSpawnerBehavior::ConfigureSpawnedProjectile(EntityState& projecti
 }
 
 bool CastleFireSpawnerBehavior::OnPlayerCollision(EntityState& /*state*/, Player& /*player*/,
-                                                 bool /*isFromAbove*/) {
+                                                  bool /*isFromAbove*/,
+                                                  [[maybe_unused]] GameStateManager& gameState,
+                                                  [[maybe_unused]] UIManager& uiManager,
+                                                  [[maybe_unused]] Camera& camera) {
     return false;
 }
 

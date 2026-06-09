@@ -96,15 +96,8 @@ bool BlockContactResolver::IsPlayerOnStaticBlock(const PlayerState& state, Level
         for (int gx = tileX - 1; gx <= tileX + 2; gx++) {
             Block* blk = level.GetBlockAt(gx, gy);
             if (blk && blk->IsSolid() && blk->GetAABB().Intersects(fallDetect)) {
-                // Check if this block is a moving platform
-                bool isMovingPlat = false;
-                for (auto* otherPlat : level.GetMovingPlatforms()) {
-                    if (blk == otherPlat) {
-                        isMovingPlat = true;
-                        break;
-                    }
-                }
-                if (!isMovingPlat) {
+                // Check if this block is a moving platform polymorphically
+                if (!blk->IsMovingPlatform()) {
                     return true;
                 }
             }

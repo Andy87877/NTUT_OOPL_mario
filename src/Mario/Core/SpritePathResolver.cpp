@@ -17,7 +17,9 @@
 #include <cctype>
 #include <fstream>
 #include <unordered_map>
+#include <vector>
 
+#include "Mario/Level/LevelConfig.hpp"
 #include "Util/Logger.hpp"
 
 namespace {
@@ -126,69 +128,91 @@ static const std::unordered_map<std::string, std::string> PLAYER_SPRITE_MAP = {
 // Global cache for resolved paths to avoid per-frame disk I/O queries
 static std::unordered_map<std::string, std::string> s_ResolvedPathCache;
 
+// Helper function to check if a file exists on disk to prevent duplicated raw
+// stream creations
+static bool FileExists(const std::string& path) {
+    std::ifstream f(path);
+    return f.good();
+}
+
 }  // namespace
 
 namespace Mario {
 
-/**
- * @class DefaultBlockResolver
- * @brief Default strategy implementation for block sprite path resolution.
- * @inheritance IBlockResolver -> DefaultBlockResolver
- */
-class DefaultBlockResolver : public IBlockResolver {
+// ============================================================================
+// Block Resolution Rules
+// ============================================================================
+
+class IBlockResolutionRule {
    public:
-    std::string Resolve(const std::string& blockName, int frame,
-                        const std::string& levelName) override {
-        // Check level-specific directory first (e.g. 1-2/BrickBlock1.png)
+    virtual ~IBlockResolutionRule() = default;
+    virtual std::string TryResolve(const std::string& blockName, int frame,
+                                   const std::string& levelName) = 0;
+};
+
+class LevelSpecificBlockRule : public IBlockResolutionRule {
+   public:
+    std::string TryResolve(const std::string& blockName, int /*frame*/,
+                           const std::string& levelName) override {
         if (!levelName.empty()) {
             std::string levelDir =
                 SpritePathResolver::SPRITE_BASE_PATH + levelName + "/";
 
-            // Try exact name match first
+            // Try exact name match first (e.g. 1-2/BrickBlock.png)
             std::string exactPath = levelDir + blockName + ".png";
-            std::ifstream exactTest(exactPath);
-            if (exactTest.good()) return exactPath;
+            if (FileExists(exactPath)) return exactPath;
 
-            // Try 1-based variant (e.g. BrickBlock1.png for BrickBlock in 1-2)
+            // Try 1-based variant (e.g. 1-2/BrickBlock1.png)
             std::string oneBased = levelDir + blockName + "1.png";
-            std::ifstream oneTest(oneBased);
-            if (oneTest.good()) return oneBased;
+            if (FileExists(oneBased)) return oneBased;
         }
+        return "";
+    }
+};
 
-        // Build the C# resource name
+class MapLookupBlockRule : public IBlockResolutionRule {
+   public:
+    std::string TryResolve(const std::string& blockName, int frame,
+                           const std::string& levelName) override {
         std::string csName = blockName;
         if (frame >= 0 && blockName.find("Hit") == std::string::npos &&
             blockName.find("Break") == std::string::npos) {
             csName += std::to_string(frame);
         }
 
-        // Attempt lookup in static sprite mapping table
         auto it = BLOCK_SPRITE_MAP.find(csName);
         if (it != BLOCK_SPRITE_MAP.end()) {
             std::string filename = it->second;
-            // MarioStartBlue should be mapped to a black tile in
-            // castle/underground levels
             if (blockName == "MarioStartBlue" &&
-                (levelName == "8-4" || levelName == "1-2" ||
-                 levelName.find('u') != std::string::npos)) {
+                LevelConfig::GetProfile(levelName).isUnderground) {
                 filename = "Black.png";
             }
             std::string path = SpritePathResolver::SPRITE_BASE_PATH + filename;
-            std::ifstream test(path);
-            if (test.good()) return path;
+            if (FileExists(path)) return path;
         }
+        return "";
+    }
+};
 
-        // Fallback: Try constructed filenames
+class DirectConstructBlockRule : public IBlockResolutionRule {
+   public:
+    std::string TryResolve(const std::string& blockName, int frame,
+                           const std::string& /*levelName*/) override {
         std::string targetFile = blockName + ".png";
         if (frame > 0) {
             targetFile = blockName + std::to_string(frame) + ".png";
         }
 
         std::string path = SpritePathResolver::SPRITE_BASE_PATH + targetFile;
-        std::ifstream test(path);
-        if (test.good()) return path;
+        if (FileExists(path)) return path;
+        return "";
+    }
+};
 
-        // Try without trailing digits
+class StrippedNameBlockRule : public IBlockResolutionRule {
+   public:
+    std::string TryResolve(const std::string& blockName, int /*frame*/,
+                           const std::string& /*levelName*/) override {
         std::string strippedName = blockName;
         while (!strippedName.empty() && std::isdigit(strippedName.back())) {
             strippedName.pop_back();
@@ -196,147 +220,194 @@ class DefaultBlockResolver : public IBlockResolver {
         if (strippedName != blockName) {
             std::string fallbackPath =
                 SpritePathResolver::SPRITE_BASE_PATH + strippedName + ".png";
-            std::ifstream testFallback(fallbackPath);
-            if (testFallback.good()) return fallbackPath;
+            if (FileExists(fallbackPath)) return fallbackPath;
         }
+        return "";
+    }
+};
 
-        // Ultimate fallback
+class UltimateFallbackBlockRule : public IBlockResolutionRule {
+   public:
+    std::string TryResolve(const std::string& blockName, int frame,
+                           const std::string& /*levelName*/) override {
         return SpritePathResolver::SPRITE_BASE_PATH + blockName +
                (frame > 0 ? std::to_string(frame) : "") + ".png";
     }
 };
 
 /**
- * @class DefaultPlayerResolver
- * @brief Default strategy implementation for player sprite path resolution.
- *        Handles star mode color variants with fallbacks to avoid terminal
- * errors.
- * @inheritance IPlayerResolver -> DefaultPlayerResolver
+ * @class DefaultBlockResolver
+ * @brief Default strategy implementation for block sprite path resolution.
+ *        Orchestrates a pipeline of block path resolution rules.
+ * @inheritance IBlockResolver -> DefaultBlockResolver
  */
-class DefaultPlayerResolver : public IPlayerResolver {
+class DefaultBlockResolver : public IBlockResolver {
    public:
-    std::string Resolve(const std::string& prefix, int state, int frame,
-                        int starState) override {
-        // C# reference name: "Mario" + prefix + state + frame + (starState if
-        // state==3||4)
+    DefaultBlockResolver() {
+        m_Rules.push_back(std::make_unique<LevelSpecificBlockRule>());
+        m_Rules.push_back(std::make_unique<MapLookupBlockRule>());
+        m_Rules.push_back(std::make_unique<DirectConstructBlockRule>());
+        m_Rules.push_back(std::make_unique<StrippedNameBlockRule>());
+        m_Rules.push_back(std::make_unique<UltimateFallbackBlockRule>());
+    }
+
+    std::string Resolve(const std::string& blockName, int frame,
+                        const std::string& levelName) override {
+        for (const auto& rule : m_Rules) {
+            std::string path = rule->TryResolve(blockName, frame, levelName);
+            if (!path.empty()) return path;
+        }
+        return "";
+    }
+
+   private:
+    std::vector<std::unique_ptr<IBlockResolutionRule>> m_Rules;
+};
+
+// ============================================================================
+// Player Resolution Rules
+// ============================================================================
+
+class IPlayerResolutionRule {
+   public:
+    virtual ~IPlayerResolutionRule() = default;
+    virtual std::string TryResolve(const std::string& prefix, int state,
+                                   int frame, int starState) = 0;
+};
+
+class MapLookupPlayerRule : public IPlayerResolutionRule {
+   public:
+    std::string TryResolve(const std::string& prefix, int state, int frame,
+                           int /*starState*/) override {
         std::string csName =
             "Mario" + prefix + std::to_string(state) + std::to_string(frame);
-
-        if (state == 3 || state == 4) {
-            csName += std::to_string(starState);
-        }
-
-        std::string resolvedPath;
-
-        // Check the sprite mapping table FIRST.
         auto it = PLAYER_SPRITE_MAP.find(csName);
         if (it != PLAYER_SPRITE_MAP.end()) {
             std::string path =
                 SpritePathResolver::SPRITE_BASE_PATH + it->second;
-            std::ifstream test(path);
-            if (test.good()) {
-                resolvedPath = path;
-            }
+            if (FileExists(path)) return path;
+        }
+        return "";
+    }
+};
+
+class StarStatePlayerRule : public IPlayerResolutionRule {
+   public:
+    std::string TryResolve(const std::string& prefix, int state, int frame,
+                           int starState) override {
+        if (state != 3 && state != 4) return "";
+
+        std::string csName =
+            "Mario" + prefix + std::to_string(state) + std::to_string(frame);
+        std::string starCsName = csName + std::to_string(starState);
+
+        std::string directPath =
+            SpritePathResolver::SPRITE_BASE_PATH + starCsName + ".png";
+        if (FileExists(directPath)) return directPath;
+
+        // Fallback to color index 0
+        std::string altPath =
+            SpritePathResolver::SPRITE_BASE_PATH + csName + "0.png";
+        if (FileExists(altPath)) return altPath;
+
+        // Fallback to base non-star state (Small state 0, Big state 1)
+        int baseState = (state == 3) ? 0 : 1;
+        std::string baseCsName = "Mario" + prefix + std::to_string(baseState) +
+                                 std::to_string(frame);
+        auto baseIt = PLAYER_SPRITE_MAP.find(baseCsName);
+        if (baseIt != PLAYER_SPRITE_MAP.end()) {
+            std::string baseFilePath =
+                SpritePathResolver::SPRITE_BASE_PATH + baseIt->second;
+            if (FileExists(baseFilePath)) return baseFilePath;
         }
 
-        if (resolvedPath.empty()) {
-            // For Star states (3/4) the sprite names are unique enough that a
-            // direct file match is safe and avoids needing an exhaustive map
-            // entry for every star-color variant.
-            if (state == 3 || state == 4) {
-                std::string directPath =
-                    SpritePathResolver::SPRITE_BASE_PATH + csName + ".png";
-                std::ifstream directTest(directPath);
-                if (directTest.good()) {
-                    resolvedPath = directPath;
-                } else {
-                    // If the specific star-color variant is missing, attempt to
-                    // fall back to color index 0
-                    std::string altName = "Mario" + prefix +
-                                          std::to_string(state) +
-                                          std::to_string(frame) + "0";
-                    std::string altPath =
-                        SpritePathResolver::SPRITE_BASE_PATH + altName + ".png";
-                    std::ifstream altTest(altPath);
-                    if (altTest.good()) {
-                        resolvedPath = altPath;
-                    } else {
-                        // Fall back to the base (non-star) state sprite
-                        // State 3 (Small Star) -> State 0 (Small)
-                        // State 4 (Big Star) -> State 1 (Big)
-                        int baseState = (state == 3) ? 0 : 1;
-                        std::string baseCsName = "Mario" + prefix +
-                                                 std::to_string(baseState) +
-                                                 std::to_string(frame);
-                        auto baseIt = PLAYER_SPRITE_MAP.find(baseCsName);
-                        if (baseIt != PLAYER_SPRITE_MAP.end()) {
-                            std::string baseFilename = baseIt->second;
-                            std::string baseFilePath =
-                                SpritePathResolver::SPRITE_BASE_PATH +
-                                baseFilename;
-                            std::ifstream baseTest(baseFilePath);
-                            if (baseTest.good()) {
-                                resolvedPath = baseFilePath;
-                            }
-                        }
-                        if (resolvedPath.empty()) {
-                            // Ultimate fallback: standard idle sprites
-                            std::string fallbackFile = (baseState == 0)
-                                                           ? "MarioIdle.png"
-                                                           : "MarioIdle1.png";
-                            resolvedPath =
-                                SpritePathResolver::SPRITE_BASE_PATH +
-                                fallbackFile;
-                        }
-                    }
-                }
-            } else {
-                // Default fallback (should rarely be reached after map lookup
-                // above)
-                resolvedPath =
-                    SpritePathResolver::SPRITE_BASE_PATH + "MarioIdle.png";
-            }
-        }
+        // Star ultimate fallback: standard idle
+        std::string fallbackFile =
+            (baseState == 0) ? "MarioIdle.png" : "MarioIdle1.png";
+        return SpritePathResolver::SPRITE_BASE_PATH + fallbackFile;
+    }
+};
 
-        return resolvedPath;
+class DefaultFallbackPlayerRule : public IPlayerResolutionRule {
+   public:
+    std::string TryResolve(const std::string& /*prefix*/, int /*state*/,
+                           int /*frame*/, int /*starState*/) override {
+        return SpritePathResolver::SPRITE_BASE_PATH + "MarioIdle.png";
     }
 };
 
 /**
- * @class DefaultEntityResolver
- * @brief Default strategy implementation for entity sprite path resolution.
- * @inheritance IEntityResolver -> DefaultEntityResolver
+ * @class DefaultPlayerResolver
+ * @brief Default strategy implementation for player sprite path resolution.
+ *        Orchestrates a pipeline of player path resolution rules.
+ * @inheritance IPlayerResolver -> DefaultPlayerResolver
  */
-class DefaultEntityResolver : public IEntityResolver {
+class DefaultPlayerResolver : public IPlayerResolver {
    public:
-    std::string Resolve(const std::string& entityName, int frame,
-                        const std::string& levelName) override {
-        // Check entity name overrides (frame-independent remapping)
+    DefaultPlayerResolver() {
+        m_Rules.push_back(std::make_unique<MapLookupPlayerRule>());
+        m_Rules.push_back(std::make_unique<StarStatePlayerRule>());
+        m_Rules.push_back(std::make_unique<DefaultFallbackPlayerRule>());
+    }
+
+    std::string Resolve(const std::string& prefix, int state, int frame,
+                        int starState) override {
+        for (const auto& rule : m_Rules) {
+            std::string path =
+                rule->TryResolve(prefix, state, frame, starState);
+            if (!path.empty()) return path;
+        }
+        return SpritePathResolver::SPRITE_BASE_PATH + "MarioIdle.png";
+    }
+
+   private:
+    std::vector<std::unique_ptr<IPlayerResolutionRule>> m_Rules;
+};
+
+// ============================================================================
+// Entity Resolution Rules
+// ============================================================================
+
+class IEntityResolutionRule {
+   public:
+    virtual ~IEntityResolutionRule() = default;
+    virtual std::string TryResolve(const std::string& entityName, int frame,
+                                   const std::string& levelName) = 0;
+};
+
+class StaticOverrideEntityRule : public IEntityResolutionRule {
+   public:
+    std::string TryResolve(const std::string& entityName, int frame,
+                           const std::string& /*levelName*/) override {
+        // Name overrides
         auto nit = ENTITY_NAME_OVERRIDE.find(entityName);
         if (nit != ENTITY_NAME_OVERRIDE.end()) {
             std::string path =
                 SpritePathResolver::SPRITE_BASE_PATH + nit->second;
-            std::ifstream test(path);
-            if (test.good()) return path;
+            if (FileExists(path)) return path;
         }
 
-        // Check entity sprite overrides first (e.g. PiranhaPlant placeholder)
+        // Sprite overrides
         if (frame >= 0) {
             std::string overrideKey = entityName + std::to_string(frame + 1);
             auto oit = ENTITY_SPRITE_OVERRIDE.find(overrideKey);
             if (oit != ENTITY_SPRITE_OVERRIDE.end()) {
                 std::string path =
                     SpritePathResolver::SPRITE_BASE_PATH + oit->second;
-                std::ifstream test(path);
-                if (test.good()) return path;
+                if (FileExists(path)) return path;
             }
         }
+        return "";
+    }
+};
 
-        // Build level-specific sprite path
+class LevelSpecificEntityRule : public IEntityResolutionRule {
+   public:
+    std::string TryResolve(const std::string& entityName, int frame,
+                           const std::string& levelName) override {
         std::string levelDir =
             SpritePathResolver::SPRITE_BASE_PATH + levelName + "/";
 
-        // Apply level-specific entity name remapping
         std::string resolvedName = entityName;
         std::string levelKey = levelName + "/" + entityName;
         auto lit = LEVEL_ENTITY_NAME_OVERRIDE.find(levelKey);
@@ -344,46 +415,71 @@ class DefaultEntityResolver : public IEntityResolver {
             resolvedName = lit->second;
         }
 
-        // Try frame-suffixed version first (for animated sprites)
         if (frame >= 0) {
             std::string path =
                 levelDir + resolvedName + std::to_string(frame) + ".png";
-            std::ifstream test(path);
-            if (test.good()) return path;
+            if (FileExists(path)) return path;
 
             std::string path1based =
                 levelDir + resolvedName + std::to_string(frame + 1) + ".png";
-            std::ifstream test1based(path1based);
-            if (test1based.good()) return path1based;
+            if (FileExists(path1based)) return path1based;
         }
 
-        // Fall back to base entity sprite (no frame suffix)
         std::string basePath = levelDir + resolvedName + ".png";
-        std::ifstream test(basePath);
-        if (test.good()) return basePath;
+        if (FileExists(basePath)) return basePath;
 
-        // If level-specific not found, try main Sprites directory (fallback)
+        return "";
+    }
+};
+
+class FallbackEntityRule : public IEntityResolutionRule {
+   public:
+    std::string TryResolve(const std::string& entityName, int frame,
+                           const std::string& /*levelName*/) override {
         if (frame >= 0) {
             std::string path = SpritePathResolver::SPRITE_BASE_PATH +
                                entityName + std::to_string(frame) + ".png";
-            std::ifstream test2(path);
-            if (test2.good()) return path;
+            if (FileExists(path)) return path;
 
             std::string path1based = SpritePathResolver::SPRITE_BASE_PATH +
                                      entityName + std::to_string(frame + 1) +
                                      ".png";
-            std::ifstream test1based(path1based);
-            if (test1based.good()) return path1based;
+            if (FileExists(path1based)) return path1based;
         }
 
         std::string mainPath =
             SpritePathResolver::SPRITE_BASE_PATH + entityName + ".png";
-        std::ifstream test3(mainPath);
-        if (test3.good()) return mainPath;
+        if (FileExists(mainPath)) return mainPath;
 
-        // If nothing found, return empty string
         return "";
     }
+};
+
+/**
+ * @class DefaultEntityResolver
+ * @brief Default strategy implementation for entity sprite path resolution.
+ *        Orchestrates a pipeline of entity path resolution rules.
+ * @inheritance IEntityResolver -> DefaultEntityResolver
+ */
+class DefaultEntityResolver : public IEntityResolver {
+   public:
+    DefaultEntityResolver() {
+        m_Rules.push_back(std::make_unique<StaticOverrideEntityRule>());
+        m_Rules.push_back(std::make_unique<LevelSpecificEntityRule>());
+        m_Rules.push_back(std::make_unique<FallbackEntityRule>());
+    }
+
+    std::string Resolve(const std::string& entityName, int frame,
+                        const std::string& levelName) override {
+        for (const auto& rule : m_Rules) {
+            std::string path = rule->TryResolve(entityName, frame, levelName);
+            if (!path.empty()) return path;
+        }
+        return "";
+    }
+
+   private:
+    std::vector<std::unique_ptr<IEntityResolutionRule>> m_Rules;
 };
 
 /**
@@ -406,8 +502,7 @@ class DefaultCastleResolver : public ICastleResolver {
                      SpritePathResolver::SPRITE_BASE_PATH.c_str(), tileIdx);
 
             std::string path = buffer;
-            std::ifstream test(path);
-            if (test.good()) {
+            if (FileExists(path)) {
                 return path;
             }
         }

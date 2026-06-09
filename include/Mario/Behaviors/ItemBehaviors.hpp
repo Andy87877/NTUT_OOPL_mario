@@ -34,7 +34,8 @@ class MushroomBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "MushroomBehavior"; }
     void OnItemCollected(EntityState& state, Player& player,
@@ -57,7 +58,8 @@ class FireFlowerBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "FireFlowerBehavior"; }
     void OnItemCollected(EntityState& state, Player& player,
@@ -80,7 +82,8 @@ class StarBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "StarBehavior"; }
     void OnItemCollected(EntityState& state, Player& player,
@@ -104,7 +107,8 @@ class OneUpBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "OneUpBehavior"; }
     void OnItemCollected(EntityState& state, Player& player,
@@ -128,7 +132,8 @@ class CoinBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "CoinBehavior"; }
     float GetVisualScaleXModifier(const EntityState& state) const override;

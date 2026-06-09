@@ -35,7 +35,8 @@ class AxeBehavior : public IEntityBehavior {
 
     /** On contact: consume the event and signal bridge collapse. */
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
 
     std::unique_ptr<IEntityBehavior> Clone() const override {
         return std::make_unique<AxeBehavior>(*this);
@@ -44,6 +45,8 @@ class AxeBehavior : public IEntityBehavior {
 
     /** Used by PlayingSceneHandler to find the axe without EntityType check. */
     bool IsAxe() const override { return true; }
+
+    bool IsRealAxe(const EntityState& state, const std::vector<std::shared_ptr<Entity>>& allEntities) const override;
 
    private:
     int m_AnimationFrame = 0;
@@ -65,7 +68,8 @@ class PrincessBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "PrincessBehavior"; }
 
@@ -90,7 +94,8 @@ class FlagBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "FlagBehavior"; }
 
@@ -115,7 +120,8 @@ class AxeProjectileBehavior : public IEntityBehavior {
     void Update(EntityState& state, const Level& level, const Player& player,
                 int gameTimer) override;
     bool OnPlayerCollision(EntityState& state, Player& player,
-                           bool isFromAbove) override;
+                           bool isFromAbove, GameStateManager& gameState,
+                           UIManager& uiManager, Camera& camera) override;
     std::unique_ptr<IEntityBehavior> Clone() const override;
     const char* GetName() const override { return "AxeProjectileBehavior"; }
 

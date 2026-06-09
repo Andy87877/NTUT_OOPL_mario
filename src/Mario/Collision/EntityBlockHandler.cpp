@@ -133,7 +133,7 @@ void EntityBlockHandler::CheckWalls(
                     spawnExplosion();
                 } else {
                     state.FlipDirection();
-                    state.SetX(block->GetWorldX() - state.GetWidth());
+                    state.SetX(block->GetWorldX() - (box.right - state.GetX()));
                 }
                 break;
             }
@@ -149,7 +149,7 @@ void EntityBlockHandler::CheckWalls(
                     spawnExplosion();
                 } else {
                     state.FlipDirection();
-                    state.SetX(block->GetWorldX() + tileSize);
+                    state.SetX(block->GetWorldX() + tileSize - (box.left - state.GetX()));
                 }
                 break;
             }
@@ -165,31 +165,39 @@ void EntityBlockHandler::CheckCeiling(Entity& entity, Level& level) {
     EntityState& state = entity.GetState();
 
     // Only check ceiling if the entity is moving upward (rising in a jump/bounce).
-    if (state.GetVelY() >= 0.0 && state.GetFallHeight() <= 0.0) {
+    bool movingUp = (state.GetVelY() < 0.0f) || (state.GetFallHeight() > 0.0);
+    if (!movingUp) {
         return;
     }
 
     AABB box = entity.GetHitbox();
-    const int tileSize = GameConfig::TILE_SIZE;
+    const float TS = static_cast<float>(GameConfig::TILE_SIZE);
+    const float STR = GameConfig::INTERSECT_STRICTNESS;
 
-    // Shift 1.0f upward to check the block directly above the entity.
-    float checkY = box.top - 1.0f;
-    int leftTile = static_cast<int>(box.left) / tileSize;
-    int rightTile = static_cast<int>(box.right - 1) / tileSize;
-    int topTile = static_cast<int>(checkY) / tileSize;
+    int htLeft = static_cast<int>(box.left) / GameConfig::TILE_SIZE;
+    int htRight = static_cast<int>(box.right - 1) / GameConfig::TILE_SIZE;
+    int headRow = static_cast<int>(box.top) / GameConfig::TILE_SIZE;
 
-    // Boundary check
-    if (topTile < 0) return;
+    bool triggered = false;
+    for (int row = headRow - 1; row <= headRow && !triggered; row++) {
+        if (row < 0) continue;
+        for (int gx = htLeft; gx <= htRight && !triggered; gx++) {
+            Block* block = level.GetBlockAt(gx, row);
+            if (block && block->IsSolid()) {
+                AABB bb = block->GetAABB();
+                // Velocity-adaptive threshold: scales up at high speeds
+                // to prevent passing through the block in a single frame.
+                float threshold = std::max(TS * STR, static_cast<float>(std::abs(state.GetVelY()) + 2.0f));
 
-    for (int x = leftTile; x <= rightTile; x++) {
-        Block* block = level.GetBlockAt(x, topTile);
-        if (block && block->IsSolid()) {
-            AABB bb = block->GetAABB();
-            // Snap entity top to the bottom of the ceiling block
-            state.SetY(bb.bottom);
-            state.SetVelY(0.0);
-            state.SetFallHeight(0.0);
-            break;
+                if (box.top < bb.bottom && box.top > bb.bottom - threshold &&
+                    box.Intersects(bb)) {
+                    // Snap entity top to the bottom of the ceiling block
+                    state.SetY(bb.bottom);
+                    state.SetVelY(0.0);
+                    state.SetFallHeight(0.0);
+                    triggered = true;
+                }
+            }
         }
     }
 }
