@@ -1613,6 +1613,7 @@ sequenceDiagram
 
 - **優化順序**：將 `Util::Input::Update()` 移到了 [Context.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/PTSD/src/Core/Context.cpp) 中 `Context::Update()` 方法的**最尾端（即返回前）**。這使得輸入輪詢發生在 `SDL_GL_SwapWindow` 垂直同步阻塞與限制幀率睡眠（`SDL_Delay`）之後，確保當物理邏輯執行時，拿到的輸入是最新鮮的實時狀態，達成 **0 毫秒輸入延遲**。
 - **混合休眠與自旋等待 (Hybrid Sleep/Busy-Wait Limiter)**：引入了 `SDL_Delay` 粗粒度睡眠與精密自旋忙等（Precise spin-waiting）相結合的混合限幀器。若剩餘時間大於 3.0ms 則呼叫 `SDL_Delay` 釋放 CPU，剩餘微秒時間則進行精準自旋，完美對齊 `FPS_CAP` 幀時間，並在啟用 VSync 時自動避免額外的 OS 調度延遲，徹底杜絕了線程調度抖動導致幀率跌落至 30/48 FPS 的卡頓 bug。
+- **中文輸入法防卡鍵 (IME Bypass)**：在每幀呼叫 `Input::Update()` 時，強行呼叫 `SDL_StopTextInput()`。這能有效停用作業系統的 IME（輸入法編輯器）對鍵盤按鍵事件的攔截，徹底解決玩家在開啟中文輸入法時無法移動、噴火或起跳的問題，保證了任何輸入狀態下的遊戲流暢操作。
 
 #### 2. 極速切換防漏鍵：子幀事件追蹤 (Sub-frame Event Tracking)
 
@@ -2469,73 +2470,74 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | 檔案 | 行數 | 職責與關鍵細節說明 |
 |------|-----|-------------------|
 | `App.cpp` | 190 | TransitionTo + delegation to ILevelService + accessor impls；移除 Z-index 覆寫。 |
-| `Mario/Core/Camera.cpp` | 55 | 8-4 Boss 鎖屏與相機橫向跟隨邏輯。 |
-| `Mario/Core/PhysicsEngine.cpp` | 48 | ApplyGravity() 與 Jump 物理計算。 |
-| `Mario/Core/SpritePathResolver.cpp` | 625 | 全靜態 mapping 表與 s_ResolvedPathCache 快取，避免磁碟每幀重複 I/O 開銷。 |
-| `Mario/Core/FixedTimestep.cpp` | 34 | 固定時步累積器實作；`Accumulate(dtMs)` 計算本幀應執行的物理 tick 數，並防止「死亡螺旋」（超長幀時間硬截斷）。 |
-| `Mario/Core/ResourceResolver.cpp` | 47 | 動態資源目錄解析（Windows 特化）；執行時優先偵測 exe 同目錄的 `./Resources`，否則回退至編譯期 `RESOURCE_DIR` 巨集，解決部署與 IDE 路徑差異問題。 |
-| `Mario/Level/Block.cpp` | 400 | s_BlockSpriteCache 快取；實作 8 個 Block 子類別 HandleOnHit 多型（含 `WarpPipeBlock`）。 |
-| `Mario/Level/BlockFactory.cpp` | 55 | 磚塊生成工廠，實作多型 Block 子類別建立（含水管方塊）。 |
-| `Mario/Level/MovingPlatform.cpp` | 115 | 移動平台（垂直/水平）移動物理與 Snap 載人邏輯。 |
-| `Mario/Level/Level.cpp` | 560 | CSV 載入與二維 Block 扁平陣列 O(1) 索引；視口 culling column 效率優化；純資料驅動食人花重疊過濾（零硬編碼）。 |
-| `Mario/Player/PlayerState.cpp` | 431 | Player MVC Model；蹲下高度動態調整；自定義非內聯解構子。 |
-| `Mario/Player/PlayerForm.cpp` | 304 | IPlayerForm 及 5 種力量型態子類別多型升級與傷害退化轉換實作。 |
+| `Mario/Core/Camera.cpp` | 54 | 8-4 Boss 鎖屏與相機橫向跟隨邏輯。 |
+| `Mario/Core/PhysicsEngine.cpp` | 47 | ApplyGravity() 與 Jump 物理計算。 |
+| `Mario/Core/SpritePathResolver.cpp` | 624 | 全靜態 mapping 表與 s_ResolvedPathCache 快取，避免磁碟每幀重複 I/O 開銷。 |
+| `Mario/Core/FixedTimestep.cpp` | 33 | 固定時步累積器實作；`Accumulate(dtMs)` 計算本幀應執行的物理 tick 數，並防止「死亡螺旋」（超長幀時間硬截斷）。 |
+| `Mario/Core/ResourceResolver.cpp` | 46 | 動態資源目錄解析（Windows 特化）；執行時優先偵測 exe 同目錄的 `./Resources`，否則回退至編譯期 `RESOURCE_DIR` 巨集，解決部署與 IDE 路徑差異問題。 |
+| `Mario/Level/Block.cpp` | 399 | s_BlockSpriteCache 快取；實作 8 個 Block 子類別 HandleOnHit 多型（含 `WarpPipeBlock`）。 |
+| `Mario/Level/BlockFactory.cpp` | 54 | 磚塊生成工廠，實作多型 Block 子類別建立（含水管方塊）。 |
+| `Mario/Level/MovingPlatform.cpp` | 114 | 移動平台（垂直/水平）移動物理與 Snap 載人邏輯。 |
+| `Mario/Level/Level.cpp` | 559 | CSV 載入與二維 Block 扁平陣列 O(1) 索引；視口 culling column 效率優化；純資料驅動食人花重疊過濾（零硬編碼）。 |
+| `Mario/Player/PlayerState.cpp` | 430 | Player MVC Model；蹲下高度動態調整；自定義非內聯解構子。 |
+| `Mario/Player/PlayerForm.cpp` | 303 | IPlayerForm 及 5 種力量型態子類別多型升級與傷害退化轉換實作。 |
 | `Mario/Player/PlayerDeathAnimation.cpp` | 60 | ClassicPlayerDeathAnimation 死亡策略動畫（凍結➔起跳➔下墜）。 |
-| `Mario/Player/PlayerAnimator.cpp` | 79 | 玩家精靈路徑解析器實作（SRP）；`GetSpritePath`/`GetSpriteState`/`GetSpriteHeight` 三方法委派至 SpritePathResolver，完全從 Player.cpp 剝離動畫邏輯。 |
-| `Mario/Player/Player.cpp` | 152 | Player View；像素對齊；crouch sprite anchored to hitbox bottom（修正下陷問題）。 |
-| `Mario/Services/InputHandler.cpp` | 118 | 鍵盤按鍵狀態擷取與防卡判定。 |
-| `Mario/Level/EntityState.cpp` | 219 | Entity MVC Model；死亡動畫策略整合；GetHitbox 零硬編碼 AABB 運算。 |
+| `Mario/Player/PlayerAnimator.cpp` | 78 | 玩家精靈路徑解析器實作（SRP）；`GetSpritePath`/`GetSpriteState`/`GetSpriteHeight` 三方法委派至 SpritePathResolver，完全從 Player.cpp 剝離動畫邏輯。 |
+| `Mario/Player/Player.cpp` | 151 | Player View；像素對齊；crouch sprite anchored to hitbox bottom（修正下陷問題）。 |
+| `Mario/Services/InputHandler.cpp` | 117 | 鍵盤按鍵狀態擷取與防卡判定。 |
+| `Mario/Level/EntityState.cpp` | 218 | Entity MVC Model；死亡動畫策略整合；GetHitbox 零硬編碼 AABB 運算。 |
 | `Mario/Level/EnemyDeathAnimation.cpp` | 156 | 四種死亡動畫策略（Squish壓扁/Retreat龜殼/Flip擊飛/Classic通用）具體實作。 |
 | `Mario/Level/EnemyDeathStyleFactory.cpp` | 30 | 依 EntityType 與 Cause 動態建立死亡動畫策略。 |
-| `Mario/Level/EntityAnimator.cpp` | 51 | 實體精靈路徑解析器實作（SRP）；`GetSpritePath` 委派 SpritePathResolver 並整合死亡動畫精靈鍵，從 Entity.cpp 剝離動畫路徑責任。 |
-| `Mario/Level/BehaviorRegistry.cpp` | 105 | OCP 行為登錄表實作；`InitializeRegistry` 靜態初始化所有 EntityType 與 Creator lambda 映射關係，完全取代 EntityFactory 的 switch-case 分派。 |
-| `Mario/Level/Entity.cpp` | 231 | Entity View；s_EntitySpriteCache 快取；Z-index 與維度由 EntityDef 資料驅動（OCP）；所有實體精靈支援底部對齊（防止漂浮）。 |
-| `Mario/Level/EntityFactory.cpp` | 333 | 唯一 Entity 建立入口；設定 renderTargetWidth；SpawnProjectile 與 SpawnFromPlayer 投射物工廠。 |
+| `Mario/Level/EntityAnimator.cpp` | 50 | 實體精靈路徑解析器實作（SRP）；`GetSpritePath` 委派 SpritePathResolver 並整合死亡動畫精靈鍵，從 Entity.cpp 剝離動畫路徑責任。 |
+| `Mario/Level/BehaviorRegistry.cpp` | 104 | OCP 行為登錄表實作；`InitializeRegistry` 靜態初始化所有 EntityType 與 Creator lambda 映射關係，完全取代 EntityFactory 的 switch-case 分派。 |
+| `Mario/Level/Entity.cpp` | 230 | Entity View；s_EntitySpriteCache 快取；Z-index 與維度由 EntityDef 資料驅動（OCP）；所有實體精靈支援底部對齊（防止漂浮）。 |
+| `Mario/Level/EntityFactory.cpp` | 332 | 唯一 Entity 建立入口；設定 renderTargetWidth；SpawnProjectile 與 SpawnFromPlayer 投射物工廠。 |
 | `Mario/Level/LevelConfig.cpp` | 134 | 關卡特定屬性配置（使用 `LevelPropertyProfile` 註冊表，消除所有 level 名稱 procedural `if` 判斷）。 |
-| Mario/CollisionManager.cpp | 66 | **Facade門面**：公開 API 將碰撞分派給 Collision/ 目錄下的 4 個 Strategy Handler。 |
-| `Mario/Collision/BlockContactResolver.cpp` | 110 | 靜態 Snap helpers（Down/Up/Right/Left）與 BodyRect 全高碰撞體建立。 |
-| `Mario/Collision/PlayerBlockHandler.cpp` | 330 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
-| `Mario/Collision/PlayerEntityHandler.cpp` | 141 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
-| `Mario/Collision/EntityBlockHandler.cpp` | 206 | 實體-方塊碰撞：處理地平/天花板 Snap/反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
-| `Mario/Collision/EntityEntityHandler.cpp` | 106 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
-| `Mario/Level/GameStateManager.cpp` | 140 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
-| `Mario/Scenes/MenuSceneHandlers.cpp` | 169 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
-| `Mario/Scenes/LoadingSceneHandler.cpp` | 48 | 加載畫面（預載貼圖，強制黑色背景）。 |
-| `Mario/Scenes/PlayingSceneHandler.cpp` | 602 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，使用多型 `IsWarpPipe()` / `IsRealAxe()` 徹底擺脫硬編碼。 |
-| `Mario/Scenes/FlagpoleSceneHandler.cpp` | 206 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
-| `Mario/Scenes/PipeWarpSceneHandler.cpp` | 165 | 水管傳送過場動畫邏輯。 |
-| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 182 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
-| `Mario/Scenes/ESCMenuSceneHandler.cpp` | 79 | 暫停選單場景，使用 `IESCMenuItem` 命令集合多型執行 Update/OnRender，完全移除 hardcoded switch-case。 |
-| `Mario/UI/UIManager.cpp` | 162 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
-| `Mario/Services/AudioManager.cpp` | 273 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
-| `Mario/Services/AudioPathResolver.cpp` | 9 | 音效與音樂路徑靜態解析 helper。 |
-| `Mario/Services/Commands.cpp` | 127 | 12 個具體輸入命令（`ICommand`）實作，涵蓋移動/跳躍/蹲下/奔跑/射擊及物理位移計算，將輸入動作完全解耦為可獨立測試的命令物件。 |
-| `Mario/Services/MockInputHandler.cpp` | 66 | 模擬/測試用輸入控制器實作。 |
-| `Mario/Services/KeyboardInputProfile.cpp` | 60 | 預設鍵盤按鍵映射策略實作。 |
-| `Mario/Services/LevelManager.cpp` | 155 | ILevelService 實作：LoadLevel, StartLevel, BGM 播放；StartLevel 消除 inline 旗幟尋找。 |
-| `Mario/UI/HUDPanel.cpp` | 130 | HUD 面板實作，處理計分、金幣動畫更新及時間警告閃爍。 |
-| `Mario/UI/TitlePanel.cpp` | 240 | 標題畫面面板實作，渲染選項列表並支援展示 controls guide 面板。 |
-| `Mario/UI/TitleMenuItems.cpp` | 52 | 實作標題選單的各個具體命令類別（StartGame/Controls/QuitGame）。 |
-| `Mario/UI/LoadingPanel.cpp` | 72 | 關卡加載畫面面板實作，載入並擺放角色預覽精靈。 |
-| `Mario/UI/GameOverPanel.cpp` | 85 | 專用遊戲結束文字結算面板實作。 |
-| `Mario/UI/GameWonPanel.cpp` | 133 | 專用遊戲勝利恭喜及角色謝幕面板實作. |
-| `Mario/UI/ESCMenuPanel.cpp` | 240 | 暫停選單面板實作，渲染選項列表並支援展示 controls guide 面板。 |
-| `Mario/UI/ESCMenuItems.cpp` | 145 | 實作暫停選單的各個具體命令類別（Resume/Warp/Cheat/Power/Controls）。 |
-| `Mario/UI/AxeEndingPanel.cpp` | 48 | 終局城堡謝幕面板實作。 |
-| `Mario/UI/CoinUI.cpp` | 86 | HUD 金幣閃爍與計數動畫實作。 |
-| `Mario/UI/FloatingText.cpp` | 45 | 漂浮分數文字 60 幀 Alpha 漸進式淡出與向上漂移。 |
-| `Mario/Behaviors/GoombaBehavior.cpp` | 82 | Goomba 巡邏與面牆反向、踩扁 AI。 |
-| `Mario/Behaviors/KoopaFamily.cpp` | 413 | 烏龜兵、飛龜、擲斧龜多型 AI；以 KoopaType 區分，消除 string 逐幀比較。 |
-| `Mario/Behaviors/BowserBehavior.cpp` | 371 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
-| `Mario/Behaviors/CastleFireSpawnerBehavior.cpp` | 123 | 隱形越屏定時向左發射火球 AI。 |
-| `Mario/Behaviors/FireballBehavior.cpp` | 110 | 火球拋物線與碰撞爆炸物理。 |
-| `Mario/Behaviors/ItemBehaviors.cpp` | 269 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
-| `Mario/Behaviors/StaticEntityBehaviors.cpp` | 138 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（實作 `IsRealAxe` 決定真假 boss room）。 |
-| `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 158 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 2.5×TILE 檢查與冒出取消（防偷襲）。 |
-| `Mario/Behaviors/PodobooBehavior.cpp` | 111 | 岩漿火球定時向上彈跳無視地形 AI。 |
-| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 55 | 預設被動與裝飾策略實作。 |
+| Mario/CollisionManager.cpp | 65 | **Facade門面**：公開 API 將碰撞分派給 Collision/ 目錄下的 4 個 Strategy Handler。 |
+| `Mario/Collision/BlockContactResolver.cpp` | 109 | 靜態 Snap helpers（Down/Up/Right/Left）與 BodyRect 全高碰撞體建立。 |
+| `Mario/Collision/PlayerBlockHandler.cpp` | 329 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
+| `Mario/Collision/PlayerEntityHandler.cpp` | 140 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
+| `Mario/Collision/EntityBlockHandler.cpp` | 205 | 實體-方塊碰撞：處理地平/天花板 Snap/反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
+| `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
+| `Mario/Level/GameStateManager.cpp` | 139 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
+| `Mario/Scenes/MenuSceneHandlers.cpp` | 168 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
+| `Mario/Scenes/LoadingSceneHandler.cpp` | 47 | 加載畫面（預載貼圖，強制黑色背景）。 |
+| `Mario/Scenes/PlayingSceneHandler.cpp` | 601 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，使用多型 `IsWarpPipe()` / `IsRealAxe()` 徹底擺脫硬編碼。 |
+| `Mario/Scenes/FlagpoleSceneHandler.cpp` | 205 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
+| `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
+| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 181 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
+| `Mario/Scenes/ESCMenuSceneHandler.cpp` | 78 | 暫停選單場景，使用 `IESCMenuItem` 命令集合多型執行 Update/OnRender，完全移除 hardcoded switch-case。 |
+| `Mario/UI/UIManager.cpp` | 161 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
+| `Mario/Services/AudioManager.cpp` | 272 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
+| `Mario/Services/AudioPathResolver.cpp` | 8 | 音效與音樂路徑靜態解析 helper。 |
+| `Mario/Services/Commands.cpp` | 126 | 12 個具體輸入命令（`ICommand`）實作，涵蓋移動/跳躍/蹲下/奔跑/射擊及物理位移計算，將輸入動作完全解耦為可獨立測試的命令物件。 |
+| `Mario/Services/MockInputHandler.cpp` | 65 | 模擬/測試用輸入控制器實作。 |
+| `Mario/Services/KeyboardInputProfile.cpp` | 59 | 預設鍵盤按鍵映射策略實作。 |
+| `Mario/Services/LevelManager.cpp` | 154 | ILevelService 實作：LoadLevel, StartLevel, BGM 播放；StartLevel 消除 inline 旗幟尋找。 |
+| `Mario/UI/HUDPanel.cpp` | 129 | HUD 面板實作，處理計分、金幣動畫更新及時間警告閃爍。 |
+| `Mario/UI/TitlePanel.cpp` | 239 | 標題畫面面板實作，渲染選項列表並支援展示 controls guide 面板。 |
+| `Mario/UI/TitleMenuItems.cpp` | 51 | 實作標題選單的各個具體命令類別（StartGame/Controls/QuitGame）。 |
+| `Mario/UI/LoadingPanel.cpp` | 71 | 關卡加載畫面面板實作，載入並擺放角色預覽精靈。 |
+| `Mario/UI/GameOverPanel.cpp` | 84 | 專用遊戲結束文字結算面板實作。 |
+| `Mario/UI/GameWonPanel.cpp` | 132 | 專用遊戲勝利恭喜及角色謝幕面板實作. |
+| `Mario/UI/ESCMenuPanel.cpp` | 239 | 暫停選單面板實作，渲染選項列表並支援展示 controls guide 面板。 |
+| `Mario/UI/ESCMenuItems.cpp` | 144 | 實作暫停選單的各個具體命令類別（Resume/Warp/Cheat/Power/Controls）。 |
+| `Mario/UI/AxeEndingPanel.cpp` | 47 | 終局城堡謝幕面板實作。 |
+| `Mario/UI/CoinUI.cpp` | 85 | HUD 金幣閃爍與計數動畫實作。 |
+| `Mario/UI/FloatingText.cpp` | 44 | 漂浮分數文字 60 幀 Alpha 漸進式淡出與向上漂移。 |
+| `Mario/Behaviors/GoombaBehavior.cpp` | 81 | Goomba 巡邏與面牆反向、踩扁 AI。 |
+| `Mario/Behaviors/KoopaFamily.cpp` | 412 | 烏龜兵、飛龜、擲斧龜多型 AI；以 KoopaType 區分，消除 string 逐幀比較。 |
+| `Mario/Behaviors/BowserBehavior.cpp` | 370 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
+| `Mario/Behaviors/CastleFireSpawnerBehavior.cpp` | 122 | 隱形越屏定時向左發射火球 AI。 |
+| `Mario/Behaviors/FireballBehavior.cpp` | 109 | 火球拋物線與碰撞爆炸物理。 |
+| `Mario/Behaviors/ItemBehaviors.cpp` | 268 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
+| `Mario/Behaviors/StaticEntityBehaviors.cpp` | 137 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（實作 `IsRealAxe` 決定真假 boss room）。 |
+| `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 157 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 2.5×TILE 檢查與冒出取消（防偷襲）。 |
+| `Mario/Behaviors/PodobooBehavior.cpp` | 110 | 岩漿火球定時向上彈跳無視地形 AI。 |
+| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 54 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 56 | 破碎磚塊碎屑粒子策略。 |
 
+**Total: 67 source files, 11,035 lines of C++17 OOP code**
 
 ---
 

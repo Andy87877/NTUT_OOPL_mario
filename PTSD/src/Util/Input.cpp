@@ -101,6 +101,9 @@ void Input::UpdateKeyState(const SDL_Event *event) {
 }
 
 void Input::Update() {
+    // Stop text input processing to prevent Chinese IME from capturing and blocking movement/action keys
+    SDL_StopTextInput();
+
     s_PressedKeys.clear();
     s_ReleasedKeys.clear();
 

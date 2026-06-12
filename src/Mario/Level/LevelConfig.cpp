@@ -68,7 +68,8 @@ const LevelPropertyProfile& LevelConfig::GetProfile(const std::string& levelName
             {EntityType::AXE_PROJECTILE, 32.0f}
         };
         p8_4.projectileWidthOverrides = {
-            {EntityType::AXE, 32.0f}
+            {EntityType::AXE, 32.0f},
+            {EntityType::PRINCESS, 32.0f}
         };
         p8_4.isUnderground = true;
         registry["8-4"] = p8_4;
