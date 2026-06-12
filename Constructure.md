@@ -2527,7 +2527,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/UI/FloatingText.cpp` | 44 | 漂浮分數文字 60 幀 Alpha 漸進式淡出與向上漂移。 |
 | `Mario/Behaviors/GoombaBehavior.cpp` | 81 | Goomba 巡邏與面牆反向、踩扁 AI。 |
 | `Mario/Behaviors/KoopaFamily.cpp` | 412 | 烏龜兵、飛龜、擲斧龜多型 AI；以 KoopaType 區分，消除 string 逐幀比較。 |
-| `Mario/Behaviors/BowserBehavior.cpp` | 370 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
+| `Mario/Behaviors/BowserBehavior.cpp` | 402 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
 | `Mario/Behaviors/CastleFireSpawnerBehavior.cpp` | 122 | 隱形越屏定時向左發射火球 AI。 |
 | `Mario/Behaviors/FireballBehavior.cpp` | 109 | 火球拋物線與碰撞爆炸物理。 |
 | `Mario/Behaviors/ItemBehaviors.cpp` | 268 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
@@ -2537,7 +2537,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Behaviors/DefaultEntityBehavior.cpp` | 54 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 56 | 破碎磚塊碎屑粒子策略。 |
 
-**Total: 67 source files, 11,035 lines of C++17 OOP code**
+**Total: 67 source files, 11,067 lines of C++17 OOP code**
 
 ---
 

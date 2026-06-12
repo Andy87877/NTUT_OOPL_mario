@@ -41,13 +41,25 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
         UpdateDamaged(state);
     }
 
+    SyncPatrolDirection(state);
+    ScanBridge(level);
+    TryDodgeFireball(state, player);
+    UpdateAttacks(state, player);
+    UpdatePhase(state, level, player);
+    InterceptPlayer(state, player);
+    ConstrainToBridge(state);
+}
+
+void BowserBehavior::SyncPatrolDirection(EntityState& state) {
     // Sync patrol direction from the current physical velocity (allows wall check flips to propagate)
     if (state.GetVelX() > 0.0f) {
         m_PatrolDirection = 1;
     } else if (state.GetVelX() < 0.0f) {
         m_PatrolDirection = -1;
     }
+}
 
+void BowserBehavior::ScanBridge(const Level& level) {
     // Dynamic Bridge Scanning (zero-allocation lookup)
     if (m_BridgeLeft < 0.0f) {
         float left = 999999.0f;
@@ -71,7 +83,9 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
             m_BridgeRight = 15300.0f;
         }
     }
+}
 
+void BowserBehavior::TryDodgeFireball(EntityState& state, const Player& player) {
     // Intelligent Fireball Dodge Hop & Counter-Attack
     bool isMarioShooting = player.GetState().IsFireShooting();
     float distanceToMario = std::abs(player.GetWorldX() - state.GetWorldX());
@@ -83,62 +97,76 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
             AXE_THROW_INTERVAL;  // Counter-attack with axe immediately!
         LOG_INFO("Bowser: Dodging incoming fireball with counter-attack!");
     }
+}
 
-    // Axe throwing logic: active during patrol, fire attack, and jump phases
-    m_AxeThrowTimer++;
-    if (m_AxeThrowTimer >= AXE_THROW_INTERVAL) {
-        m_AxeThrowTimer = 0;
-        // Spawn axe: slightly above Bowser's head
-        float axeX =
-            state.GetWorldX() +
-            (state.GetDirection() == 0 ? -10.0f : state.GetWidth() - 10.0f);
-        float axeY = state.GetWorldY() - 15.0f;  // 15px above head
-        int axeDir = (player.GetWorldX() < state.GetWorldX()) ? 0 : 1;
-        m_PendingSpawns.push_back(
-            {EntityType::AXE_PROJECTILE, axeX, axeY, axeDir});
-    }
+void BowserBehavior::UpdateAttacks(EntityState& state, const Player& player) {
+    float distanceToMario = std::abs(player.GetWorldX() - state.GetWorldX());
+    // Proximity check to prevent off-screen projectile queue build-up.
+    // Bowser only throws axes and spits fireballs when the player is close enough (within Bowser's chamber).
+    bool playerInActiveRange = (distanceToMario < 960.0f);
 
-    // Fire spitting logic: active during patrol, fire attack, and jump phases
-    m_FireballTimer++;
-    if (m_FireballTimer >= FIREBALL_INTERVAL) {
-        m_FireballTimer = 0;
-        Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::EnemyFire);
-
-        // Determine direction toward player (always left 0 if player is to his
-        // left)
-        int fireballDir = (player.GetWorldX() < state.GetWorldX()) ? 0 : 1;
-
-        float fireballX = 0.0f;
-        if (fireballDir == 0) {
-            fireballX =
-                state.GetWorldX() - static_cast<float>(GameConfig::TILE_SIZE);
-        } else {
-            fireballX =
-                state.GetWorldX() + static_cast<float>(state.GetWidth());
+    if (playerInActiveRange) {
+        // Axe throwing logic: active during patrol, fire attack, and jump phases
+        m_AxeThrowTimer++;
+        if (m_AxeThrowTimer >= AXE_THROW_INTERVAL) {
+            m_AxeThrowTimer = 0;
+            // Spawn axe: slightly above Bowser's head
+            float axeX =
+                state.GetWorldX() +
+                (state.GetDirection() == 0 ? -10.0f : state.GetWidth() - 10.0f);
+            float axeY = state.GetWorldY() - 15.0f;  // 15px above head
+            int axeDir = (player.GetWorldX() < state.GetWorldX()) ? 0 : 1;
+            m_PendingSpawns.push_back(
+                {EntityType::AXE_PROJECTILE, axeX, axeY, axeDir});
         }
 
-        // Intelligent Targeted Fire spits at height matching Mario
-        float marioY = player.GetWorldY();
-        float fireballY = state.GetWorldY();
+        // Fire spitting logic: active during patrol, fire attack, and jump phases
+        m_FireballTimer++;
+        if (m_FireballTimer >= FIREBALL_INTERVAL) {
+            m_FireballTimer = 0;
+            Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::EnemyFire);
 
-        if (marioY < state.GetWorldY() - GameConfig::TILE_SIZE * 0.5f) {
-            fireballY +=
-                0.2f *
-                GameConfig::TILE_SIZE;  // High fire to intercept jumping Mario
-        } else if (marioY > state.GetWorldY() + GameConfig::TILE_SIZE * 0.5f ||
-                   player.GetState().IsCrouching()) {
-            fireballY +=
-                1.8f * GameConfig::TILE_SIZE;  // Low fire to hit crouching or
-                                               // grounded Mario
-        } else {
-            fireballY += 1.0f * GameConfig::TILE_SIZE;  // Medium fire to catch
-                                                        // normal height Mario
+            // Determine direction toward player (always left 0 if player is to his
+            // left)
+            int fireballDir = (player.GetWorldX() < state.GetWorldX()) ? 0 : 1;
+
+            float fireballX = 0.0f;
+            if (fireballDir == 0) {
+                fireballX =
+                    state.GetWorldX() - static_cast<float>(GameConfig::TILE_SIZE);
+            } else {
+                fireballX =
+                    state.GetWorldX() + static_cast<float>(state.GetWidth());
+            }
+
+            // Intelligent Targeted Fire spits at height matching Mario
+            float marioY = player.GetWorldY();
+            float fireballY = state.GetWorldY();
+
+            if (marioY < state.GetWorldY() - GameConfig::TILE_SIZE * 0.5f) {
+                fireballY +=
+                    0.2f *
+                    GameConfig::TILE_SIZE;  // High fire to intercept jumping Mario
+            } else if (marioY > state.GetWorldY() + GameConfig::TILE_SIZE * 0.5f ||
+                       player.GetState().IsCrouching()) {
+                fireballY +=
+                    1.8f * GameConfig::TILE_SIZE;  // Low fire to hit crouching or
+                                                   // grounded Mario
+            } else {
+                fireballY += 1.0f * GameConfig::TILE_SIZE;  // Medium fire to catch
+                                                            // normal height Mario
+            }
+
+            m_PendingSpawns.push_back(
+                {EntityType::FIRE, fireballX, fireballY, fireballDir});
         }
-
-        m_PendingSpawns.push_back(
-            {EntityType::FIRE, fireballX, fireballY, fireballDir});
+    } else {
+        m_PendingSpawns.clear();
     }
+}
 
+void BowserBehavior::UpdatePhase(EntityState& state, const Level& level,
+                                 const Player& player) {
     m_PhaseTimer++;
 
     switch (m_Phase) {
@@ -156,6 +184,22 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
             break;
     }
 
+    // Phase transition logic
+    if (m_PhaseTimer >= PATROL_PHASE_LENGTH && m_Phase == BowserPhase::PATROL) {
+        m_Phase = BowserPhase::FIRE_ATTACK;
+        m_PhaseTimer = 0;
+        m_AttackCounter = 0;
+    } else if (m_PhaseTimer >= FIRE_ATTACK_LENGTH &&
+               m_Phase == BowserPhase::FIRE_ATTACK) {
+        m_Phase = BowserPhase::JUMP_ATTACK;
+        m_PhaseTimer = 0;
+    } else if (m_PhaseTimer >= 240 && m_Phase == BowserPhase::JUMP_ATTACK) {
+        m_Phase = BowserPhase::PATROL;
+        m_PhaseTimer = 0;
+    }
+}
+
+void BowserBehavior::InterceptPlayer(EntityState& state, const Player& player) {
     // Intelligent Blocking & Interception Algorithm
     float dist = std::abs(player.GetWorldX() - state.GetWorldX());
     bool playerTryingToPass = (player.GetWorldX() > state.GetWorldX());
@@ -181,7 +225,9 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
             LOG_INFO("Bowser: Intercepting and blocking player jump/passage!");
         }
     }
+}
 
+void BowserBehavior::ConstrainToBridge(EntityState& state) {
     // Keep Bowser strictly constrained on the bridge Y boundaries
     if (m_BridgeLeft > 0.0f) {
         float minX = m_BridgeLeft + 10.0f;
@@ -196,20 +242,6 @@ void BowserBehavior::Update(EntityState& state, const Level& level,
             m_PatrolDirection = -1;
             state.SetVelX(-std::abs(state.GetVelX()));
         }
-    }
-
-    // Phase transition logic
-    if (m_PhaseTimer >= PATROL_PHASE_LENGTH && m_Phase == BowserPhase::PATROL) {
-        m_Phase = BowserPhase::FIRE_ATTACK;
-        m_PhaseTimer = 0;
-        m_AttackCounter = 0;
-    } else if (m_PhaseTimer >= FIRE_ATTACK_LENGTH &&
-               m_Phase == BowserPhase::FIRE_ATTACK) {
-        m_Phase = BowserPhase::JUMP_ATTACK;
-        m_PhaseTimer = 0;
-    } else if (m_PhaseTimer >= 240 && m_Phase == BowserPhase::JUMP_ATTACK) {
-        m_Phase = BowserPhase::PATROL;
-        m_PhaseTimer = 0;
     }
 }
 

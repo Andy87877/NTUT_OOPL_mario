@@ -276,7 +276,7 @@ void PlayerState::PowerUp(PowerState newState) {
     if (!wasBig && isBig) {
         SetY(GetY() - GameConfig::TILE_SIZE);
         m_TransitionTimer = 36; // Grow transition from Small to Big/Fire (scaled for 60Hz)
-    } else if (wasBig && newState == PowerState::FIRE) {
+    } else if (wasBig && newState == PowerState::FIRE && m_PrevPowerState != PowerState::FIRE) {
         m_TransitionTimer = 36; // Big to Fire transition (scaled for 60Hz)
     }
 }

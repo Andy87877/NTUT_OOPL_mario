@@ -124,14 +124,16 @@ World 8-4 (庫巴城堡 — 有熔岩、岩漿泡泡與 Boss 庫巴)
 | 關卡 8-4 (庫巴城堡) | <img src="2026OOPL_Final_imgs/8-4_gameplay.png"> |
 | 控制說明 (Control Guide) | <img src="2026OOPL_Final_imgs/control_guide.png">|
 | 暫停與外掛選單 (ESC Menu) | <img src="2026OOPL_Final_imgs/esc_menu_gameplay.png"> |
-| 主角變身 (大瑪利歐/火焰瑪利歐) | <img src="2026OOPL_Final_imgs/mario_powerup.png"> |
+| 主角變身 (大瑪利歐) | <img src="2026OOPL_Final_imgs/mario_powerup.png"> |
+| 主角變身 (火焰瑪利歐) | <img src="2026OOPL_Final_imgs/mario_fire_powerup.png"> |
+| 主角變身 (無敵星星) | <img src="2026OOPL_Final_imgs/mario_star_powerup.png"> |
 | 踩踏敵方 (Stomp Goomba) | <img src="2026OOPL_Final_imgs/stomp_enemy.png"> |
-| 食人花與水管傳送 (Pipe Warp) | <img src="2026OOPL_Final_imgs/pipe_warp.png"> |
+| 食人花 (Piranha Plant) | <img src="2026OOPL_Final_imgs/piranha_plant.png"> |
 | 庫巴 Boss 戰 (Bowser Battle) | <img src="2026OOPL_Final_imgs/bowser_battle.png"> |
-| 死亡畫面 (Death Screen) | <img src="2026OOPL_Final_imgs/death_scene.png"> |
+| 作弊模式 (Cheat / Debug Mode) | <img src="2026OOPL_Final_imgs/cheat_mode.png"> |
+| 遊戲結束 (Game Over Screen) | <img src="2026OOPL_Final_imgs/game_over_screen.png"> |
 | 拯救公主 (Game Won Screen) | <img src="2026OOPL_Final_imgs/game_won_screen.png"> |
 | 遊戲通過 (Game World Cleared) | <img src="2026OOPL_Final_imgs/game_world_won_screen.png"> |
-| 遊戲結束 (Game Over Screen) | <img src="2026OOPL_Final_imgs/game_over_screen.png"> |
 
 ## 程式設計
 
@@ -457,7 +459,7 @@ AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「�
 
 #### 總結
 
-這個 OOP 瑪利歐專案對我而言，最珍貴的收穫不僅僅是利用 C++ 成功復刻了我從小就想做的遊戲，更重要的是，我從中學會了如何當一個掌控全局的「系統架構師」，而不是被 AI 牽著鼻子走的碼農（不然自己就是被AI取代的那個人）。這是我大學生涯目前為止做過最有趣、也成就感最大的一個專案！
+這次的 OOP 瑪利歐專案，對我來說不只是用 C++ 圓了小時候做遊戲的夢想。更大的收穫是，我開始體會到從「系統架構」層面掌控全局的感覺。在 AI 工具滿天飛的現在，如果不學著自己主導程式架構，只是一味被工具牽著鼻子走，那遲早會變成被淘汰的碼農。這絕對是我上大學以來，做過最有成就感一個專案！
 
 ### 貢獻比例
 

@@ -146,6 +146,15 @@ class BowserBehavior : public IEntityBehavior {
     float m_BridgeRight = -1.0f;
 
     // Helper methods
+    void SyncPatrolDirection(EntityState& state);
+    void ScanBridge(const Level& level);
+    void TryDodgeFireball(EntityState& state, const Player& player);
+    void UpdateAttacks(EntityState& state, const Player& player);
+    void UpdatePhase(EntityState& state, const Level& level,
+                     const Player& player);
+    void InterceptPlayer(EntityState& state, const Player& player);
+    void ConstrainToBridge(EntityState& state);
+
     void UpdatePatrol(EntityState& state, const Level& level,
                       const Player& player);
     void UpdateFireAttackPhase(EntityState& state, const Level& level,
