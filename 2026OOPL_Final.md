@@ -117,20 +117,21 @@ World 8-4 (庫巴城堡 — 有熔岩、岩漿泡泡與 Boss 庫巴)
 
 | 階段 | 遊戲畫面 |
 |:---:|:---:|
-| 開始畫面 (Title Screen) | <img src="2026OOPL_Final_imgs/title_screen_shot.png"> |
-| 關卡過場 (Loading Scene) | <img src="2026OOPL_Final_imgs/loading_scene.png"> |
 | 關卡 1-1 (地面世界) | <img src="2026OOPL_Final_imgs/1-1_gameplay.png"> |
 | 關卡 1-2 (地下世界) | <img src="2026OOPL_Final_imgs/1-2_gameplay.png"> |
 | 關卡 8-4 (庫巴城堡) | <img src="2026OOPL_Final_imgs/8-4_gameplay.png"> |
+| 開始畫面 (Title Screen) | <img src="2026OOPL_Final_imgs/title_screen_shot.png"> |
+| 關卡過場 (Loading Scene) | <img src="2026OOPL_Final_imgs/loading_scene.png"> |
 | 控制說明 (Control Guide) | <img src="2026OOPL_Final_imgs/control_guide.png">|
 | 暫停與外掛選單 (ESC Menu) | <img src="2026OOPL_Final_imgs/esc_menu_gameplay.png"> |
 | 主角變身 (大瑪利歐) | <img src="2026OOPL_Final_imgs/mario_powerup.png"> |
 | 主角變身 (火焰瑪利歐) | <img src="2026OOPL_Final_imgs/mario_fire_powerup.png"> |
 | 主角變身 (無敵星星) | <img src="2026OOPL_Final_imgs/mario_star_powerup.png"> |
+| 作弊模式 (Cheat / Debug Mode) | <img src="2026OOPL_Final_imgs/cheat_mode.png"> |
 | 踩踏敵方 (Stomp Goomba) | <img src="2026OOPL_Final_imgs/stomp_enemy.png"> |
+| 拉旗子 (Flagpole) | <img src="2026OOPL_Final_imgs/flagpole.png"> |
 | 食人花 (Piranha Plant) | <img src="2026OOPL_Final_imgs/piranha_plant.png"> |
 | 庫巴 Boss 戰 (Bowser Battle) | <img src="2026OOPL_Final_imgs/bowser_battle.png"> |
-| 作弊模式 (Cheat / Debug Mode) | <img src="2026OOPL_Final_imgs/cheat_mode.png"> |
 | 遊戲結束 (Game Over Screen) | <img src="2026OOPL_Final_imgs/game_over_screen.png"> |
 | 拯救公主 (Game Won Screen) | <img src="2026OOPL_Final_imgs/game_won_screen.png"> |
 | 遊戲通過 (Game World Cleared) | <img src="2026OOPL_Final_imgs/game_world_won_screen.png"> |
