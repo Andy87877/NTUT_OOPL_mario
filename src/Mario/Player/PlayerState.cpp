@@ -397,8 +397,21 @@ bool PlayerState::ConsumeFireballSpawn(float& outX, float& outY, int& outDir) {
         outDir = m_FacingRight ? 1 : 0;
         // Align spawning X: facing right spawns at center, facing left at left edge (matches C# positioning logic)
         outX = m_PosX + (m_FacingRight ? GetWidth() / 2.0f : 0.0f);
-        // Align spawning Y: half height (aligned with hands/chest, matches C# half-height logic)
-        outY = m_PosY + GetHeight() / 2.0f;
+        
+        // Align spawning Y: For Cheat Mode, adjust spawn height to match Fire Mario waist height (32px off ground)
+        // to prevent premature ground collision for Small Star Mario forms.
+        bool cheatActive = false;
+        if (ServiceLocator::GetInstance().HasService<GameStateManager>()) {
+            auto gs = ServiceLocator::GetInstance().GetService<GameStateManager>();
+            if (gs && gs->IsCheatModeActive()) {
+                cheatActive = true;
+            }
+        }
+        if (cheatActive) {
+            outY = m_PosY + GetHeight() - GameConfig::TILE_SIZE;
+        } else {
+            outY = m_PosY + GetHeight() / 2.0f;
+        }
         return true;
     }
     return false;

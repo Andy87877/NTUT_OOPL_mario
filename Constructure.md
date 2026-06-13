@@ -2494,7 +2494,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Level/BlockFactory.cpp` | 54 | 磚塊生成工廠，實作多型 Block 子類別建立（含水管方塊）。 |
 | `Mario/Level/MovingPlatform.cpp` | 114 | 移動平台（垂直/水平）移動物理與 Snap 載人邏輯。 |
 | `Mario/Level/Level.cpp` | 559 | CSV 載入與二維 Block 扁平陣列 O(1) 索引；視口 culling column 效率優化；純資料驅動食人花重疊過濾（零硬編碼）。 |
-| `Mario/Player/PlayerState.cpp` | 430 | Player MVC Model；蹲下高度動態調整；自定義非內聯解構子。 |
+| `Mario/Player/PlayerState.cpp` | 443 | Player MVC Model；蹲下高度動態調整；自定義非內聯解構子。 |
 | `Mario/Player/PlayerForm.cpp` | 303 | IPlayerForm 及 5 種力量型態子類別多型升級與傷害退化轉換實作。 |
 | `Mario/Player/PlayerDeathAnimation.cpp` | 60 | ClassicPlayerDeathAnimation 死亡策略動畫（凍結➔起跳➔下墜）。 |
 | `Mario/Player/PlayerAnimator.cpp` | 78 | 玩家精靈路徑解析器實作（SRP）；`GetSpritePath`/`GetSpriteState`/`GetSpriteHeight` 三方法委派至 SpritePathResolver，完全從 Player.cpp 剝離動畫邏輯。 |
@@ -2549,10 +2549,10 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Behaviors/StaticEntityBehaviors.cpp` | 137 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（實作 `IsRealAxe` 決定真假 boss room）。 |
 | `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 157 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 2.5×TILE 檢查與冒出取消（防偷襲）。 |
 | `Mario/Behaviors/PodobooBehavior.cpp` | 110 | 岩漿火球定時向上彈跳無視地形 AI。 |
-| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 134 | 預設被動與裝飾策略實作。 |
+| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 135 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 56 | 破碎磚塊碎屑粒子策略。 |
 
-**Total: 67 source files, 11,067 lines of C++17 OOP code**
+**Total: 67 source files, 11,081 lines of C++17 OOP code**
 
 ---
 

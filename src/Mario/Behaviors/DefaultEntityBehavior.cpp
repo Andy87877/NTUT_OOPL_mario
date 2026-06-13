@@ -65,6 +65,7 @@ void EnemyBehavior::HandlePlayerCollision(EntityState& state, Player& player,
                                           UIManager& uiManager, Camera& camera,
                                           int& stompCombo) {
     if (state.IsDead()) return;
+    if (IsPlayerFireball()) return; // Player fireballs never collide with or affect the player
 
     PlayerState& ps = player.GetState();
 
