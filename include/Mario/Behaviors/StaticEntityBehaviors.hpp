@@ -1,12 +1,11 @@
 /**
  * @file StaticEntityBehaviors.hpp
  * @brief Passive / static / projectile behaviors with no autonomous AI logic.
- *        Contains AxeBehavior, PrincessBehavior, FlagBehavior, and
- * AxeProjectileBehavior.
- * @inheritance IEntityBehavior <- AxeBehavior
- *              IEntityBehavior <- PrincessBehavior
- *              IEntityBehavior <- FlagBehavior
- *              IEntityBehavior <- AxeProjectileBehavior
+ *        Contains AxeBehavior, PrincessBehavior, FlagBehavior, and AxeProjectileBehavior.
+ * @inheritance IEntityBehavior -> ItemBehavior -> AxeBehavior
+ *              IEntityBehavior -> ItemBehavior -> PrincessBehavior
+ *              IEntityBehavior -> ItemBehavior -> FlagBehavior
+ *              IEntityBehavior -> EnemyBehavior -> AxeProjectileBehavior
  */
 #ifndef MARIO_STATIC_ENTITY_BEHAVIORS_HPP
 #define MARIO_STATIC_ENTITY_BEHAVIORS_HPP
@@ -25,7 +24,7 @@ namespace Mario {
  * On contact: marks entity deleted so App can trigger bridge collapse.
  * @inheritance IEntityBehavior <- AxeBehavior
  */
-class AxeBehavior : public IEntityBehavior {
+class AxeBehavior : public ItemBehavior {
    public:
     AxeBehavior() = default;
     ~AxeBehavior() override = default;
@@ -60,7 +59,7 @@ class AxeBehavior : public IEntityBehavior {
  * Player contact is detected externally by LevelCompleteController.
  * @inheritance IEntityBehavior <- PrincessBehavior
  */
-class PrincessBehavior : public IEntityBehavior {
+class PrincessBehavior : public ItemBehavior {
    public:
     PrincessBehavior() = default;
     ~PrincessBehavior() override = default;
@@ -86,7 +85,7 @@ class PrincessBehavior : public IEntityBehavior {
  * without comparing EntityType enum values outside the Factory.
  * @inheritance IEntityBehavior <- FlagBehavior
  */
-class FlagBehavior : public IEntityBehavior {
+class FlagBehavior : public ItemBehavior {
    public:
     FlagBehavior() = default;
     ~FlagBehavior() override = default;
@@ -110,9 +109,9 @@ class FlagBehavior : public IEntityBehavior {
 /**
  * Thrown axe projectile behavior.
  * Always behaves as an enemy projectile, damaging player on contact.
- * @inheritance IEntityBehavior <- AxeProjectileBehavior
+ * @inheritance IEntityBehavior -> EnemyBehavior -> AxeProjectileBehavior
  */
-class AxeProjectileBehavior : public IEntityBehavior {
+class AxeProjectileBehavior : public EnemyBehavior {
    public:
     AxeProjectileBehavior() = default;
     ~AxeProjectileBehavior() override = default;

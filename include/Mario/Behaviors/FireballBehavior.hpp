@@ -2,7 +2,7 @@
  * @file FireballBehavior.hpp
  * @brief Behavior for projectiles (player fireball, Bowser fireball).
  *        Handles movement, lifetime, and collision with enemies.
- * @inheritance IEntityBehavior
+ * @inheritance IEntityBehavior -> EnemyBehavior -> FireballBehavior
  */
 #ifndef MARIO_FIREBALL_BEHAVIOR_HPP
 #define MARIO_FIREBALL_BEHAVIOR_HPP
@@ -18,7 +18,7 @@ namespace Mario {
  *
  * Both types have limited lifetime and arc motion (gravity-affected).
  */
-class FireballBehavior : public IEntityBehavior {
+class FireballBehavior : public EnemyBehavior {
    public:
     enum class FireballType {
         PLAYER,  // Thrown by fire Mario

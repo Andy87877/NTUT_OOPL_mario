@@ -3,11 +3,11 @@
  * @brief Polymorphic strategies for power-up and collectible items.
  *        Separates Mushrooms, Fire Flowers, Stars, 1UPs, and Coins
  *        into distinct strategy classes following Strategy Pattern.
- * @inheritance IEntityBehavior <- MushroomBehavior
- *              IEntityBehavior <- FireFlowerBehavior
- *              IEntityBehavior <- StarBehavior
- *              IEntityBehavior <- OneUpBehavior
- *              IEntityBehavior <- CoinBehavior
+ * @inheritance IEntityBehavior -> ItemBehavior -> MushroomBehavior
+ *              IEntityBehavior -> ItemBehavior -> FireFlowerBehavior
+ *              IEntityBehavior -> ItemBehavior -> StarBehavior
+ *              IEntityBehavior -> ItemBehavior -> OneUpBehavior
+ *              IEntityBehavior -> ItemBehavior -> CoinBehavior
  */
 #ifndef MARIO_ITEM_BEHAVIORS_HPP
 #define MARIO_ITEM_BEHAVIORS_HPP
@@ -26,7 +26,7 @@ namespace Mario {
  * gravity.
  * @inheritance IEntityBehavior <- MushroomBehavior
  */
-class MushroomBehavior : public IEntityBehavior {
+class MushroomBehavior : public ItemBehavior {
    public:
     MushroomBehavior() = default;
     ~MushroomBehavior() override = default;
@@ -50,7 +50,7 @@ class MushroomBehavior : public IEntityBehavior {
  * Grants Fire Mario power when collected. Remains static on spawn.
  * @inheritance IEntityBehavior <- FireFlowerBehavior
  */
-class FireFlowerBehavior : public IEntityBehavior {
+class FireFlowerBehavior : public ItemBehavior {
    public:
     FireFlowerBehavior() = default;
     ~FireFlowerBehavior() override = default;
@@ -74,7 +74,7 @@ class FireFlowerBehavior : public IEntityBehavior {
  * Grants invincibility star power when collected. Bounces (hops) when grounded.
  * @inheritance IEntityBehavior <- StarBehavior
  */
-class StarBehavior : public IEntityBehavior {
+class StarBehavior : public ItemBehavior {
    public:
     StarBehavior() = default;
     ~StarBehavior() override = default;
@@ -99,7 +99,7 @@ class StarBehavior : public IEntityBehavior {
  * gravity.
  * @inheritance IEntityBehavior <- OneUpBehavior
  */
-class OneUpBehavior : public IEntityBehavior {
+class OneUpBehavior : public ItemBehavior {
    public:
     OneUpBehavior() = default;
     ~OneUpBehavior() override = default;
@@ -124,7 +124,7 @@ class OneUpBehavior : public IEntityBehavior {
  * in-place.
  * @inheritance IEntityBehavior <- CoinBehavior
  */
-class CoinBehavior : public IEntityBehavior {
+class CoinBehavior : public ItemBehavior {
    public:
     CoinBehavior() = default;
     ~CoinBehavior() override = default;

@@ -280,8 +280,54 @@ class IEntityBehavior {
         (void)uiManager;
         (void)camera;
     }
+
+    /**
+     * Handle player collision in a unified, polymorphic way.
+     * Replaces the manual type checks (IsEnemy vs IsItem) in PlayerEntityHandler.
+     */
+    virtual void HandlePlayerCollision(EntityState& state, Player& player,
+                                       bool isStomp, GameStateManager& gameState,
+                                       UIManager& uiManager, Camera& camera,
+                                       int& stompCombo) {
+        if (state.IsEnemy()) {
+            OnPlayerCollision(state, player, isStomp, gameState, uiManager, camera);
+        } else if (state.IsPowerUp() || state.IsCoin()) {
+            OnItemCollected(state, player, gameState, uiManager, camera);
+        }
+    }
+};
+
+/**
+ * @class EnemyBehavior
+ * @brief Base strategy behavior for all enemy types.
+ *        Implements standard polymorphic enemy-player collision logic (star power, stomp, damage).
+ * @inheritance IEntityBehavior -> EnemyBehavior
+ */
+class EnemyBehavior : public IEntityBehavior {
+   public:
+    ~EnemyBehavior() override = default;
+    void HandlePlayerCollision(EntityState& state, Player& player,
+                               bool isStomp, GameStateManager& gameState,
+                               UIManager& uiManager, Camera& camera,
+                               int& stompCombo) override;
+};
+
+/**
+ * @class ItemBehavior
+ * @brief Base strategy behavior for all item types.
+ *        Implements standard item collection behavior.
+ * @inheritance IEntityBehavior -> ItemBehavior
+ */
+class ItemBehavior : public IEntityBehavior {
+   public:
+    ~ItemBehavior() override = default;
+    void HandlePlayerCollision(EntityState& state, Player& player,
+                               bool isStomp, GameStateManager& gameState,
+                               UIManager& uiManager, Camera& camera,
+                               int& stompCombo) override;
 };
 
 }  // namespace Mario
 
 #endif  // MARIO_I_ENTITY_BEHAVIOR_HPP
+

@@ -328,6 +328,15 @@ classDiagram
         +IsFlag() bool
         +IsEnemySpawner() bool
         +ShouldDisappearOnGoal() bool
+        +HandlePlayerCollision(state, player, isStomp, gameState, ui, camera, stompCombo)
+    }
+
+    class EnemyBehavior {
+        +HandlePlayerCollision(state, player, isStomp, gameState, ui, camera, stompCombo)
+    }
+
+    class ItemBehavior {
+        +HandlePlayerCollision(state, player, isStomp, gameState, ui, camera, stompCombo)
     }
 
     class GoombaBehavior
@@ -385,26 +394,30 @@ classDiagram
         +AlwaysUpdate() bool
     }
 
-    IEntityBehavior <|.. GoombaBehavior
-    IEntityBehavior <|.. KoopaBehavior
-    IEntityBehavior <|.. ParaKoopaBehavior
-    IEntityBehavior <|.. AxeKoopaBehavior
-    IEntityBehavior <|.. BowserBehavior
-    IEntityBehavior <|.. FireballBehavior
-    IEntityBehavior <|.. MushroomBehavior
-    IEntityBehavior <|.. FireFlowerBehavior
-    IEntityBehavior <|.. StarBehavior
-    IEntityBehavior <|.. OneUpBehavior
-    IEntityBehavior <|.. CoinBehavior
-    IEntityBehavior <|.. AxeBehavior
-    IEntityBehavior <|.. PrincessBehavior
-    IEntityBehavior <|.. FlagBehavior
-    IEntityBehavior <|.. AxeProjectileBehavior
-    IEntityBehavior <|.. PiranhaPlantBehavior
-    IEntityBehavior <|.. PodobooBehavior
-    IEntityBehavior <|.. DefaultEntityBehavior
-    IEntityBehavior <|.. ParticleDebris
-    IEntityBehavior <|.. CastleFireSpawnerBehavior
+    IEntityBehavior <|-- EnemyBehavior
+    IEntityBehavior <|-- ItemBehavior
+    IEntityBehavior <|-- DefaultEntityBehavior
+    IEntityBehavior <|-- ParticleDebris
+    IEntityBehavior <|-- CastleFireSpawnerBehavior
+
+    EnemyBehavior <|-- GoombaBehavior
+    EnemyBehavior <|-- KoopaBehavior
+    EnemyBehavior <|-- ParaKoopaBehavior
+    EnemyBehavior <|-- AxeKoopaBehavior
+    EnemyBehavior <|-- BowserBehavior
+    EnemyBehavior <|-- FireballBehavior
+    EnemyBehavior <|-- AxeProjectileBehavior
+    EnemyBehavior <|-- PiranhaPlantBehavior
+    EnemyBehavior <|-- PodobooBehavior
+
+    ItemBehavior <|-- MushroomBehavior
+    ItemBehavior <|-- FireFlowerBehavior
+    ItemBehavior <|-- StarBehavior
+    ItemBehavior <|-- OneUpBehavior
+    ItemBehavior <|-- CoinBehavior
+    ItemBehavior <|-- AxeBehavior
+    ItemBehavior <|-- PrincessBehavior
+    ItemBehavior <|-- FlagBehavior
 ```
 
 ---
@@ -2364,20 +2377,22 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 |---|---|---|---|
 | `vector<shared_ptr<Block>>` | `Level::m_Blocks` 所有方塊 | O(1) 隨機存取 | 搜尋直接用 `m_GridBlocks` 踢 index |
 | `vector<Block*> m_GridBlocks` | 座標快查 y\*W+x | **O(1)** lookup | 2D 座標層轉一維，直接儲存 non-owning pointer |
-| `unordered_map<EntityType, Creator>` | `BehaviorRegistry` 行為分派 | **O(1)** 平均 | 取代 switch-case 的 O(n) 口 |
+| `unordered_map<EntityType, Creator>` | `BehaviorRegistry` 行為分派 | **O(1)** 平均 | 取代 switch-case 的 O(n) 分支 |
 | `unordered_map<string, string>` | `SpritePathResolver` cache | **O(1)** 平均 | 避免字串拼接重複磁碟 I/O |
-| `map<SFXName, shar| `Mario/Behaviors/GoombaBehavior.cpp` | 82 | Goomba 巡邏與面牆反向、踩扁 AI。 |
-| `Mario/Behaviors/KoopaFamily.cpp` | 413 | 烏龜兵、飛龜、擲斧龜多型 AI；以 KoopaType 區分，消除 string 逐幀比較。 |
-| `Mario/Behaviors/BowserBehavior.cpp` | 371 | Bowser Boss 5-Phase AI（巡邏/吐火/跳躍/受傷/擊敗墜落），HP 與火球生成佇列。 |
-| `Mario/Behaviors/CastleFireSpawnerBehavior.cpp` | 123 | 隱形越屏定時向左發射火球 AI。 |
-| `Mario/Behaviors/FireballBehavior.cpp` | 110 | 火球拋物線與碰撞爆炸物理。 |
-| `Mario/Behaviors/ItemBehaviors.cpp` | 269 | 紅綠香菇/花/星星/金幣道具策略；CoinBehavior 覆寫 GetVisualScaleXModifier 動畫縮放。 |
-| `Mario/Behaviors/StaticEntityBehaviors.cpp` | 138 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（實作 `IsRealAxe` 決定真假 boss room）。 |
-| `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 158 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 2.5×TILE 檢查與冒出取消（防偷襲）。 |
-| `Mario/Behaviors/PodobooBehavior.cpp` | 111 | 岩漿火球定時向上彈跳無視地形 AI。 |
-| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 55 | 預設被動與裝飾策略實作。 |
-| `Mario/Behaviors/ParticleDebris.cpp` | 56 | 破碎磚塊碎屑粒子策略。 |��性批次 erase-remove | `PlayingSceneHandler::Cleanup()` |
-| **QueryBlocksInRange** | 碰撞方塊查詢 | O(k) | `Level::QueryBlocksInRange()` |
+| `map<SFXName, shared_ptr<SFX>>` | `AudioManager` SFX 快取 | O(log n) | SFX 播放快取（其實常數小，極快） |
+| `unordered_map<int, BlockDef>` | `Level` Block 定義對照表 | **O(1)** | CSV 讀出後不修改 |
+| `unordered_map<int, EntityDef>` | `Level` Entity 定義對照表 | **O(1)** | 同上 |
+
+### 8.6 主要效能優化技術總表
+
+| 優化技術 | 作用範圍 | 效益 | 執行地點 |
+|---|---|---|---|
+| **Viewport Culling** | Block 渲染 + Entity AI 更新 | -87%~92% 計算量 | `Level::UpdateBlocks()`, `PlayingSceneHandler` |
+| **Sprite Path Cache** | 精靈路徑查詢 | O(n)→O(1)，精煉全部磁碟 I/O | `SpritePathResolver` |
+| **BehaviorRegistry O(1)** | 實體行為分派 | O(n)→O(1)，小常數精準 | `BehaviorRegistry::Create()` |
+| **FixedTimestep** | 物理更新頻率 | 防止 Spiral of Death，確保物理一致性 | `FixedTimestep::Accumulate()` |
+| **RAII 佇列釋放** | Entity 消滅 | Phase 17 一次性批次 erase-remove | `PlayingSceneHandler::Cleanup()` |
+| **QueryBlocksInRange** | 碰撞方塊查詢 | 碰撞查詢 O(k) | `Level::QueryBlocksInRange()` |
 | **Goal Block 快取** | 旗桿/斧頭碰發檢查 | O(n)→O(m)，m=GoalBlock數量 | `Level::GetGoalBlocks()` |
 | **GridBlocks O(1) 查詢** | 座標→方塊 lookup | O(n)→O(1)，2D 座標直接 index | `Level::GetBlockAt(x, y)` |
 
@@ -2496,7 +2511,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | Mario/CollisionManager.cpp | 65 | **Facade門面**：公開 API 將碰撞分派給 Collision/ 目錄下的 4 個 Strategy Handler。 |
 | `Mario/Collision/BlockContactResolver.cpp` | 109 | 靜態 Snap helpers（Down/Up/Right/Left）與 BodyRect 全高碰撞體建立。 |
 | `Mario/Collision/PlayerBlockHandler.cpp` | 329 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
-| `Mario/Collision/PlayerEntityHandler.cpp` | 140 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
+| `Mario/Collision/PlayerEntityHandler.cpp` | 59 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
 | `Mario/Collision/EntityBlockHandler.cpp` | 205 | 實體-方塊碰撞：處理地平/天花板 Snap/反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
 | `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
 | `Mario/Level/GameStateManager.cpp` | 139 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
@@ -2505,7 +2520,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Scenes/PlayingSceneHandler.cpp` | 601 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，使用多型 `IsWarpPipe()` / `IsRealAxe()` 徹底擺脫硬編碼。 |
 | `Mario/Scenes/FlagpoleSceneHandler.cpp` | 205 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
 | `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
-| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 181 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
+| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 182 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
 | `Mario/Scenes/ESCMenuSceneHandler.cpp` | 78 | 暫停選單場景，使用 `IESCMenuItem` 命令集合多型執行 Update/OnRender，完全移除 hardcoded switch-case。 |
 | `Mario/UI/UIManager.cpp` | 161 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
 | `Mario/Services/AudioManager.cpp` | 272 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
@@ -2534,7 +2549,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Behaviors/StaticEntityBehaviors.cpp` | 137 | 橋頭斧頭、公主、旗桿旗幟、投擲斧頭實體策略（實作 `IsRealAxe` 決定真假 boss room）。 |
 | `Mario/Behaviors/PiranhaPlantBehavior.cpp` | 157 | 水管食人花 4-Phase AI 伸縮管口策略；安全半徑 2.5×TILE 檢查與冒出取消（防偷襲）。 |
 | `Mario/Behaviors/PodobooBehavior.cpp` | 110 | 岩漿火球定時向上彈跳無視地形 AI。 |
-| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 54 | 預設被動與裝飾策略實作。 |
+| `Mario/Behaviors/DefaultEntityBehavior.cpp` | 134 | 預設被動與裝飾策略實作。 |
 | `Mario/Behaviors/ParticleDebris.cpp` | 56 | 破碎磚塊碎屑粒子策略。 |
 
 **Total: 67 source files, 11,067 lines of C++17 OOP code**

@@ -145,11 +145,11 @@ World 8-4 (庫巴城堡 — 有熔岩、岩漿泡泡與 Boss 庫巴)
 
 #### 專案規模
 
-- 標頭檔 (`.hpp`)：88 個
+- 標頭檔 (`.hpp`)：85 個
 - 原始檔 (`.cpp`)：67 個
-- 程式碼總行數：約 10,700 行（C++ 源碼，不含 PTSD 框架）
+- 程式碼總行數：約 11,100 行（C++ 實作源碼，不含 PTSD 框架）
 - 設計模式使用數量：**10 種**
-- 實體行為策略子類 (`IEntityBehavior`)：19 個
+- 實體行為策略子類 (`IEntityBehavior`)：20 個
 - 輸入動作命令子類 (`ICommand`)：12 個
 - 場景狀態子類 (`ISceneHandler`)：10 個
 - 方塊子類 (`Block`)：8 個
@@ -227,19 +227,23 @@ classDiagram
 
 ##### 3. 實體行為策略樹 (IEntityBehavior)
 
-所有敵人與道具的 AI 邏輯，我全部抽出來做成 Strategy Pattern，繼承自 `IEntityBehavior`：
+所有敵人與道具的 AI 邏輯，我全部抽出來做成 Strategy Pattern，繼承自 `IEntityBehavior`，並引入了 `EnemyBehavior` 和 `ItemBehavior` 作為多型中間基類以解耦碰撞與踩踏邏輯：
 
-- `IEntityBehavior`：策略介面。
-  - `GoombaBehavior`：栗寶寶的左右巡邏與被踩扁行為。
-  - `KoopaBehavior`：烏龜兵的巡邏、被踩後縮入龜殼、以及被踢飛的行為。
-  - `ParaKoopaBehavior`：飛天龜的正弦波飛行行為。
-  - `AxeKoopaBehavior`：擲斧烏龜的避坑、主動跳躍與投擲斧頭。
-  - `BowserBehavior`：Boss 庫巴的五階段 AI（巡邏、吐火球、跳躍、受傷、被擊敗）。
-  - `PiranhaPlantBehavior`：食人花的伸縮與安全範圍判定。
-  - `PodobooBehavior`：岩漿泡泡定時向上跳躍。
-  - `MushroomBehavior` / `FireFlowerBehavior` / `StarBehavior` / `OneUpBehavior` / `CoinBehavior`：各種道具從方塊中升起、移動與被吃掉的行為。
-  - `FireballBehavior`：火球的拋物線彈跳與碰撞爆炸。
-  - `CastleFireSpawnerBehavior`：城堡旋轉火柱的生成與旋轉軌跡。
+- `IEntityBehavior`：最上層策略介面。
+  - `EnemyBehavior`：敵對實體抽象基類，實現通用踩踏得分 combo、Star 無敵擊殺與傷害邏輯。
+    - `GoombaBehavior`：栗寶寶的左右巡邏與被踩扁行為。
+    - `KoopaBehavior`：烏龜兵的巡邏、被踩後縮入龜殼、以及被踢飛的行為。
+    - `ParaKoopaBehavior`：飛天龜的正弦波飛行行為。
+    - `AxeKoopaBehavior`：擲斧烏龜的避坑、主動跳躍與投擲斧頭。
+    - `BowserBehavior`：Boss 庫巴的五階段 AI（巡邏、吐火球、跳躍、受傷、被擊敗）。
+    - `PiranhaPlantBehavior`：食人花的伸縮與安全範圍判定。
+    - `PodobooBehavior`：岩漿泡泡定時向上跳躍。
+    - `FireballBehavior`（庫巴火球）：火球的拋物線彈跳與碰撞爆炸。
+    - `AxeProjectileBehavior`（庫巴投擲斧）：投射軌跡與傷害判定。
+  - `ItemBehavior`：收集型道具抽象基類，委派至多型收集邏輯。
+    - `MushroomBehavior` / `FireFlowerBehavior` / `StarBehavior` / `OneUpBehavior` / `CoinBehavior`：各種道具從方塊中升起、移動與被吃掉的行為。
+    - `AxeBehavior` / `PrincessBehavior` / `FlagBehavior`：城堡斧頭、拯救公主與終點旗桿過場行為。
+  - `DefaultEntityBehavior` / `ParticleDebris` / `CastleFireSpawnerBehavior`：預設被動行為、磚塊碎屑粒子與8-4城堡的火焰生成行為。
 
 ##### 4. 玩家力量型態狀態樹 (IPlayerForm)
 
@@ -455,11 +459,11 @@ AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「�
 在這個心路歷程中，我也摸索出跟不同 AI 模型合作的默契，發現它們在不同開發階段各有優缺點：
 
 - **Claude 模型（前期的開路軍師）**：在前中期需要大刀闊斧重構或發想複雜邏輯時，Claude 是非常厲害的夥伴。它的邏輯極強、點子很多，但缺點是**非常容易「創造新的架構」**。如果不看緊它，它有時會自作主張引入新的類別、改變既有的設計模式，這在後期架構已經定型時，反而容易造成架構飄移。
-- **Gemini 模型（後期的防守門神）**：到了後期架構已經完全成熟、進入收尾與調優階段時，我轉而使用 Gemini 模型比較多。Gemini 的最大優勢在於**它能嚴格遵守並遵循現有的程式架構與 `Constructure.md` 中定義的規則**。它會以極高的紀律性，在不破壞既有設計模式的前提下，完美地在既有框框裡修補代碼、優化性能與修復 bug，非常省心。
+- **Gemini 模型（後期的防守門神）**：到了後期架構已經完全成熟、進入收尾與調優階段時，我轉而使用 Gemini 模型比較多。Gemini 的最大優勢在於**它能嚴格遵守並遵循現有的程式架構與 [Constructure.md](Constructure.md) 中定義的規則**。它會以極高的紀律性，在不破壞既有設計模式的前提下，完美地在既有框框裡修補代碼、優化性能與修復 bug，非常省心。
 
 #### 總結
 
-這次的 OOP 瑪利歐專案，對我來說不只是用 C++ 圓了小時候做遊戲的夢想。更大的收穫是，我開始體會到從「系統架構」層面掌控全局的感覺。在 AI 工具滿天飛的現在，如果不學著自己主導程式架構，只是一味被工具牽著鼻子走，那遲早會變成被淘汰的碼農。這絕對是我上大學以來，做過最有成就感一個專案！
+這次的 OOP 瑪利歐專案，對我來說除了是用 C++ 做出這款遊戲的夢想外。更大的收穫是，我開始體會到從「系統架構」層面掌控全局的感覺。在 AI 工具滿天飛的現在，如果不學著自己主導程式架構，只是一味被工具牽著鼻子走，那遲早會變成被淘汰的碼農。這絕對是我上大學以來，做過最有成就感一個專案！
 
 ### 貢獻比例
 

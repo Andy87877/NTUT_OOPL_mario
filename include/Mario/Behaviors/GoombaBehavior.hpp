@@ -2,7 +2,7 @@
  * @file GoombaBehavior.hpp
  * @brief Behavior for Goombas implementing standard C# patrol logic.
  *        Walks left or right at a constant speed, flips on wall collision, and squishes when stomped.
- * @inheritance IEntityBehavior -> GoombaBehavior
+ * @inheritance IEntityBehavior -> EnemyBehavior -> GoombaBehavior
  */
 #ifndef MARIO_GOOMBA_BEHAVIOR_HPP
 #define MARIO_GOOMBA_BEHAVIOR_HPP
@@ -17,7 +17,7 @@ namespace Mario {
  *   - Bounces off solid walls and turns around (handled by CollisionManager).
  *   - Squishes when stomped by Mario from above.
  */
-class GoombaBehavior : public IEntityBehavior {
+class GoombaBehavior : public EnemyBehavior {
    public:
     GoombaBehavior() = default;
     virtual ~GoombaBehavior() override = default;

@@ -5,9 +5,9 @@
  *        base interface and represent the three Koopa-type variants.
  *        Consolidated because all three are exclusively Koopa sub-types with
  *        no consumers outside the entity sub-system.
- * @inheritance IEntityBehavior <- KoopaBehavior
- *              IEntityBehavior <- AxeKoopaBehavior
- *              IEntityBehavior <- ParaKoopaBehavior
+ * @inheritance IEntityBehavior <- EnemyBehavior <- KoopaBehavior
+ *              IEntityBehavior <- EnemyBehavior <- AxeKoopaBehavior
+ *              IEntityBehavior <- EnemyBehavior <- ParaKoopaBehavior
  */
 #ifndef MARIO_KOOPA_FAMILY_HPP
 #define MARIO_KOOPA_FAMILY_HPP
@@ -26,7 +26,7 @@ namespace Mario {
  * Shell spawning is delegated to App::CheckPlayerEntityCollision.
  * @inheritance IEntityBehavior <- KoopaBehavior
  */
-class KoopaBehavior : public IEntityBehavior {
+class KoopaBehavior : public EnemyBehavior {
    public:
     enum class KoopaType {
         TROOPA,      // Living green Koopa (walks off cliffs)
@@ -62,7 +62,7 @@ class KoopaBehavior : public IEntityBehavior {
  * Immune to stomp (like Bowser). Only defeated by axe trap.
  * @inheritance IEntityBehavior <- AxeKoopaBehavior
  */
-class AxeKoopaBehavior : public IEntityBehavior {
+class AxeKoopaBehavior : public EnemyBehavior {
    public:
     AxeKoopaBehavior() = default;
     ~AxeKoopaBehavior() override = default;
@@ -102,7 +102,7 @@ class AxeKoopaBehavior : public IEntityBehavior {
  * Patrols vertically (up/down); loses wings and falls when stomped.
  * @inheritance IEntityBehavior <- ParaKoopaBehavior
  */
-class ParaKoopaBehavior : public IEntityBehavior {
+class ParaKoopaBehavior : public EnemyBehavior {
    public:
     enum class Mode {
         FLYING,

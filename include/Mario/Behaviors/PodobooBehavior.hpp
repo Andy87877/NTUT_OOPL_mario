@@ -3,7 +3,7 @@
  * @brief Behavior for the Podoboo (Lava Bubble) enemy in 8-4.
  *        Oscillates vertically out of lava pits. Ignores terrain.
  *        Cannot be destroyed — immortal to all damage.
- * @inheritance IEntityBehavior <- PodobooBehavior
+ * @inheritance IEntityBehavior -> EnemyBehavior -> PodobooBehavior
  */
 #ifndef MARIO_PODOBOO_BEHAVIOR_HPP
 #define MARIO_PODOBOO_BEHAVIOR_HPP
@@ -26,7 +26,7 @@ namespace Mario {
  * Staggering: each instance offsets its initial wait timer by its
  * X-position modulo WAIT_FRAMES so multiple Podoboos don't jump together.
  */
-class PodobooBehavior : public IEntityBehavior {
+class PodobooBehavior : public EnemyBehavior {
    public:
     enum class Phase {
         WAITING,  // Hidden at lava base, counting timer

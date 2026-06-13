@@ -112,10 +112,19 @@ void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
             if (m_tick_count > 36) {  // ~0.6s pause (scaled for 60Hz)
                 m_Phase = Phase::BRIDGE_COLLAPSE;
                 m_tick_count = 0;
-                LOG_INFO("8-4: Collapsing bridge.");
+                LOG_INFO("8-4: Collapsing bridge and Bowser falls.");
 
                 // Make bridge blocks fall
                 level.CollapseBridge();
+
+                if (m_bowser && m_bowser->GetState().IsActive()) {
+                    auto& bowserState = m_bowser->GetState();
+                    m_bowser->SetBehavior(nullptr);  // Disable AI
+                    bowserState.SetCollidable(false);
+                    bowserState.SetGrounded(false);  // Make sure Bowser is not grounded so gravity applies
+                    bowserState.SetGravity(true);
+                    bowserState.SetVelY(-5.0f);  // Give a little push
+                }
             }
             break;
 
@@ -123,14 +132,6 @@ void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
             if (m_tick_count > 72) {  // ~1.2s (scaled for 60Hz)
                 m_Phase = Phase::BOWSER_FALL;
                 m_tick_count = 0;
-                if (m_bowser && m_bowser->GetState().IsActive()) {
-                    LOG_INFO("8-4: Bowser falls.");
-                    auto& bowserState = m_bowser->GetState();
-                    m_bowser->SetBehavior(nullptr);  // Disable AI
-                    bowserState.SetCollidable(false);
-                    bowserState.SetGravity(true);
-                    bowserState.SetVelY(-5.0f);  // Give a little push
-                }
             }
             break;
 

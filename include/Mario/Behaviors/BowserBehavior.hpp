@@ -2,7 +2,7 @@
  * @file BowserBehavior.hpp
  * @brief Behavior for Bowser (8-4 Boss).
  *        Handles patrol, fireball attacks, and phase transitions.
- * @inheritance IEntityBehavior
+ * @inheritance IEntityBehavior -> EnemyBehavior -> BowserBehavior
  */
 #ifndef MARIO_BOWSER_BEHAVIOR_HPP
 #define MARIO_BOWSER_BEHAVIOR_HPP
@@ -27,7 +27,7 @@ class EntityFactory;
  *
  * Behavior custom-designed for 8-4 level.
  */
-class BowserBehavior : public IEntityBehavior {
+class BowserBehavior : public EnemyBehavior {
    public:
     enum class BowserPhase {
         PATROL,       // Walking back-and-forth

@@ -4,7 +4,7 @@
  *        Periodically emerges from a pipe, waits, then retreats.
  *        Stays hidden when Mario is within one tile width of the pipe opening.
  *        Damages Mario on contact.
- * @inheritance IEntityBehavior <- PiranhaPlantBehavior
+ * @inheritance IEntityBehavior -> EnemyBehavior -> PiranhaPlantBehavior
  */
 #ifndef MARIO_PIRANHA_PLANT_BEHAVIOR_HPP
 #define MARIO_PIRANHA_PLANT_BEHAVIOR_HPP
@@ -29,7 +29,7 @@ namespace Mario {
  *   - Inherits IEntityBehavior (Strategy Pattern)
  *   - Stateless from App's perspective; all AI state lives here
  */
-class PiranhaPlantBehavior : public IEntityBehavior {
+class PiranhaPlantBehavior : public EnemyBehavior {
    public:
     /** Phase of the Piranha Plant's movement cycle. */
     enum class Phase {
