@@ -109,10 +109,10 @@ void AxeSequenceSceneHandler::OnRender(App& app) {
 void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
     switch (m_Phase) {
         case Phase::START:
-            if (m_tick_count > 36) {  // ~0.6s pause (scaled for 60Hz)
-                m_Phase = Phase::BRIDGE_COLLAPSE;
+            if (m_tick_count > 30) {  // 0.5s pause (scaled for 60Hz)
+                m_Phase = Phase::WALK_TO_PRINCESS;
                 m_tick_count = 0;
-                LOG_INFO("8-4: Collapsing bridge and Bowser falls.");
+                LOG_INFO("8-4: Collapsing bridge, Bowser falls, and walking to Princess.");
 
                 // Make bridge blocks fall
                 level.CollapseBridge();
@@ -124,23 +124,18 @@ void AxeSequenceSceneHandler::UpdateAxeSequence(Player& player, Level& level) {
                     bowserState.SetGrounded(false);  // Make sure Bowser is not grounded so gravity applies
                     bowserState.SetGravity(true);
                     bowserState.SetVelY(-5.0f);  // Give a little push
+                    Mario::AudioManager::GetInstance().PlaySFX(Mario::SFXName::BowserDie);
                 }
+
+                // Start walking BGM immediately
+                Mario::AudioManager::GetInstance().PlayBGM(Mario::BGMName::SavedThePrincessNes);
             }
             break;
 
         case Phase::BRIDGE_COLLAPSE:
-            if (m_tick_count > 72) {  // ~1.2s (scaled for 60Hz)
-                m_Phase = Phase::BOWSER_FALL;
-                m_tick_count = 0;
-            }
             break;
 
         case Phase::BOWSER_FALL:
-            if (m_tick_count > 216) {  // ~3.6s (scaled for 60Hz)
-                m_Phase = Phase::WALK_TO_PRINCESS;
-                m_tick_count = 0;
-                LOG_INFO("8-4: Walking to Princess.");
-            }
             break;
 
         case Phase::WALK_TO_PRINCESS: {

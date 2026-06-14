@@ -8,8 +8,8 @@
 #ifndef MARIO_GAME_CONFIG_HPP
 #define MARIO_GAME_CONFIG_HPP
 
-#include <string>
 #include <fstream>
+#include <string>
 
 namespace Mario {
 
@@ -43,8 +43,9 @@ struct GameConfig {
 
     // -- Timing --
     static constexpr float TICK_INTERVAL =
-        1.0f / 60.0f;                       // 16.67ms per tick (60 FPS)
-    static constexpr int TIME_SUB_LIMIT = 48;  // Ticks per game-second (scaled for 60Hz)
+        1.0f / 60.0f;  // 16.67ms per tick (60 FPS)
+    static constexpr int TIME_SUB_LIMIT =
+        48;  // Ticks per game-second (scaled for 60Hz)
 
     // -- Player --
     static constexpr float BASE_SPEED = 7.35f;  // Base Mario speed (tiles/sec)
@@ -107,13 +108,20 @@ struct GameConfig {
     static constexpr int ENDING_WALK_DELAY =
         24;  // Ticks after grounded before walking (scaled for 60Hz)
     static constexpr int LEVEL_TRANSITION_DELAY =
-        60;                                    // Ticks before next level loads (scaled for 60Hz)
+        60;  // Ticks before next level loads (scaled for 60Hz)
     static constexpr int PIPE_ANIM_SPEED = 5;  // Mario descend speed in pipe
-    static constexpr float FLAGPOLE_GRAB_OFFSET_RATIO = -0.4f; // Mario's X offset ratio relative to flagpole block left edge
-    static constexpr float FLAGPOLE_WALK_OFFSET_RATIO = 0.2f; // Mario's X offset ratio relative to flagpole block left edge for walk phase
+    static constexpr float FLAGPOLE_GRAB_OFFSET_RATIO =
+        -0.4f;  // Mario's X offset ratio relative to flagpole block left edge
+    static constexpr float FLAGPOLE_WALK_OFFSET_RATIO =
+        0.2f;  // Mario's X offset ratio relative to flagpole block left edge
+               // for walk phase
 
-    // -- Cheat Mode Configuration (外掛模式) --
-    static constexpr int CHEAT_STAR_TIMER_MAX = 600;
+    // -- Star Invincibility Timer --
+    static constexpr int STANDARD_STAR_TIMER_MAX =
+        480;  // 8 seconds (scaled for 60Hz)
+
+    // -- Cheat Mode Configuration --
+    static constexpr int CHEAT_STAR_TIMER_MAX = 480;
     static constexpr int CHEAT_STAR_TIMER_RESET_THRESHOLD = 120;
     static constexpr int CHEAT_RESCUE_INV_FRAMES = 72;
 
@@ -184,7 +192,8 @@ struct GameConfig {
 
     /**
      * Resolve and return a Traditional Chinese capable font path.
-     * Uses msjh.ttc or msjh.ttf from Windows Fonts, falling back to the given path.
+     * Uses msjh.ttc or msjh.ttf from Windows Fonts, falling back to the given
+     * path.
      */
     static std::string GetChineseFontPath(const std::string& fallbackPath) {
         std::ifstream f1("C:/Windows/Fonts/msjh.ttc");

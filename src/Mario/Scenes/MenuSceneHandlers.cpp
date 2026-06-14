@@ -43,6 +43,10 @@ TitleSceneHandler::TitleSceneHandler() {
 
 TitleSceneHandler::~TitleSceneHandler() = default;
 
+void TitleSceneHandler::OnEnter(App& app) {
+    Mario::AudioManager::GetInstance().PlayBGM(Mario::BGMName::NameEntryVsSuperMarioBros);
+}
+
 void TitleSceneHandler::Update(App& app) {
     if (m_SubState == SubState::MENU) {
         int size = static_cast<int>(m_MenuItems.size());
@@ -134,6 +138,10 @@ void DeathSceneHandler::OnRender(App& app) {
 // GameOverSceneHandler
 // ============================================================================
 
+void GameOverSceneHandler::OnEnter(App& app) {
+    Mario::AudioManager::GetInstance().PlayBGM(Mario::BGMName::GameOverTheme);
+}
+
 void GameOverSceneHandler::Update(App& app) {
     if (Util::Input::IsAnyKeyDown()) {
         app.TransitionTo(App::State::TITLE);
@@ -150,6 +158,10 @@ void GameOverSceneHandler::OnRender(App& app) {
 // ============================================================================
 // GameWonSceneHandler
 // ============================================================================
+
+void GameWonSceneHandler::OnEnter(App& app) {
+    Mario::AudioManager::GetInstance().PlayBGM(Mario::BGMName::SavedThePrincessNes);
+}
 
 void GameWonSceneHandler::Update(App& app) {
     bool enterDown = Util::Input::IsKeyDown(Util::Keycode::RETURN);

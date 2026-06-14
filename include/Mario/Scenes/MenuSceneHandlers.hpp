@@ -35,6 +35,7 @@ class TitleSceneHandler : public ISceneHandler {
     TitleSceneHandler();
     ~TitleSceneHandler() override;
 
+    void OnEnter(App& app) override;
     void Update(App& app) override;
     void OnRender(App& app) override;
     const char* GetName() const override { return "TitleScene"; }
@@ -66,6 +67,7 @@ class DeathSceneHandler : public ISceneHandler {
 class GameOverSceneHandler : public ISceneHandler {
    public:
     GameOverSceneHandler() = default;
+    void OnEnter(App& app) override;
     void Update(App& app) override;
     void OnRender(App& app) override;
     const char* GetName() const override { return "GameOverScene"; }
@@ -77,6 +79,7 @@ class GameOverSceneHandler : public ISceneHandler {
 class GameWonSceneHandler : public ISceneHandler {
    public:
     GameWonSceneHandler() = default;
+    void OnEnter(App& app) override;
     void Update(App& app) override;
     void OnRender(App& app) override;
     const char* GetName() const override { return "GameWonScene"; }

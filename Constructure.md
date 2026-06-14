@@ -2515,15 +2515,15 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Collision/EntityBlockHandler.cpp` | 205 | 實體-方塊碰撞：處理地平/天花板 Snap/反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
 | `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
 | `Mario/Level/GameStateManager.cpp` | 139 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
-| `Mario/Scenes/MenuSceneHandlers.cpp` | 168 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
+| `Mario/Scenes/MenuSceneHandlers.cpp` | 181 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
 | `Mario/Scenes/LoadingSceneHandler.cpp` | 47 | 加載畫面（預載貼圖，強制黑色背景）。 |
 | `Mario/Scenes/PlayingSceneHandler.cpp` | 601 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，使用多型 `IsWarpPipe()` / `IsRealAxe()` 徹底擺脫硬編碼。 |
 | `Mario/Scenes/FlagpoleSceneHandler.cpp` | 205 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
 | `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
-| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 182 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
+| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 178 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
 | `Mario/Scenes/ESCMenuSceneHandler.cpp` | 78 | 暫停選單場景，使用 `IESCMenuItem` 命令集合多型執行 Update/OnRender，完全移除 hardcoded switch-case。 |
 | `Mario/UI/UIManager.cpp` | 161 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
-| `Mario/Services/AudioManager.cpp` | 272 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
+| `Mario/Services/AudioManager.cpp` | 280 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
 | `Mario/Services/AudioPathResolver.cpp` | 8 | 音效與音樂路徑靜態解析 helper。 |
 | `Mario/Services/Commands.cpp` | 126 | 12 個具體輸入命令（`ICommand`）實作，涵蓋移動/跳躍/蹲下/奔跑/射擊及物理位移計算，將輸入動作完全解耦為可獨立測試的命令物件。 |
 | `Mario/Services/MockInputHandler.cpp` | 65 | 模擬/測試用輸入控制器實作。 |

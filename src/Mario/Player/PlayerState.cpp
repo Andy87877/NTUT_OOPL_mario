@@ -289,7 +289,7 @@ void PlayerState::StartStar() {
         m_Form = std::make_unique<BigStarPlayerForm>(m_MemoryState);
     }
     m_PowerState = m_Form->GetPowerState();
-    m_StarTimer = 600;  // ~10 seconds (scaled for 60Hz)
+    m_StarTimer = GameConfig::STANDARD_STAR_TIMER_MAX;
 }
 
 // ============================================================================
@@ -334,7 +334,7 @@ void PlayerState::ForceApplyPowerState(int idx) {
             m_PowerState = PowerState::BIG_STAR;
             m_Form = std::make_unique<BigStarPlayerForm>(PowerState::FIRE);
             m_MemoryState = PowerState::FIRE;  // Return to Fire after star ends
-            m_StarTimer = 600;  // (scaled for 60Hz)
+            m_StarTimer = GameConfig::STANDARD_STAR_TIMER_MAX;
             break;
         default:
             break;

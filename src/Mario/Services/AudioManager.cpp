@@ -96,8 +96,15 @@ void AudioManager::PlayBGM(BGMName name) {
         if (!m_BGMStarted) {
             // LOG_DEBUG("BGM not started yet, m_BGMStarted={}", m_BGMStarted);
             if (!m_Muted && volume > 0) {
-                LOG_INFO(">>> CALLING m_BGMs[name]->Play(-1) <<<");
-                m_BGMs[name]->Play(-1);  // -1 = infinite loop
+                LOG_INFO(">>> CALLING m_BGMs[name]->Play() <<<");
+                int loops = -1;
+                if (name == BGMName::LevelCompleteTheme ||
+                    name == BGMName::CastleCompleteTheme ||
+                    name == BGMName::LostALifeTheme ||
+                    name == BGMName::GameOverTheme) {
+                    loops = 0;  // Play once
+                }
+                m_BGMs[name]->Play(loops);
                 m_BGMStarted = true;
                 LOG_INFO(
                     ">>> BGM PLAY COMPLETE - if you don't hear music, check "
