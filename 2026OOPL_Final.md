@@ -134,7 +134,7 @@ World 8-4 (庫巴城堡 — 有熔岩、岩漿泡泡與 Boss 庫巴)
 | 庫巴 Boss 戰 (Bowser Battle) | <img src="2026OOPL_Final_imgs/bowser_battle.png"> |
 | 遊戲結束 (Game Over Screen) | <img src="2026OOPL_Final_imgs/game_over_screen.png"> |
 | 拯救公主 (Game Won Screen) | <img src="2026OOPL_Final_imgs/game_won_screen.png"> |
-| 遊戲通過 (Game World Cleared) | <img src="2026OOPL_Final_imgs/game_world_won_screen.png"> |
+| 遊戲通關 (Game World Cleared) | <img src="2026OOPL_Final_imgs/game_world_won_screen.png"> |
 
 ## 程式設計
 
@@ -142,18 +142,18 @@ World 8-4 (庫巴城堡 — 有熔岩、岩漿泡泡與 Boss 庫巴)
 
 在這次的程式設計中，我花了很多心思把原本混在一起的程式碼（God Class）徹底拆開，改成更符合物件導向原則的架構。我使用了 C++17 來開發，並大量使用了繼承、多型與多種設計模式。
 
-以下是整個專案的專案規模與系統分層：
+以下是整個專案的規模與系統分層：
 
 #### 專案規模
 
 - 標頭檔 (`.hpp`)：85 個
-- 原始檔 (`.cpp`)：67 個
-- 程式碼總行數：約 11,100 行（C++ 實作源碼，不含 PTSD 框架）
+- 原始檔 (`.cpp`)：68 個
+- 程式碼總行數：約 18,500 行（C++ 實作源碼，不含 PTSD 框架）
 - 設計模式使用數量：**10 種**
 - 實體行為策略子類 (`IEntityBehavior`)：20 個
 - 輸入動作命令子類 (`ICommand`)：12 個
 - 場景狀態子類 (`ISceneHandler`)：10 個
-- 方塊子類 (`Block`)：8 個
+- 方塊子類 (`Block`)：9 個
 - 玩家型態子類 (`IPlayerForm`)：5 個
 
 #### 系統分層架構圖
@@ -217,7 +217,7 @@ classDiagram
 
 為了避免 switch-case 爆炸，我用 State Pattern 做了場景管理，每一個畫面都繼承自 `ISceneHandler`：
 
-- `TitleSceneHandler`：標頭選單畫面。
+- `TitleSceneHandler`：標題選單畫面。
 - `LoadingSceneHandler`：關卡過場載入畫面（會顯示剩餘命數）。
 - `PlayingSceneHandler`：主要遊玩畫面，裡面有非常嚴謹的每幀更新流程。
 - `FlagpoleSceneHandler`：瑪利歐滑下旗桿並走進城堡的過場動畫。
@@ -256,7 +256,7 @@ classDiagram
   - `FirePlayerForm`：火焰瑪利歐狀態。
   - `SmallStarPlayerForm` / `BigStarPlayerForm`：小/大瑪利歐的無敵星星狀態。
 
-#### 遊戲狀態移轉圖 (App State Machine)
+#### 遊戲狀態轉移圖 (App State Machine)
 
 這是整個遊戲主程式的狀態機運作流程：
 
@@ -342,7 +342,7 @@ sequenceDiagram
 以下是我在寫這個瑪利歐專案時，所使用到的物件導向程式技術與設計模式：
 
 - **狀態模式 (State Pattern) 控制場景與玩家力量**
-  - **場景控制**：我本來把所有畫面的 switch-case 都寫在 `App.cpp` 裡，但這樣檔案變得超大。後來我用 State Pattern 建立了 `ISceneHandler` 介面，把標頭畫面、載入中、遊戲中、暫停選單等畫面各寫成獨立的類別。這樣 App 的 `Update` 就只需要呼叫當前狀態的 `Update`，整潔了許多，未來要加新畫面也很方便。
+  - **場景控制**：我本來把所有畫面的 switch-case 都寫在 `App.cpp` 裡，但這樣檔案變得超大。後來我用 State Pattern 建立了 `ISceneHandler` 介面，把標題畫面、載入中、遊戲中、暫停選單等畫面各寫成獨立的類別。這樣 App 的 `Update` 就只需要呼叫當前狀態的 `Update`，整潔了許多，未來要加新畫面也很方便。
   - **力量變身**：瑪利歐有小隻、大隻、火球、無敵等多種型態。我設計了 `IPlayerForm` 介面與五種對應的狀態類別。每次變身或受傷時，我只要讓狀態機回傳新的型態物件即可。這樣在計算瑪利歐的高度或是判斷能不能發射火球時，完全不需要寫 `if (isBig)` 這種判斷，全靠多型解決。
 - **策略模式 (Strategy Pattern) 實作敵人 AI**
   - 我本來在處理敵人行為時，寫了大量的 `if (type == Goomba)` 分支。為了解耦，我將每種實體的行為封裝成繼承自 `IEntityBehavior` 的策略類別。現在 `Entity` 只是個顯示載具，它身上持有一個 Behavior 晶片，例如 Goomba 裝 `GoombaBehavior`，飛天龜被踩到沒翅膀時，我只要把它的 Behavior 晶片當場換成 `KoopaBehavior` 即可，不需要重新 `new` 一個物件，彈性非常好。
@@ -354,7 +354,7 @@ sequenceDiagram
 - **依賴反轉 (DIP) 與服務定位器 (Service Locator)**
   - 為了讓跨模組調用服務（像是播放音效、讀取地圖）更方便，我建立了 `ServiceLocator` 來管理所有全域服務。我先定義好 `IAudioService` 和 `ILevelService` 的介面，並將實作註冊進去。這樣其他類別只需要透過 `ServiceLocator::GetService<T>()` 就能拿到服務，不需要把各個 Manager 的指標傳來傳去。
 - **範本方法模式 (Template Method Pattern) 設計方塊**
-  - 我設計了方塊基底類別 `Block`，定義了碰撞被撞擊時的固定流程（播放彈跳動畫、更換貼圖狀態等），並開出一個 `virtual HandleOnHit()` 的虛擬函式。像問號方塊和磚塊等子類別只需要實作這個 `HandleOnHit` 去生金幣或碎裂即可，重複的流程都被鎖在基類中，符合 DRY 原則。
+  - 我設計了方塊基底類別 `Block`，定義了方塊被撞擊時的固定流程（播放彈跳動畫、更換貼圖狀態等），並開出一個 `virtual HandleOnHit()` 的虛擬函式。像問號方塊和磚塊等子類別只需要實作這個 `HandleOnHit` 去生金幣或碎裂即可，重複的流程都被鎖在基類中，符合 DRY 原則。
 - **命令模式 (Command Pattern) 解耦輸入動作**
   - 為了讓輸入系統符合 OCP 與 DIP，我設計了 `ICommand` 介面，把每一個「玩家動作」（移動、跳躍、蹲下、射火球等）各自封裝成一個獨立的命令類別，共 12 個。`InputHandler` 在每幀結合 `IInputProfile` 策略讀取到的按鍵狀態，選擇並執行對應的 `ICommand::Execute(state, level)`，自身完全不需要知道各個動作的具體邏輯。未來若要新增輸入動作，只需新增一個 `ICommand` 子類，核心控制器一行都不用改。
 - **登錄表模式 (Registry Pattern) 取代 EntityFactory switch-case**
@@ -375,7 +375,7 @@ sequenceDiagram
 在開發這個專案的過程中，我使用了 AI 助手（Google Gemini Antigravity、VSCode Copilot Pro）來協助我進行開發。以下是我如何與 AI 協作的心得與分工：
 
 - **架構發想與重構建議**：當我遇到 God Class 義大利麵程式碼崩潰的時候，我請 AI 幫我分析並給予重構建議。AI 幫我提出了使用 State Pattern 拆解 App 和 IPlayerForm，以及使用 Strategy Pattern 拆解 AI 行為的點子。我根據它的點子，畫出 UML 繼承圖，定義好類別介面後，再由我引導 AI 寫出具體實作。
-- **輔助撰寫核心程式碼**：在定義好 `IEntityBehavior` 和 `ISceneHandler` 的空殼後，我讓 AI 協助生成一些重覆性高但繁瑣的實作，例如 19 種 Behaviors 的具體狀態邏輯，以及 10 個場景狀態的跳轉流程，大幅節省了我的打字時間。
+- **輔助撰寫核心程式碼**：在定義好 `IEntityBehavior` 和 `ISceneHandler` 的空殼後，我讓 AI 協助生成一些重複性高但繁瑣的實作，例如 20 種 Behaviors 的具體狀態邏輯，以及 10 個場景狀態的跳轉流程，大幅節省了我的打字時間。
 - **協助除錯與優化效能**：在碰撞物理管線調優的過程中，瑪利歐常會出現卡牆或抖動的 Bug，我把程式碼片段和 Bug 狀況貼給 AI，AI 幫我分析出是物理 Snap 的順序問題（必須先做 FallDetect，再做 BodyResolution），並提供了 Viewport Culling 的優化邏輯，幫助我解決了效能瓶頸。
 - **自動化工具腳本**：為了快速編輯 8-4 的 CSV 地圖與裁切 Sprite 圖片，我請 AI 幫我用 Python 寫了小工具腳本，讓地圖產生的工作快了許多。
 - **我與 AI 協作的開發流程**：
@@ -390,10 +390,10 @@ sequenceDiagram
   - **解決方法**：我痛定思痛進行重構，導入 **State Pattern** 將 `App` 解耦。我建立了 10 個 `ISceneHandler` 子類別，將各個畫面的邏輯移出去。現在 `App::Update()` 只需要兩行，其他全交給當前的場景處理器去跑。
 - **碰撞系統太過混亂**
   - **問題**：原先 `CollisionManager.cpp` 塞了 800 行程式碼，混合處理玩家、方塊、怪物和火球之間的各種碰撞，經常發生修改了玩家碰撞卻導致怪物掉出地圖的 bug。
-  - **解決方法**：我導入 **Facade Pattern**，將碰撞管理器當作單一分派櫃檯，並將具體的碰撞判斷拆分到 `PlayerBlockHandler`、`PlayerEntityHandler`、`EntityBlockHandler` 和 `EntityEntityHandler` 四個處理器中，讓它們各司其職，修 bug時不會再互相干擾。
+  - **解決方法**：我導入 **Facade Pattern**，將碰撞管理器當作單一分派櫃檯，並將具體的碰撞判斷拆分到 `PlayerBlockHandler`、`PlayerEntityHandler`、`EntityBlockHandler` 和 `EntityEntityHandler` 四個處理器中，讓它們各司其職，修 bug 時不會再互相干擾。
 - **新增敵人需要修改大量舊程式碼**
   - **問題**：一開始每種怪物的行為都用 `if (type == Goomba)` 判斷，導致如果我想新增飛天龜或 Boss 庫巴，就得去好幾個檔案裡加一堆 if-else，非常痛苦。
-  - **解決方法**：我使用 **Strategy Pattern**，讓 `Entity` 只有一個 `IEntityBehavior` 策略指標。我把 19 種實體行為各自寫成獨立的類別，新增怪物時只需要寫一個新的 Behavior 並註冊到 `EntityFactory` 裡，核心代碼完全不用修改。
+  - **解決方法**：我使用 **Strategy Pattern**，讓 `Entity` 只有一個 `IEntityBehavior` 策略指標。我把 20 種實體行為各自寫成獨立的類別，新增怪物時只需要寫一個新的 Behavior 並註冊到 `EntityFactory` 裡，核心代碼完全不用修改。
 - **EntityFactory 的 switch-case 違反 OCP**
   - **問題**：`EntityFactory::SpawnEntity()` 中有一個巨大的 `switch(entityType)` 分支，每次新增一種怪物就得進去加一個 `case`，直接修改 Factory 核心邏輯，嚴重違反了 Open-Closed Principle（對擴充開放、對修改封閉）。
   - **解決方法**：我引入了 **BehaviorRegistry（登錄表模式）**。它維護一個 `std::unordered_map<EntityType, Creator>` 映射表，在初始化時一次性登錄所有行為的建立 lambda。此後 `EntityFactory` 只需呼叫 `BehaviorRegistry::Create(type, def)`，完全不需要知道各行為的細節，新增怪物行為**完全無需修改 Factory 一行代碼**！
@@ -411,12 +411,11 @@ sequenceDiagram
 
 | 項次 | 項目                   | 完成 |
 |------|------------------------|-------|
-| 1    | 這是範例 |  V  |
-| 2    | 完成專案權限改為 public |  V  |
-| 3    | 具有 debug mode 的功能  |  V  |
-| 4    | 解決專案上所有 Memory Leak 的問題  |  V  |
-| 5    | 報告中沒有任何錯字，以及沒有任何一項遺漏  |  V  |
-| 6    | 報告至少保持基本的美感，人類可讀  |  V  |
+| 1    | 完成專案權限改為 public |  V  |
+| 2    | 具有 debug mode 的功能  |  V  |
+| 3    | 解決專案上所有 Memory Leak 的問題  |  V  |
+| 4    | 報告中沒有任何錯字，以及沒有任何一項遺漏  |  V  |
+| 5    | 報告至少保持基本的美感，人類可讀  |  V  |
 
 ### 心得
 
@@ -438,7 +437,7 @@ sequenceDiagram
 
 AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「架構遠見」。如果我身為開發者，沒有先在腦中把物件的繼承關係、介面合約、工廠模式等藍圖給規劃好，直接叫 AI 開始寫，那 AI 產出來的只會是「能跑的精美垃圾」。
 
-於是我痛下決心，決定把原本凌亂的代碼全部推倒進行大手術！我拿了我的平板和撰寫 markdown 格式，先靜下心來把所有的類別關係一筆一筆畫出來：思考哪些物件是共通的、繼承樹該怎麼長、狀態要怎麼用多型來解耦。
+於是我痛下決心，決定把原本凌亂的代碼全部推倒進行大手術！我拿了我的平板與 Markdown 文件，先靜下心來把所有的類別關係一筆一筆畫出來：思考哪些物件是共通的、繼承樹該怎麼長、狀態要怎麼用多型來解耦。
 
 我和 AI 討論過後，把整個 Interface 定義得清清楚楚，建立好乾淨的「空殼框架」後，才重新把這些架構拋給 AI，讓它只負責填充裡面的具體實現細節。這一次，奇蹟發生了：代碼不僅變得超級乾淨，而且各個模組各司其職，再也沒有改 A 壞 B 的鳥事發生！
 
@@ -464,7 +463,7 @@ AI 寫代碼的速度確實很快，但它缺乏整體的「大局觀」與「�
 
 #### 總結
 
-這次的 OOP 瑪利歐專案，對我來說除了是用 C++ 做出這款遊戲的夢想外。更大的收穫是，我開始體會到從「系統架構」層面掌控全局的感覺。在 AI 工具滿天飛的現在，如果不學著自己主導程式架構，只是一味被工具牽著鼻子走，那遲早會變成被淘汰的碼農。這絕對是我上大學以來，做過最有成就感一個專案！
+這次的 OOP 瑪利歐專案，對我來說除了是用 C++ 做出這款遊戲的夢想外。更大的收穫是，我開始體會到從「系統架構」層面掌控全局的感覺。在 AI 工具滿天飛的現在，如果不學著自己主導程式架構，只是一味被工具牽著鼻子走，那遲早會變成被淘汰的碼農。這絕對是我上大學以來，做過最有成就感的一個專案！
 
 ### 貢獻比例
 

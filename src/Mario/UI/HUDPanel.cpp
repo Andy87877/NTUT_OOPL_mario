@@ -22,7 +22,7 @@ HUDPanel::HUDPanel(const std::string& fontPath, int fontSize)
     m_HeaderTime = std::make_shared<UIText>(fontPath, fontSize, "TIME", white);
     m_ScoreText = std::make_shared<UIText>(fontPath, fontSize, "000000", white);
     m_WorldText = std::make_shared<UIText>(fontPath, fontSize, "1-1", white);
-    m_TimeText = std::make_shared<UIText>(fontPath, fontSize, "400", white);
+    m_TimeText = std::make_shared<UIText>(fontPath, fontSize, std::to_string(GameConfig::INITIAL_TIME), white);
     m_CoinUI =
         std::make_shared<CoinUI>(fontPath, fontSize, 420.0f, 32.0f, 2.0f);
 }

@@ -1,6 +1,6 @@
 # Super Mario Bros. — PTSD C++ OOP 架構設計 (Constructure)
 
-> **Last synced:** 2026-06-09
+> **Last synced:** 2026-06-14
 > **關卡:** 1-1 (Ground) → 1-2 (Underground) → 8-4 (Castle + Boss)
 
 本專案為符合現代 C++ 標準的 **深度物件導向架構 (Deep OOP Architecture)**。  
