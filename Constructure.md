@@ -1,6 +1,6 @@
 # Super Mario Bros. — PTSD C++ OOP 架構設計 (Constructure)
 
-> **Last synced:** 2026-06-14
+> **Last synced:** 2026-06-15
 > **關卡:** 1-1 (Ground) → 1-2 (Underground) → 8-4 (Castle + Boss)
 
 本專案為符合現代 C++ 標準的 **深度物件導向架構 (Deep OOP Architecture)**。  
@@ -41,8 +41,7 @@
 | §9 附錄 A 檔案清單 | 📋 參考 | 所有 .hpp/.cpp 一覽表與行數 |
 | §10 附錄 B OOP 原則確認 | 📋 參考 | 設計原則遵守確認表 |
 | §11 附錄 C Refactoring 進度 | 📋 參考 | 歷史重構階段記錄 |
-
-> **建議閱讀順序：** §1 → §2 → §3 → §4 → 視需求跳到 §5/§6/§7/§8 或附錄
+| §12 附錄 D OOP 實踐證明 | 結論 | 100% 物件導向架構與 SOLID 原則深度實踐證明 |
 
 ---
 
@@ -120,6 +119,7 @@
    - A.5 Python 工具腳本
 10. [附錄 B — OOP 原則遵守確認](#10-附錄-b--oop-原則遵守確認)
 11. [附錄 C — Refactoring 進度總覽](#11-附錄-c--refactoring-進度總覽)
+12. [100% OOP 架構與 SOLID 原則深度實踐證明](#12-100-oop-架構與-solid-原則深度實踐證明)
 
 ---
 
@@ -182,7 +182,6 @@ classDiagram
     class BackgroundBlock { #HandleOnHit(playerState) }
     class BridgeBlock     { #HandleOnHit(playerState) }
     class WarpPipeBlock   { +IsWarpPipe() bool, +GetWarpDirection() string, +IsWarpAnchor() bool }
-    class WarpPipeBlock   { +IsWarpPipe() bool, +GetWarpDirection() string, +IsWarpAnchor() bool }
 
     class Entity {
         -EntityDef m_Def
@@ -223,7 +222,6 @@ classDiagram
     Block <|-- GoalBlock
     Block <|-- BackgroundBlock
     Block <|-- BridgeBlock
-    Block <|-- WarpPipeBlock
     Block <|-- WarpPipeBlock
     GameObject <|-- Entity
     GameObject <|-- Player
@@ -1229,12 +1227,12 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 stateDiagram-v2
     direction LR
     [*] --> START
-    START --> WELCOME_STATE : "App.Start()"
-    WELCOME_STATE --> LOADING : "PRESS ENTER" (Select World)
+    START --> TITLE : "App.Start()"
+    TITLE --> LOADING : "PRESS ENTER" (Select World)
     LOADING --> PLAYING : "LEVEL_TRANSITION_DELAY (3.0s) timer expires"
     PLAYING --> ESC_MENU : "PRESS ESC" (Pause Game)
     ESC_MENU --> PLAYING : "SELECT RESUME / PRESS ESC"
-    ESC_MENU --> WELCOME_STATE : "SELECT QUIT"
+    ESC_MENU --> TITLE : "SELECT QUIT"
     PLAYING --> FLAGPOLE : "Collide with flagpole column (1-1 / 1-2)"
     FLAGPOLE --> LOADING : "Castle entering animation finishes"
     PLAYING --> PIPE_WARP : "Stand on Pipe + press DOWN or RIGHT (1-2)"
@@ -1244,8 +1242,8 @@ stateDiagram-v2
     PLAYING --> DEATH : "Mario dies (damage, pit fall, time up)"
     DEATH --> LOADING : "Lives > 0 -> Retry same level"
     DEATH --> GAME_OVER : "Lives == 0"
-    GAME_OVER --> WELCOME_STATE : "PRESS ENTER"
-    GAME_WON --> WELCOME_STATE : "PRESS ENTER"
+    GAME_OVER --> TITLE : "PRESS ENTER"
+    GAME_WON --> TITLE : "PRESS ENTER"
 ```
 
 **Level sequence** (`GameStateManager::m_LevelSequence`):
@@ -1480,32 +1478,28 @@ classDiagram
 
 ---
 
-### 5.12 State Pattern — 零向下轉型狀態傳參 (Zero Down-Casting State Handshake)
+### 5.12 State Pattern — 零向�- **優化順序**：將 `Util::Input::Update()` 移到了 [Context.cpp](PTSD/src/Core/Context.cpp) 中 `Context::Update()` 方法的**最尾端（即返回前）**。這使得輸入輪詢發生在 `SDL_GL_SwapWindow` 垂直同步阻塞與限制幀率睡眠（`SDL_Delay`）之後，確保當物理邏輯執行時，拿到的輸入是最新鮮的實時狀態，達成 **0 毫秒輸入延遲**
 
-**原問題：** 在 `PlayingSceneHandler` 中，當觸發拉下旗桿切換至 `FLAGPOLE` 狀態，或走入水管切換至 `PIPE_WARP` 狀態時，目標狀態需要接收特定的座標和實體參數。原先的作法是在轉場後使用 `dynamic_cast` 將場景指針向下轉型，再呼叫 `Setup` 配置方法。這是一個嚴重的**向下轉型類型壞味道（Down-casting Smell）**，破壞了狀態機的封裝性。
+- **混合休眠與自旋等待 (Hybrid Sleep/Busy-Wait Limiter)**：引入了 `SDL_Delay` 粗粒度睡眠與精密自旋忙等（Precise spin-waiting）相結合的混合限幀器。若剩餘時間大於 3.0ms 則呼叫 `SDL_Delay` 釋放 CPU，剩餘微秒時間則進行精準自旋，完美對齊 `FPS_CAP` 幀時間，並在啟用 VSync 時自動避免額外的 OS 調度延遲，徹底杜絕了線程調度抖動導致幀率跌落至 30/48 FPS 的卡頓 bug。
+- **中文輸入法防卡鍵 (IME Bypass)**：在每幀呼叫 `Input::Update()` 時，強行呼叫 `SDL_StopTextInput()`。這能有效停用作業系統的 IME（輸入法編輯器）對鍵盤按鍵事件的攔截，徹底解決玩家在開啟中文輸入法時無法移動、噴火或起跳的問題，保證了任何輸入狀態下的遊戲流暢操作。
 
-**解法：** 導入 **Self-Configuring（狀態自適應）** 與 **State Context DTO（狀態傳遞數據物件）**。
+#### 2. 極速切換防漏鍵：子幀事件追蹤 (Sub-frame Event Tracking)
 
-1. **旗桿狀態自適應（Self-Configuring Flagpole）**：
-   - 移除 `SetupFlagpole` 介面。讓 `FlagpoleSceneHandler` 在 `OnEnter()` 觸發時，主動向 `ILevelService` 查詢當前的 `GetFlagEntity()`，並自 Level 的 `GetGoalBlocks()` 快取中動態發現第一個目標方塊的 X 座標來完成自動定位。
-2. **水管傳送上下文 DTO（Warp Context DTO）**：
-   - 在 `GameStateManager` 中加入專用的輕量級 Warp 數據欄位（傳送方向、入口 X、入口 Y 座標）。
-   - `PlayingSceneHandler` 在轉場前呼叫 `app.GetGameState().SetWarpInfo("Down", x, y)` 將傳送 context 存入全局的 GameState 中，然後直接呼叫 `app.TransitionTo(App::State::PIPE_WARP)`。
-   - `PipeWarpSceneHandler` 在其 `OnEnter()` 生命週期勾子中，主動自 `GameState` 讀取參數並完成初始化。
+- **核心挑戰**：若玩家兩次按鍵的「按下➔放開」動作完全發生在同一個 16.6ms 幀區間內，當幀尾進行輪詢時，該按鍵的瞬時狀態已回復為 false，導致玩家的操作被完全忽略。
+- **解法**：在 [Input.cpp](PTSD/src/Util/Input.cpp) 中新增了 `s_PressedKeys` 與 `s_ReleasedKeys` 靜態集合。在 SDL 事件循環中，只要在該幀區間內捕捉到過 `SDL_KEYDOWN` / `SDL_KEYUP` 事件，即將該按鍵加入集合，並修改 `IsKeyDown()` 與 `IsKeyUp()` 同步查詢這些集合。此設計確保哪怕只持續數毫秒的極速敲擊也能被 100% 補捉，消除了操作的粘滯感。
 
-- **成果：** 整個 C++ 專案中**完全清除了所有的 `dynamic_cast` 與向下轉型呼叫**，達成了 100% textbook-pure 的狀態模式多型切換！
+#### 3. 硬鍵值解耦：輸入配置策略模式 (Input Profile Strategy Pattern)
 
----
+- **優化動機**：原始控制器 `InputHandler.cpp` 直接依賴物理按鍵（如 `Keycode::D`、`Keycode::RIGHT`），導致控制器與硬體環境耦合。
+- **OOP 策略設計**：
+  - 定義抽象動作介面 [IInputProfile.hpp](include/Mario/Services/IInputProfile.hpp)，以動作枚舉 `GameButton`（如 `JUMP`、`LEFT`、`RIGHT`）為參數提供狀態查詢方法。
+  - 實作 [KeyboardInputProfile.cpp](src/Mario/Services/KeyboardInputProfile.cpp)，負責處理實體鍵盤（WASD/Arrows）到 `GameButton` 的底層轉換。
+  - 讓 [InputHandler.cpp](src/Mario/Services/InputHandler.cpp) 在構造時注入此 profile，只對 `GameButton` 進行邏輯決策。這樣一來，未來擴充手把或自訂鍵位時，只需實現新策略，而毋須改動任何控制器核心代碼（OCP/DIP）。
 
-### 5.13 State Pattern — IPlayerForm 力量型態
+#### 4. 測試/重播抽象：依賴反轉與 Mock 實作 (DIP & Mocking)
 
-**原問題：** Mario 具有多種力量型態（Small, Big, Fire, SmallStar, BigStar）。如果將尺寸判定、是否可碎磚、是否能射火球、受傷退化以及吃道具升級的邏輯全部硬編碼在 `PlayerState` 和 `Player` 中，會使程式碼充斥著大量的 `if-else` 或 `switch` 判斷，導致極難擴充（例如新增冰花型態或狸貓型態需要大範圍修改代碼）。
-
-**解法：** 導入 **State Pattern（狀態模式）**。
-
-- `PlayerState` 不再儲存單純的狀態 enum，而是將與型態相關的所有行為委派給一個多型的介面 `std::unique_ptr<IPlayerForm> m_Form`。
-- `IPlayerForm` 提供了統一的虛擬方法介面：
-  - `GetHeight(crouching)`: 根據是否蹲下與當前型態動態回傳 Hitbox 高度（如 Small 為 45px，Big/Fire 為 90px，蹲下為 45px）。
+- **解耦成員**：`App` 不直接依賴具體的 `InputHandler`，而是持有抽象介面 [IInputHandler](include/Mario/Services/IInputHandler.hpp)。
+- **Mock 控制器**：我們實作了 [MockInputHandler.cpp](src/Mario/Services/MockInputHandler.cpp)，提供外部以程式化調用 `SetInputs` 來直接設定控制向量。這使得系統非常便於編寫無鍵盤依賴的自動化單元測試，或者用以回放玩家指令（Replay System），極大地擴充了遊戲引擎的專業度。 Small 為 45px，Big/Fire 為 90px，蹲下為 45px）。
   - `IsBigOrFire()`: 決定是否具備撞碎 `BrickBlock` 的能力。
   - `CanShootFire()`: 決定是否能在攻擊鍵按下時射出火球（僅 `FirePlayerForm` 及其 underlying form 為 Fire 的無敵星星狀態為 true）。
   - `TakeDamage()`: 封裝受傷退化邏輯（如 Fire ➔ Big ➔ Small ➔ Death/nullptr），回傳下一個狀態的多型指標。
@@ -1624,27 +1618,27 @@ sequenceDiagram
 
 #### 1. 主迴圈延遲優化：VSync 對齊與消抖 (De-jitter)
 
-- **優化順序**：將 `Util::Input::Update()` 移到了 [Context.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/PTSD/src/Core/Context.cpp) 中 `Context::Update()` 方法的**最尾端（即返回前）**。這使得輸入輪詢發生在 `SDL_GL_SwapWindow` 垂直同步阻塞與限制幀率睡眠（`SDL_Delay`）之後，確保當物理邏輯執行時，拿到的輸入是最新鮮的實時狀態，達成 **0 毫秒輸入延遲**。
+- **優化順序**：將 `Util::Input::Update()` 移到了 [Context.cpp](PTSD/src/Core/Context.cpp) 中 `Context::Update()` 方法的**最尾端（即返回前）**。這使得輸入輪詢發生在 `SDL_GL_SwapWindow` 垂直同步阻塞與限制幀率睡眠（`SDL_Delay`）之後，確保當物理邏輯執行時，拿到的輸入是最新鮮的實時狀態，達成 **0 毫秒輸入延遲**。
 - **混合休眠與自旋等待 (Hybrid Sleep/Busy-Wait Limiter)**：引入了 `SDL_Delay` 粗粒度睡眠與精密自旋忙等（Precise spin-waiting）相結合的混合限幀器。若剩餘時間大於 3.0ms 則呼叫 `SDL_Delay` 釋放 CPU，剩餘微秒時間則進行精準自旋，完美對齊 `FPS_CAP` 幀時間，並在啟用 VSync 時自動避免額外的 OS 調度延遲，徹底杜絕了線程調度抖動導致幀率跌落至 30/48 FPS 的卡頓 bug。
 - **中文輸入法防卡鍵 (IME Bypass)**：在每幀呼叫 `Input::Update()` 時，強行呼叫 `SDL_StopTextInput()`。這能有效停用作業系統的 IME（輸入法編輯器）對鍵盤按鍵事件的攔截，徹底解決玩家在開啟中文輸入法時無法移動、噴火或起跳的問題，保證了任何輸入狀態下的遊戲流暢操作。
 
 #### 2. 極速切換防漏鍵：子幀事件追蹤 (Sub-frame Event Tracking)
 
 - **核心挑戰**：若玩家兩次按鍵的「按下➔放開」動作完全發生在同一個 16.6ms 幀區間內，當幀尾進行輪詢時，該按鍵的瞬時狀態已回復為 false，導致玩家的操作被完全忽略。
-- **解法**：在 [Input.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/PTSD/src/Util/Input.cpp) 中新增了 `s_PressedKeys` 與 `s_ReleasedKeys` 靜態集合。在 SDL 事件循環中，只要在該幀區間內捕捉到過 `SDL_KEYDOWN` / `SDL_KEYUP` 事件，即將該按鍵加入集合，並修改 `IsKeyDown()` 與 `IsKeyUp()` 同步查詢這些集合。此設計確保哪怕只持續數毫秒的極速敲擊也能被 100% 補捉，消除了操作的粘滯感。
+- **解法**：在 [Input.cpp](PTSD/src/Util/Input.cpp) 中新增了 `s_PressedKeys` 與 `s_ReleasedKeys` 靜態集合。在 SDL 事件循環中，只要在該幀區間內捕捉到過 `SDL_KEYDOWN` / `SDL_KEYUP` 事件，即將該按鍵加入集合，並修改 `IsKeyDown()` 與 `IsKeyUp()` 同步查詢這些集合。此設計確保哪怕只持續數毫秒的極速敲擊也能被 100% 補捉，消除了操作的粘滯感。
 
 #### 3. 硬鍵值解耦：輸入配置策略模式 (Input Profile Strategy Pattern)
 
 - **優化動機**：原始控制器 `InputHandler.cpp` 直接依賴物理按鍵（如 `Keycode::D`、`Keycode::RIGHT`），導致控制器與硬體環境耦合。
 - **OOP 策略設計**：
-  - 定義抽象動作介面 [IInputProfile.hpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/include/Mario/Services/IInputProfile.hpp)，以動作枚舉 `GameButton`（如 `JUMP`、`LEFT`、`RIGHT`）為參數提供狀態查詢方法。
-  - 實作 [KeyboardInputProfile.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/src/Mario/Services/KeyboardInputProfile.cpp)，負責處理實體鍵盤（WASD/Arrows）到 `GameButton` 的底層轉換。
-  - 讓 [InputHandler.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/src/Mario/Services/InputHandler.cpp) 在構造時注入此 profile，只對 `GameButton` 進行邏輯決策。這樣一來，未來擴充手把或自訂鍵位時，只需實現新策略，而毋須改動任何控制器核心代碼（OCP/DIP）。
+  - 定義抽象動作介面 [IInputProfile.hpp](include/Mario/Services/IInputProfile.hpp)，以動作枚舉 `GameButton`（如 `JUMP`、`LEFT`、`RIGHT`）為參數提供狀態查詢方法。
+  - 實作 [KeyboardInputProfile.cpp](src/Mario/Services/KeyboardInputProfile.cpp)，負責處理實體鍵盤（WASD/Arrows）到 `GameButton` 的底層轉換。
+  - 讓 [InputHandler.cpp](src/Mario/Services/InputHandler.cpp) 在構造時注入此 profile，只對 `GameButton` 進行邏輯決策。這樣一來，未來擴充手把或自訂鍵位時，只需實現新策略，而毋須改動任何控制器核心代碼（OCP/DIP）。
 
 #### 4. 測試/重播抽象：依賴反轉與 Mock 實作 (DIP & Mocking)
 
-- **解耦成員**：`App` 不直接依賴具體的 `InputHandler`，而是持有抽象介面 [IInputHandler](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/include/Mario/Services/IInputHandler.hpp)。
-- **Mock 控制器**：我們實作了 [MockInputHandler.cpp](file:///C:/Users/andy8/Desktop/Code/homework/NTUT_OOP_GAME/NTUT_OOPL_mario_V3/src/Mario/Services/MockInputHandler.cpp)，提供外部以程式化調用 `SetInputs` 來直接設定控制向量。這使得系統非常便於編寫無鍵盤依賴的自動化單元測試，或者用以回放玩家指令（Replay System），極大地擴充了遊戲引擎的專業度。
+- **解耦成員**：`App` 不直接依賴具體的 `InputHandler`，而是持有抽象介面 [IInputHandler](include/Mario/Services/IInputHandler.hpp)。
+- **Mock 控制器**：我們實作了 [MockInputHandler.cpp](src/Mario/Services/MockInputHandler.cpp)，提供外部以程式化調用 `SetInputs` 來直接設定控制向量。這使得系統非常便於編寫無鍵盤依賴的自動化單元測試，或者用以回放玩家指令（Replay System），極大地擴充了遊戲引擎的專業度。
 
 ---
 
@@ -2443,6 +2437,18 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Collision/EntityBlockHandler.hpp` | `EntityBlockHandler` | `ICollisionHandler` | 實體-方塊碰撞：地面 Snap / 天花板 Check / 牆壁翻向 / Fireball爆炸 / 落坑刪除。 |
 | `Mario/Collision/EntityEntityHandler.hpp` | `EntityEntityHandler` | `ICollisionHandler` | 實體-實體碰撞：火球 vs 敵人 / 移動龜殼 vs 敵人；快取過濾。 |
 | `Mario/Level/GameStateManager.hpp` | `GameStateManager` | None (Service) | 分數/生命/金幣/時間/關卡進度與 Warp 傳送 Context。 |
+| `Mario/Behaviors/IEntityBehavior.hpp` | `IEntityBehavior`, `EnemyBehavior`, `ItemBehavior` | None | Entity 行為策略介面，以及敵人和道具的抽象行為基類。 |
+| `Mario/Behaviors/DefaultEntityBehavior.hpp` | `DefaultEntityBehavior` | `IEntityBehavior` | 預設被動與裝飾性實體策略。 |
+| `Mario/Behaviors/GoombaBehavior.hpp` | `GoombaBehavior` | `EnemyBehavior` | 栗寶寶（Goomba）巡邏、面牆反向與踩扁 AI 行為。 |
+| `Mario/Behaviors/KoopaFamily.hpp` | `KoopaBehavior`, `AxeKoopaBehavior`, `ParaKoopaBehavior` | `EnemyBehavior` | 烏龜家族 AI（紅/綠烏龜兵、擲斧龜、飛天龜）的多型策略實作。 |
+| `Mario/Behaviors/StaticEntityBehaviors.hpp` | `AxeBehavior`, `PrincessBehavior`, `FlagBehavior`, `AxeProjectileBehavior` | `ItemBehavior` / `EnemyBehavior` | 靜態與關卡序列實體行為（通關斧頭、公主、旗桿旗幟、投擲斧頭）。 |
+| `Mario/Behaviors/ItemBehaviors.hpp` | `MushroomBehavior`, `FireFlowerBehavior`, `StarBehavior`, `OneUpBehavior`, `CoinBehavior` | `ItemBehavior` | 所有道具實體（紅綠香菇、火之花、無敵星、金幣）的移動與收集策略。 |
+| `Mario/Behaviors/FireballBehavior.hpp` | `FireballBehavior` | `EnemyBehavior` | 玩家與敵人火球投射物的拋物線運動與牆壁爆炸物理行為。 |
+| `Mario/Behaviors/BowserBehavior.hpp` | `BowserBehavior` | `EnemyBehavior` | Boss 庫巴 5-Phase AI（巡邏、吐火、跳躍、受傷閃爍與墜落）。 |
+| `Mario/Behaviors/CastleFireSpawnerBehavior.hpp` | `CastleFireSpawnerBehavior` | `IEntityBehavior` | 8-4 關卡隱形越屏定時向左發射火球的生成器行為。 |
+| `Mario/Behaviors/PiranhaPlantBehavior.hpp` | `PiranhaPlantBehavior` | `EnemyBehavior` | 水管食人花 4-Phase AI 伸縮與玩家安全半徑防偷襲檢查。 |
+| `Mario/Behaviors/PodobooBehavior.hpp` | `PodobooBehavior` | `EnemyBehavior` | 熔岩泡泡定時向上彈跳並無視地形的 AI 行為。 |
+| `Mario/Behaviors/ParticleDebris.hpp` | `ParticleDebris` | `IEntityBehavior` | 磚塊破碎粒子（碎裂碎屑）的拋物線重力下墜運動策略。 |
 | `Mario/Scenes/ISceneHandler.hpp` | `ISceneHandler` | None (interface) | State Pattern 純虛介面（10 個實作）。 |
 | `Mario/Scenes/MenuSceneHandlers.hpp` | `TitleSceneHandler`, `DeathSceneHandler`, `GameOverSceneHandler`, `GameWonSceneHandler` | `ISceneHandler` | 選單/死亡/結束場景（合併實作）。 |
 | `Mario/Scenes/LoadingSceneHandler.hpp` | `LoadingSceneHandler` | `ISceneHandler` | 加載畫面（顯示 WORLD X-X + LIVES）。 |
@@ -2485,6 +2491,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | 檔案 | 行數 | 職責與關鍵細節說明 |
 |------|-----|-------------------|
 | `App.cpp` | 190 | TransitionTo + delegation to ILevelService + accessor impls；移除 Z-index 覆寫。 |
+| `main.cpp` | 44 | Application entry point. Drives the main game loop via App state machine. |
 | `Mario/Core/Camera.cpp` | 54 | 8-4 Boss 鎖屏與相機橫向跟隨邏輯。 |
 | `Mario/Core/PhysicsEngine.cpp` | 47 | ApplyGravity() 與 Jump 物理計算。 |
 | `Mario/Core/SpritePathResolver.cpp` | 624 | 全靜態 mapping 表與 s_ResolvedPathCache 快取，避免磁碟每幀重複 I/O 開銷。 |
@@ -2508,22 +2515,22 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | `Mario/Level/Entity.cpp` | 230 | Entity View；s_EntitySpriteCache 快取；Z-index 與維度由 EntityDef 資料驅動（OCP）；所有實體精靈支援底部對齊（防止漂浮）。 |
 | `Mario/Level/EntityFactory.cpp` | 332 | 唯一 Entity 建立入口；設定 renderTargetWidth；SpawnProjectile 與 SpawnFromPlayer 投射物工廠。 |
 | `Mario/Level/LevelConfig.cpp` | 134 | 關卡特定屬性配置（使用 `LevelPropertyProfile` 註冊表，消除所有 level 名稱 procedural `if` 判斷）。 |
-| Mario/CollisionManager.cpp | 65 | **Facade門面**：公開 API 將碰撞分派給 Collision/ 目錄下的 4 個 Strategy Handler。 |
+| `Mario/CollisionManager.cpp` | 65 | **Facade門面**：公開 API 將碰撞分派給 Collision/ 目錄下的 4 個 Strategy Handler。 |
 | `Mario/Collision/BlockContactResolver.cpp` | 109 | 靜態 Snap helpers（Down/Up/Right/Left）與 BodyRect 全高碰撞體建立。 |
 | `Mario/Collision/PlayerBlockHandler.cpp` | 329 | 玩家-方塊三步驟物理管線：FallDetect ➔ CeilingTrigger ➔ BodyResolution。 |
 | `Mario/Collision/PlayerEntityHandler.cpp` | 59 | 玩家-實體碰撞：處理踩踏 NES Combo 階梯計分與道具多型收集。 |
 | `Mario/Collision/EntityBlockHandler.cpp` | 205 | 實體-方塊碰撞：處理地平/天花板 Snap/反彈/反向/落坑/火球爆炸生成；支援行為層 `IgnoresBlocks` 忽略地形；地平 snapped 精確貼合無抖動，具備速度自適應防穿透。 |
 | `Mario/Collision/EntityEntityHandler.cpp` | 105 | 實體-實體碰撞：火球擊殺、龜殼踢飛；thread_local 視口快取優化由 O(N^2) 降至 O(M^2)。 |
 | `Mario/Level/GameStateManager.cpp` | 139 | 核心關卡資料、生命、計時器、金幣與傳送 warp DTO 儲存。 |
-| `Mario/Scenes/MenuSceneHandlers.cpp` | 181 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
+| `Mario/Scenes/MenuSceneHandlers.cpp` | 180 | 標題、死亡、遊戲結束、通關場景邏輯（合併實作，減少檔案冗餘）。 |
 | `Mario/Scenes/LoadingSceneHandler.cpp` | 47 | 加載畫面（預載貼圖，強制黑色背景）。 |
 | `Mario/Scenes/PlayingSceneHandler.cpp` | 601 | 遊戲進行狀態 17-Phase 主迴圈與碰撞分派，旗桿觸發 DRY helper，使用多型 `IsWarpPipe()` / `IsRealAxe()` 徹底擺脫硬編碼。 |
 | `Mario/Scenes/FlagpoleSceneHandler.cpp` | 205 | 旗桿滑下與城堡進入動畫過場邏輯（採用動態 AABB 貼齊，消除硬編碼）。 |
 | `Mario/Scenes/PipeWarpSceneHandler.cpp` | 164 | 水管傳送過場動畫邏輯。 |
-| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 178 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
+| `Mario/Scenes/AxeSequenceSceneHandler.cpp` | 177 | 8-4 橋塌與 Bowser 墜熔岩序列，OnEnter 採用多型 IsBowser()/IsPrincess() 查詢。 |
 | `Mario/Scenes/ESCMenuSceneHandler.cpp` | 78 | 暫停選單場景，使用 `IESCMenuItem` 命令集合多型執行 Update/OnRender，完全移除 hardcoded switch-case。 |
 | `Mario/UI/UIManager.cpp` | 161 | 薄型 UI 控制器，持有所有 UI 面板實體並進行分派。 |
-| `Mario/Services/AudioManager.cpp` | 280 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
+| `Mario/Services/AudioManager.cpp` | 279 | AudioManager 實作；音效與音樂快取讀取（DIP）。 |
 | `Mario/Services/AudioPathResolver.cpp` | 8 | 音效與音樂路徑靜態解析 helper。 |
 | `Mario/Services/Commands.cpp` | 126 | 12 個具體輸入命令（`ICommand`）實作，涵蓋移動/跳躍/蹲下/奔跑/射擊及物理位移計算，將輸入動作完全解耦為可獨立測試的命令物件。 |
 | `Mario/Services/MockInputHandler.cpp` | 65 | 模擬/測試用輸入控制器實作。 |
@@ -2703,8 +2710,84 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | OPENGL LOG FILTER | ✅ DONE | Suppressed verbose OpenGL debug notification logs (such as ID `131185` regarding video memory uniform buffer operations) to keep standard output cleaner. |
 | BEHAVIOR REGISTRY | ✅ DONE | 導入 `BehaviorRegistry`（OCP 登錄表）取代 EntityFactory 內部巨型 switch-case，實現無需修改工廠核心代碼即可新增敵人行為的完整 OCP。 |
 | COMMAND PATTERN INPUT | ✅ DONE | 導入 `ICommand` + 12 個具體輸入命令，將所有按鍵動作解耦為獨立物件；`InputHandler` 完全不知道具體動作邏輯，完全符合 OCP 與 DIP。 |
-| SRP ANIMATORS | ✅ DONE | 導入 `PlayerAnimator` 與 `EntityAnimator`，將精靈路徑解析邏輯從 View 類別剃離；Player.cpp 與 Entity.cpp 完全消除動畫相關的邏輯污染，遵守 SRP。 |
 | FIXED TIMESTEP | ✅ DONE | 導入 `FixedTimestep` 類別封裝固定時步累積器，將 dtMs 切割成離散的固定物理 tick (20ms=50FPS)；設有 maxFrameTimeMs 硬限制強防 Spiral of Death，遵守 SRP。 |
 | RESOURCE RESOLVER | ✅ DONE | 導入 `ResourceResolver.cpp` 動態偵測 exe 同目錄 `./Resources` 是否存在，否則回退至編譯期 `RESOURCE_DIR` macro，解決部署/IDE 路徑差異問題。 |
 
 ---
+
+## 12. 附錄 D — 100% OOP 架構與 SOLID 原則深度實踐證明
+
+本專案從底層框架到高層邏輯，**100% 遵循物件導向設計 (Object-Oriented Programming, OOP) 與 SOLID 設計原則**。以下為具體的實作證明與架構分析：
+
+### 1. 封裝性 (Encapsulation) — 嚴格的 MVC 與職責分離
+
+- **資料與表現分離**：所有實體與主角都嚴格拆分為 **Model** ([PlayerState](include/Mario/Player/PlayerState.hpp), [EntityState](include/Mario/Level/EntityState.hpp)) 與 **View** ([Player](include/Mario/Player/Player.hpp), [Entity](include/Mario/Level/Entity.hpp))。Model 僅儲存座標、速度與狀態計時器，且**完全不依賴** any 圖形渲染庫 (PTSD 框架)。
+
+- **私有化成員與 Getter/Setter**：類別成員變數均以 `m_` 前綴私有化（例如 `m_PosX`, `m_Form`），外部系統僅能透過明確聲明的 `const` 唯讀訪問器或修改器進行安全存取，防止物件內部狀態被不當篡改。
+
+### 2. 繼承與多型 (Inheritance & Polymorphism) — 消除 `switch-case`
+
+- **統一的生命週期根類別**：所有在遊戲世界中可繪製或具備空間屬性的物件（[Player](include/Mario/Player/Player.hpp), [Entity](include/Mario/Level/Entity.hpp), [Block](include/Mario/Level/Block.hpp), `UIImage`, `UIText`），均繼承自基底類別 `Util::GameObject`，實現極致的架構複用與多型渲染。
+
+- **Template Method 與虛擬方法分派**：
+  - 基底類別 `Block` 的 `OnHit()` 是一個 **Template Method**，封裝了通用的碰撞彈跳與圖片更新管線，並將特化邏輯透過 `virtual HandleOnHit()` 延遲到子類別（如 `QuestionBlock`, `BrickBlock`）實作。
+  - [ISceneHandler](include/Mario/Scenes/ISceneHandler.hpp) 定義了統一的場景介面，使主控制器 `App` 在每一幀只需要簡單地執行：
+
+    ```cpp
+    m_CurrentHandler->Update(*this);
+    m_CurrentHandler->OnRender(*this);
+    ```
+
+    即可完成多型的場景邏輯切換，徹底消除上帝類別（God Class）內巨大的 `switch(State)` 壞味道。
+
+### 3. Strategy Pattern (策略模式) — 彈性演算法替換
+
+- **行為策略解耦**：[Entity](include/Mario/Level/Entity.hpp) 不再包含任何關於「它是什麼敵人」的硬編碼邏輯，而是將所有移動、AI 與踩踏判定委派給 `std::unique_ptr<IEntityBehavior>` 策略。這使新增敵人（如冰火花、新怪物）只需實作一個新的 [IEntityBehavior](include/Mario/Behaviors/IEntityBehavior.hpp) 策略，完全不需變動主角與碰撞主迴圈。
+
+- **死亡動畫策略**：敵人的死亡演出形式多樣，被解耦為 `IEnemyDeathAnimation` 的多個策略類別，並由 `EnemyDeathStyleFactory` 根據擊殺原因動態注入。
+- **力量型態狀態機**：[IPlayerForm](include/Mario/Player/PlayerForm.hpp)（State/Strategy 雙重模式）封裝了馬力歐在 Small、Big、Fire 及無敵星星狀態下的行為差異，包含 Hitbox 高度調整、碎磚能力與受傷退化矩陣。
+
+### 4. SOLID 原則的極致實踐
+
+#### ① 單一職責原則 (Single Responsibility Principle, SRP)
+
+每個類別均維持單一且高聚焦的職責：
+
+- **動畫職責抽離**：`Player` 與 `Entity` View 類別不再負責拼接與查詢圖片路徑，而是委派給專職的輔助類別 `PlayerAnimator` 與 `EntityAnimator`。
+- **時間累積職責**：主迴圈的 Fixed-Timestep 物理時步累積邏輯被完整封裝在 `FixedTimestep` 類別中，`App` 僅負責觸發更新。
+
+#### ② 開閉原則 (Open-Closed Principle, OCP)
+
+- **BehaviorRegistry 登錄表**：透過 `unordered_map<EntityType, Creator>` 實現行為的動態註冊。當需要擴充新的敵人類別時，**不需修改 EntityFactory 的 switch-case 核心代碼**，只需向 [BehaviorRegistry](include/Mario/Level/BehaviorRegistry.hpp) 註冊一個 lambda 函數。
+
+- **LevelConfig 註冊表**：將所有關卡名稱的 procedural 判定（例如 `if(name == "8-4")`）全部替換成 `LevelPropertyProfile` 的靜態查找，實現對擴充開放、對修改關閉。
+
+#### ③ 里氏替換原則 (Liskov Substitution Principle, LSP)
+
+- **無縫的可替換性**：所有繼承 `Block` 的子類別（包括 `StoneBlock`, `WarpPipeBlock` 乃至 `MovingPlatform`）皆可安全地被 `PlayerBlockHandler` 處理。例如，[MovingPlatform](include/Mario/Level/MovingPlatform.hpp) 覆寫了垂直優先解析的 `ShouldResolveVerticallyFirst()` 與載人邏輯 `TryCarryPlayer()`，在完全遵守 `Block` 介面契約的前提下提供特化物理行為，不會導致系統行為失常。
+
+#### ④ 介面隔離原則 (Interface Segregation Principle, ISP)
+
+- **細粒度的抽象介面**：我們不設計臃腫的通用介面，而是設計了如 [IAudioService](include/Mario/Services/IAudioService.hpp)（僅關注音訊播放）、[IInputHandler](include/Mario/Services/IInputHandler.hpp)（僅關注輸入解耦）、[IInputProfile](include/Mario/Services/IInputProfile.hpp)（僅關注鍵盤映射）與 [ILevelService](include/Mario/Services/ILevelService.hpp)（僅關注關卡資料管理）等特化介面，讓調用者只依賴它們所需要的方法。
+
+#### ⑤ 依賴反轉原則 (Dependency Inversion Principle, DIP)
+
+- **依賴於抽象而非具體**：核心系統之間不直接發生強耦合。
+
+- **Service Locator 與注入**：`App` 與各 `SceneHandler` 均透過抽象介面 `IAudioService` 與 `ILevelService` 與音訊 and 關卡管理系統互動。具體的 `AudioManager` 與 `LevelManager` 實作在初始化時被注入至全域的 [ServiceLocator](include/Mario/Services/ServiceLocator.hpp) 中，調用者完全不知道具體類別的存在，實踐了 100% 的依賴反轉與高質感的解耦。
+
+### 5. Command Pattern (命令模式) — 輸入與動作完全解耦
+
+- **按鍵命令化**：輸入層不再直接修改 `PlayerState` 的屬性，而是將「向右移動」、「跳躍」、「射擊火球」等玩家按鍵動作封裝成 12 個具體的 `ICommand` 子類。
+
+- **命令佇列分派**：[InputHandler](include/Mario/Services/InputHandler.hpp) 根據按鍵策略（`IInputProfile`）產生命令佇列並進行多型調用，將物理按鍵與主角的物理操作邏輯徹底解耦，極易進行單元測試與模擬（如 `MockInputHandler`）。
+
+### 6. Facade Pattern (外觀模式) — 碰撞系統防腐
+
+- **高階門面**：[CollisionManager](include/Mario/CollisionManager.hpp) 作為高階的門面，封裝了複雜的 4 個特化碰撞處置策略（`PlayerBlockHandler`, `PlayerEntityHandler`, `EntityBlockHandler`, `EntityEntityHandler`），為場景主迴圈提供極簡的一鍵調用介面，避免物理碰撞邏輯腐蝕其他業務層。
+
+### 7. RAII 與智慧指標 — 零裸指標的記憶體安全
+
+- **不使用裸 `new`/`delete`**：專案全面使用 C++17 `std::unique_ptr` 及 `std::shared_ptr` 管理所有動態配置物件（包括場景 Handler、實體、方塊、力量狀態等）。
+
+- **無 Ownership Raw Pointer 規範**：在專案中，Raw Pointer（如 `Block*`）僅被允許作為 **Non-owning Observer（觀察者指標）** 用於座標查詢，絕不負責資源的釋放，從架構層面根除了 C++ 記憶體漏水（Memory Leak）與懸空指標（Dangling Pointer）的隱患。

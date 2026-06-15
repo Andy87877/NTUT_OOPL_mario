@@ -95,13 +95,13 @@
 - Week 17：期末發表與繳交
   - [x] 整合背景音樂與各式特效音
   - [x] 實作暫停時停止BGM功能
-  - [ ] 拍攝遊玩影片、準備報告並提交
+  - [x] 拍攝遊玩影片、準備報告並提交
 
-## 還原關卡(不會1:1完整復刻，會盡力復刻關卡內容與細節)
+## 還原關卡
 
-1-1 ![1-1](Resources/map_reference/1-1.png)
-1-2 ![1-2](Resources/map_reference/1-2.png)
-8-4 ![8-4](Resources/map_reference/8-4.png)
+1-1 ![1-1](2026OOPL_Final_imgs/1-1_gameplay.png)
+1-2 ![1-2](2026OOPL_Final_imgs/1-2_gameplay.png)
+8-4 ![8-4](2026OOPL_Final_imgs/8-4_gameplay.png)
 
 ## My OOPL_mario proposal
 
