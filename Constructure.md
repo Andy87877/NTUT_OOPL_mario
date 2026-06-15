@@ -36,7 +36,7 @@
 | §4 狀態機轉移圖 | ⭐⭐⭐ 中級 | App 狀態流程與關卡順序 |
 | §5 設計模式深度解析 | ⭐⭐⭐⭐ 進階 | 每個 Pattern 的完整動機與解法 |
 | §6 深度互動 UML 圖 | ⭐⭐⭐⭐⭐ 專家 | 跨系統序列圖、生命週期、AI 狀態機 |
-| §7 Memory Leak 建筑分析 | 🛡️ 實戰 | RAII/智慧指標全面分析，零漏水證明 |
+| §7 Memory Leak 架構分析 | 🛡️ 實戰 | RAII/智慧指標全面分析，零漏水證明 |
 | §8 時間複雜度分析 | 🛡️ 實戰 | 核心路徑 Big-O 分析與優化證明 |
 | §9 附錄 A 檔案清單 | 📋 參考 | 所有 .hpp/.cpp 一覽表與行數 |
 | §10 附錄 B OOP 原則確認 | 📋 參考 | 設計原則遵守確認表 |
@@ -98,7 +98,7 @@
    - 6.6 關卡載入序列圖 (Level Loading Sequence)
    - 6.7 磚塊命中 Template Method 序列圖 (Block::OnHit)
    - 6.8 每幀碰撞解析 Pipeline 序列圖 (Collision Pipeline)
-7. [Memory Leak 建筑分析 — 零漏水證明](#7-memory-leak-建筑分析--零漏水證明)
+7. [Memory Leak 架構分析 — 零漏水證明](#7-memory-leak-建筑分析--零漏水證明)
    - 7.1 RAII 全面覆蓋 — 絕不出現裸指標 new
    - 7.2 `unique_ptr` vs `shared_ptr` 使用原則
    - 7.3 專案內動態分配一覽表
@@ -119,7 +119,7 @@
    - A.5 Python 工具腳本
 10. [附錄 B — OOP 原則遵守確認](#10-附錄-b--oop-原則遵守確認)
 11. [附錄 C — Refactoring 進度總覽](#11-附錄-c--refactoring-進度總覽)
-12. [100% OOP 架構與 SOLID 原則深度實踐證明](#12-100-oop-架構與-solid-原則深度實踐證明)
+12. [附錄 D — 100% OOP 架構與 SOLID 原則深度實踐證明](#12-附錄-d--100-oop-架構與-solid-原則深度實踐證明)
 
 ---
 
@@ -1478,28 +1478,32 @@ classDiagram
 
 ---
 
-### 5.12 State Pattern — 零向�- **優化順序**：將 `Util::Input::Update()` 移到了 [Context.cpp](PTSD/src/Core/Context.cpp) 中 `Context::Update()` 方法的**最尾端（即返回前）**。這使得輸入輪詢發生在 `SDL_GL_SwapWindow` 垂直同步阻塞與限制幀率睡眠（`SDL_Delay`）之後，確保當物理邏輯執行時，拿到的輸入是最新鮮的實時狀態，達成 **0 毫秒輸入延遲**
+### 5.12 State Pattern — 零向下轉型狀態傳參 (Zero Down-Casting State Handshake)
 
-- **混合休眠與自旋等待 (Hybrid Sleep/Busy-Wait Limiter)**：引入了 `SDL_Delay` 粗粒度睡眠與精密自旋忙等（Precise spin-waiting）相結合的混合限幀器。若剩餘時間大於 3.0ms 則呼叫 `SDL_Delay` 釋放 CPU，剩餘微秒時間則進行精準自旋，完美對齊 `FPS_CAP` 幀時間，並在啟用 VSync 時自動避免額外的 OS 調度延遲，徹底杜絕了線程調度抖動導致幀率跌落至 30/48 FPS 的卡頓 bug。
-- **中文輸入法防卡鍵 (IME Bypass)**：在每幀呼叫 `Input::Update()` 時，強行呼叫 `SDL_StopTextInput()`。這能有效停用作業系統的 IME（輸入法編輯器）對鍵盤按鍵事件的攔截，徹底解決玩家在開啟中文輸入法時無法移動、噴火或起跳的問題，保證了任何輸入狀態下的遊戲流暢操作。
+**問題**：在 `PlayingSceneHandler` 中，當玩家滑下旗桿進入 `FLAGPOLE`，或者進入傳送水管 `PIPE_WARP` 時，目標狀態需要特定的位置與參數。一般做法是在使用 `dynamic_cast` 將抽象場景狀態轉型，然後呼叫 `Setup` 之類的方法。這是一種**向下轉型壞味道 (Down-casting Smell)**，破壞了場景的抽象與封裝。
 
-#### 2. 極速切換防漏鍵：子幀事件追蹤 (Sub-frame Event Tracking)
+**解決方法**：引入 **Self-Configuring（自我配置）** 與 **State Context DTO（狀態上下文資料傳輸物件）**。
 
-- **核心挑戰**：若玩家兩次按鍵的「按下➔放開」動作完全發生在同一個 16.6ms 幀區間內，當幀尾進行輪詢時，該按鍵的瞬時狀態已回復為 false，導致玩家的操作被完全忽略。
-- **解法**：在 [Input.cpp](PTSD/src/Util/Input.cpp) 中新增了 `s_PressedKeys` 與 `s_ReleasedKeys` 靜態集合。在 SDL 事件循環中，只要在該幀區間內捕捉到過 `SDL_KEYDOWN` / `SDL_KEYUP` 事件，即將該按鍵加入集合，並修改 `IsKeyDown()` 與 `IsKeyUp()` 同步查詢這些集合。此設計確保哪怕只持續數毫秒的極速敲擊也能被 100% 補捉，消除了操作的粘滯感。
+1. **自我配置狀態 (Self-Configuring Flagpole)**：
+   - 移除 `SetupFlagpole`。`FlagpoleSceneHandler` 在 `OnEnter()` 被觸發時，主動向 `ILevelService` 查詢當前的 `GetFlagEntity()`，並透過 Level 的 `GetGoalBlocks()` 來自動計算並對齊目標的 X 座標。
+2. **傳送參數上下文 DTO (Warp Context DTO)**：
+   - 在 `GameStateManager` 加入輕量級的 Warp 資訊（傳送方向、入口 X、入口 Y 座標）。
+   - `PlayingSceneHandler` 在傳送前呼叫 `app.GetGameState().SetWarpInfo("Down", x, y)` 將傳送上下文寫入 GameState，然後直接呼叫 `app.TransitionTo(App::State::PIPE_WARP)`。
+   - `PipeWarpSceneHandler` 在 `OnEnter()` 被生命週期觸發時，主動向 `GameState` 讀取參數並初始化。
 
-#### 3. 硬鍵值解耦：輸入配置策略模式 (Input Profile Strategy Pattern)
+- **成果**：在 C++ 層面**徹底排除了所有的 `dynamic_cast` 與向下轉型呼叫**，達成了 100% textbook-pure 的狀態機轉換！
 
-- **優化動機**：原始控制器 `InputHandler.cpp` 直接依賴物理按鍵（如 `Keycode::D`、`Keycode::RIGHT`），導致控制器與硬體環境耦合。
-- **OOP 策略設計**：
-  - 定義抽象動作介面 [IInputProfile.hpp](include/Mario/Services/IInputProfile.hpp)，以動作枚舉 `GameButton`（如 `JUMP`、`LEFT`、`RIGHT`）為參數提供狀態查詢方法。
-  - 實作 [KeyboardInputProfile.cpp](src/Mario/Services/KeyboardInputProfile.cpp)，負責處理實體鍵盤（WASD/Arrows）到 `GameButton` 的底層轉換。
-  - 讓 [InputHandler.cpp](src/Mario/Services/InputHandler.cpp) 在構造時注入此 profile，只對 `GameButton` 進行邏輯決策。這樣一來，未來擴充手把或自訂鍵位時，只需實現新策略，而毋須改動任何控制器核心代碼（OCP/DIP）。
+---
 
-#### 4. 測試/重播抽象：依賴反轉與 Mock 實作 (DIP & Mocking)
+### 5.13 State Pattern — IPlayerForm 力量型態
 
-- **解耦成員**：`App` 不直接依賴具體的 `InputHandler`，而是持有抽象介面 [IInputHandler](include/Mario/Services/IInputHandler.hpp)。
-- **Mock 控制器**：我們實作了 [MockInputHandler.cpp](src/Mario/Services/MockInputHandler.cpp)，提供外部以程式化調用 `SetInputs` 來直接設定控制向量。這使得系統非常便於編寫無鍵盤依賴的自動化單元測試，或者用以回放玩家指令（Replay System），極大地擴充了遊戲引擎的專業度。 Small 為 45px，Big/Fire 為 90px，蹲下為 45px）。
+**問題**：Mario 具有多種力量型態（Small, Big, Fire, SmallStar, BigStar）。如果將各型態的高度、能不能丟火球、能不能撞碎磚塊、受傷退化以及吃道具升級的邏輯都寫死在 `PlayerState` 和 `Player`，會使程式碼充斥著大量的 `if-else` 和 `switch` 判斷，未來新增新形態（例如披風、飛彈）時需要大範圍修改代碼。
+
+**解決方法**：導入 **State Pattern（狀態模式）**。
+
+- `PlayerState` 不再儲存力量狀態的 enum，而是改為持有指向當前力量型態的 `std::unique_ptr<IPlayerForm> m_Form`。
+- `IPlayerForm` 定義了多型介面：
+  - `GetHeight(crouching)`: 根據是否蹲下與型態，動態傳回 Hitbox 高度（例如 Small 為 45px，Big/Fire 為 90px，蹲下為 45px）。
   - `IsBigOrFire()`: 決定是否具備撞碎 `BrickBlock` 的能力。
   - `CanShootFire()`: 決定是否能在攻擊鍵按下時射出火球（僅 `FirePlayerForm` 及其 underlying form 為 Fire 的無敵星星狀態為 true）。
   - `TakeDamage()`: 封裝受傷退化邏輯（如 Fire ➔ Big ➔ Small ➔ Death/nullptr），回傳下一個狀態的多型指標。
@@ -2215,7 +2219,7 @@ sequenceDiagram
 
 ---
 
-## 7. Memory Leak 建筑分析 — 零漏水證明
+## 7. Memory Leak 架構分析 — 零漏水證明
 
 > 本專案全面據棄裸指標 `new`/`delete`，改用 C++17 RAII 智慧指標管理所有動態記憶體。
 

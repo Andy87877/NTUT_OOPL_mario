@@ -10,7 +10,7 @@
 
 ### 遊戲簡介
 
-- 這次專案我是使用助教提供的 PTSD 框架，以 C++17 復刻經典的 2D 橫捲軸動作遊戲《超級瑪利歐兄弟》（Super Mario Bros.）。
+- 這次專案我是使用助教提供的 PTSD 框架，以 C++17 復刻經典的 2D 橫向捲軸動作遊戲《超級瑪利歐兄弟》（Super Mario Bros.）。
 - 玩家在遊戲中可以操控主角 Mario 進行左右移動、跳躍、踩踏敵人，並且吃香菇變大、吃火焰花發射火球、吃無敵星星變成無敵狀態。
 - 專案中我實作了三個關卡，分別是經典的 World 1-1（地面關卡）、World 1-2（地下關卡）以及 World 8-4（城堡關卡），玩家需要穿越重重障礙與不同的敵人，最後在城堡擊敗 Boss 庫巴（Bowser）並拯救公主。
 
@@ -148,7 +148,7 @@ World 8-4 (庫巴城堡 — 有熔岩、岩漿泡泡與 Boss 庫巴)
 
 - 標頭檔 (`.hpp`)：85 個
 - 原始檔 (`.cpp`)：68 個
-- 程式碼總行數：約 18,500 行（C++ 實作源碼，不含 PTSD 框架）
+- 程式碼總行數：約 18,500 行（C++ 實作原始碼，不含 PTSD 框架）
 - 設計模式使用數量：**10 種**
 - 實體行為策略子類 (`IEntityBehavior`)：20 個
 - 輸入動作命令子類 (`ICommand`)：12 個
@@ -211,7 +211,7 @@ classDiagram
 - `Util::GameObject`：PTSD 中的遊戲基礎物件。
 - `Player`：玩家的 View 顯示類別，負責依據狀態更新 Mario 的 Sprite 渲染。
 - `Entity`：所有實體（敵人、道具、火球等）的 View 顯示類別。
-- `Block`：所有地圖方塊的基類，包含：`BrickBlock` (一般磚塊)、`QuestionBlock` (問號方塊)、`StoneBlock` (石頭地基)、`InvisibleBlock` (隱形方塊)、`GoalBlock` (終點旗桿底座)、`BackgroundBlock` (背景物件)、`BridgeBlock` (庫巴橋梁)、`MovingPlatform` (會移動的平台)。
+- `Block`：所有地圖方塊的基類，包含：`BrickBlock` (一般磚塊)、`QuestionBlock` (問號方塊)、`StoneBlock` (石頭地基)、`InvisibleBlock` (隱形方塊)、`GoalBlock` (終點旗桿底座)、`BackgroundBlock` (背景物件)、`BridgeBlock` (庫巴橋樑)、`MovingPlatform` (會移動的平台)。
 
 ##### 2. 場景切換狀態樹 (ISceneHandler)
 
@@ -293,7 +293,7 @@ stateDiagram-v2
 | 4 | COLLISION DETECT | 進行玩家與地圖方塊的三步驟碰撞偵測與修正 |
 | 5 | SPAWN ITEMS | 處理被方塊敲擊所產生的道具生成動畫 |
 | 6 | PLAYER STATE TICK | 更新瑪利歐的計時器與動畫影格 |
-| 7 | ENTITY AI UPDATE | 呼叫所有實體的 AI 更新與實體與方塊碰撞 |
+| 7 | ENTITY AI UPDATE | 呼叫所有實體的 AI 更新以及實體與方塊的碰撞偵測 |
 | 8 | ENTITY TICK+VIEW | 更新實體的計時器與視圖渲染狀態 |
 | 9 | PLAYER-ENTITY COL | 偵測玩家與怪物/道具之間的碰撞 |
 | 10 | ENTITY-ENTITY COL | 偵測實體與實體（例如火球打怪、龜殼砸怪）的碰撞 |
@@ -425,7 +425,7 @@ sequenceDiagram
 
 #### 1. 以為的「AI魔法」與突如其來的「義大利麵地獄」
 
-剛開始寫這個瑪利歐專案時，我心裡其實非常放鬆，甚至有點小得意。我想著：「反正現在有 VS Code Copilot 和 Antigravity 這些超強的 AI 工具，我只要用口語講一下需求，程式碼不就劈哩啪啦生出來了，寫專案超輕鬆的吧！」（想起來，這簡直是沒受過扎實資工系課程洗禮才會講出來的幼稚發言）。
+剛開始寫這個瑪利歐專案時，我心裡其實非常放鬆，甚至有點小得意。我想著：「反正現在有 VS Code Copilot 和 Antigravity 這些超強的 AI 工具，我只要用口語講一下需求，程式碼不就劈哩啪啦生出來了，寫專案超輕鬆的吧！」（想起來，這簡直是沒受過紮實資工系課程洗禮才會講出來的幼稚發言）。
 
 確實，前幾天開發過程非常爽快。AI 寫程式碼的速度飛快，給個指令就產出一大堆代碼，遊戲也真的能跑能動了，Mario 會跑、會跳，看起來有模有樣。但因為我當時太過依賴 AI 的即時產出，完全沒有靜下心來規劃整體的 OOP 架構。結果，代碼不知不覺塞成一團，程式裡充斥著幾百個 if-else 和硬編碼，不知不覺寫出了一大坨令人頭疼的義大利麵代碼。
 
