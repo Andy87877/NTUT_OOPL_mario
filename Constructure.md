@@ -98,7 +98,7 @@
    - 6.6 關卡載入序列圖 (Level Loading Sequence)
    - 6.7 磚塊命中 Template Method 序列圖 (Block::OnHit)
    - 6.8 每幀碰撞解析 Pipeline 序列圖 (Collision Pipeline)
-7. [Memory Leak 架構分析 — 零漏水證明](#7-memory-leak-建筑分析--零漏水證明)
+7. [Memory Leak 架構分析 — 零漏水證明](#7-memory-leak-架構分析--零漏水證明)
    - 7.1 RAII 全面覆蓋 — 絕不出現裸指標 new
    - 7.2 `unique_ptr` vs `shared_ptr` 使用原則
    - 7.3 專案內動態分配一覽表
@@ -1216,7 +1216,7 @@ PHASE 17: CLEANUP           — CleanupDeadEntities() (erase deleted from m_Enti
 | 無敵星星殺敵 | `CollisionManager.cpp` | `ps.GetStarTimer() > 0` 時直接刪敵、計分、顯示浮動文字。 |
 | 連續踩踏分數 | `CollisionManager.cpp` | `m_StompCombo`；落地重置；分數序列 100→200→400→800→1000。 |
 | 食人花安全半徑 | `PiranhaPlantBehavior.cpp` | Mario 進入 `MARIO_SAFE_RADIUS = 112.5px` (2.5×TILE) 時，若植物處於 HIDING 階段，將會鎖定並保持隱藏狀態，直到玩家離開水管範圍（防偷襲機制）。 |
-| 出生點閃爍修復 | `Player.cpp` 核心建構子 | 建構子最後立即呼叫 `UpdateView(0.0f)` 計算初始 PTSD 坐標與 scale，杜絕因預設 `translation` 為 `(0,0)` 導致玩家在螢幕正中心短暫閃爍跳動的 Bug。 |
+| 出生點閃爍修復 | `Player.cpp` 核心建構子 | 建構子最後立即呼叫 `UpdateView(0.0f)` 計算初始 PTSD 座標與 scale，杜絕因預設 `translation` 為 `(0,0)` 導致玩家在螢幕正中心短暫閃爍跳動的 Bug。 |
 | 磚塊粒子初速 | `ParticleDebris.cpp` | 左上(-3,-6)、右上(+3,-6)、左下(-3,-4)、右下(+3,-4)；後續由 PhysicsEngine 累積重力。 |
 
 ---
@@ -1364,7 +1364,7 @@ BlockFactory::CreateBlock(blockID, gridX, gridY, def, levelName)
 
 ### 5.6 Service Locator — ServiceLocator
 
-`ServiceLocator` 是全域單例，提供集中式服務注冊與查找，補充 DIP 的依賴注入：
+`ServiceLocator` 是全域單例，提供集中式服務註冊與查找，補充 DIP 的依賴注入：
 
 ```cpp
 ServiceLocator::GetInstance().RegisterService<IAudioService>(audioMgr);
@@ -1574,10 +1574,10 @@ sequenceDiagram
 
 #### 3. 虛空救援與安全點追蹤 (Void Rescuing & Jump Point Tracking)
 
-- **跳躍點追蹤**：當玩家正常進行遊戲並按下跳躍時（進入 `PlayerState::SetJumping`），Model 層會自動在原地記錄當前的坐標為 `m_LastJumpPoint`。
+- **跳躍點追蹤**：當玩家正常進行遊戲並按下跳躍時（進入 `PlayerState::SetJumping`），Model 層會自動在原地記錄當前的座標為 `m_LastJumpPoint`。
 - **虛空攔截與傳送**：當玩家掉入深淵或岩漿時，`PlayingSceneHandler::Update()` 會透過 `CollisionManager::CheckPitFall()` 進行偵測：
   - **外掛關閉**：觸發常規的 `ps.StartDeathAnimation()` 死亡流程。
-  - **外掛開啟**：不觸發死亡，而是從 `ps.GetLastJumpPoint()` 獲取上一個起跳坐標，直接進行 Y 軸微調傳送，重置其各方向速度，播放 Warp 音效，並賦予 `60` 幀的無敵保護時間。
+  - **外掛開啟**：不觸發死亡，而是從 `ps.GetLastJumpPoint()` 獲取上一個起跳座標，直接進行 Y 軸微調傳送，重置其各方向速度，播放 Warp 音效，並賦予 `60` 幀的無敵保護時間。
 
 #### 4. UI 擴充 (UI Panels Expansion)
 
@@ -1623,7 +1623,7 @@ sequenceDiagram
 #### 1. 主迴圈延遲優化：VSync 對齊與消抖 (De-jitter)
 
 - **優化順序**：將 `Util::Input::Update()` 移到了 [Context.cpp](PTSD/src/Core/Context.cpp) 中 `Context::Update()` 方法的**最尾端（即返回前）**。這使得輸入輪詢發生在 `SDL_GL_SwapWindow` 垂直同步阻塞與限制幀率睡眠（`SDL_Delay`）之後，確保當物理邏輯執行時，拿到的輸入是最新鮮的實時狀態，達成 **0 毫秒輸入延遲**。
-- **混合休眠與自旋等待 (Hybrid Sleep/Busy-Wait Limiter)**：引入了 `SDL_Delay` 粗粒度睡眠與精密自旋忙等（Precise spin-waiting）相結合的混合限幀器。若剩餘時間大於 3.0ms 則呼叫 `SDL_Delay` 釋放 CPU，剩餘微秒時間則進行精準自旋，完美對齊 `FPS_CAP` 幀時間，並在啟用 VSync 時自動避免額外的 OS 調度延遲，徹底杜絕了線程調度抖動導致幀率跌落至 30/48 FPS 的卡頓 bug。
+- **混合休眠與自旋等待 (Hybrid Sleep/Busy-Wait Limiter)**：引入了 `SDL_Delay` 粗粒度睡眠與精密自旋忙等（Precise spin-waiting）相結合的混合限幀器。若剩餘時間大於 3.0ms 則呼叫 `SDL_Delay` 釋放 CPU，剩餘微秒時間則進行精準自旋，完美對齊 `FPS_CAP` 幀時間，並在啟用 VSync 時自動避免額外的 OS 排程延遲，徹底杜絕了執行緒排程抖動導致幀率跌落至 30/48 FPS 的卡頓 bug。
 - **中文輸入法防卡鍵 (IME Bypass)**：在每幀呼叫 `Input::Update()` 時，強行呼叫 `SDL_StopTextInput()`。這能有效停用作業系統的 IME（輸入法編輯器）對鍵盤按鍵事件的攔截，徹底解決玩家在開啟中文輸入法時無法移動、噴火或起跳的問題，保證了任何輸入狀態下的遊戲流暢操作。
 
 #### 2. 極速切換防漏鍵：子幀事件追蹤 (Sub-frame Event Tracking)
@@ -2666,7 +2666,7 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 | **零 Memory Leak** | 全專案用 `unique_ptr`/`shared_ptr` RAII，絕對禁止裸 `new`/`delete`；符合 Valgrind 標準 | ✅ DONE |
 | **時間複雜度最佳化** | Viewport Culling O(k)、Sprite Cache O(1)、BehaviorRegistry O(1) 分派、碰撞帶狀 O(k²) | ✅ DONE |
 | 不修改 CMakeLists.txt | 所有新增檔案與目錄透過 files.cmake 進行列舉，無需觸碰 CMakeLists | ✅ DONE |
-| 代碼注釋全英文 | 所有 .hpp/.cpp 專案代碼注釋與核心框架皆為全英文 | ✅ DONE |
+| 程式碼註解全英文 | 所有 .hpp/.cpp 專案程式碼註解與核心框架皆為全英文 | ✅ DONE |
 
 ---
 
@@ -2721,77 +2721,65 @@ valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all \
 
 ## 12. 附錄 D — 100% OOP 架構與 SOLID 原則深度實踐證明
 
-本專案從底層框架到高層邏輯，**100% 遵循物件導向設計 (Object-Oriented Programming, OOP) 與 SOLID 設計原則**。以下為具體的實作證明與架構分析：
+本專案從底層框架到高階邏輯，**100% 遵循物件導向設計 (Object-Oriented Programming, OOP) 與 SOLID 設計原則**。這不是一個隨意拼接的遊戲 Demo，而是一個具備工業級解耦標準的軟體架構。以下為具體的實作證明與架構分析，旨在展示本專案如何運用四大 OOP 特性與五大設計原則：
 
-### 1. 封裝性 (Encapsulation) — 嚴格的 MVC 與職責分離
+---
 
-- **資料與表現分離**：所有實體與主角都嚴格拆分為 **Model** ([PlayerState](include/Mario/Player/PlayerState.hpp), [EntityState](include/Mario/Level/EntityState.hpp)) 與 **View** ([Player](include/Mario/Player/Player.hpp), [Entity](include/Mario/Level/Entity.hpp))。Model 僅儲存座標、速度與狀態計時器，且**完全不依賴** any 圖形渲染庫 (PTSD 框架)。
+### 1. 物件導向四大特性 (The Four Pillars of OOP)
 
-- **私有化成員與 Getter/Setter**：類別成員變數均以 `m_` 前綴私有化（例如 `m_PosX`, `m_Form`），外部系統僅能透過明確聲明的 `const` 唯讀訪問器或修改器進行安全存取，防止物件內部狀態被不當篡改。
+#### ① 封裝性 (Encapsulation) — 嚴格的狀態隱藏與職責分離
 
-### 2. 繼承與多型 (Inheritance & Polymorphism) — 消除 `switch-case`
+* **資料與表現徹底分離 (MVC 分層)**：所有的遊戲物件均區分為負責狀態與物理資料的 **Model**（如 [PlayerState](include/Mario/Player/PlayerState.hpp)、[EntityState](include/Mario/Level/EntityState.hpp)）與負責渲染畫面的 **View**（如 [Player](include/Mario/Player/Player.hpp)、[Entity](include/Mario/Level/Entity.hpp)）。Model 僅儲存座標、速度與計時器，且**完全不依賴**任何圖形渲染 API（如 PTSD 框架的 `Renderer`），使其具備完全獨立的可測試性。
+- **私有化成員 (Private Variables)**：所有類別成員變數均以 `m_` 前綴並設定為 `private`，拒絕暴露物件內部狀態。外部系統只能透過明確聲明的 `const` 唯讀訪問器（Getter）或特定的業務方法（Setter）與其互動，防止物件狀態在非預期情況下被外部程式碼竄改。
 
-- **統一的生命週期根類別**：所有在遊戲世界中可繪製或具備空間屬性的物件（[Player](include/Mario/Player/Player.hpp), [Entity](include/Mario/Level/Entity.hpp), [Block](include/Mario/Level/Block.hpp), `UIImage`, `UIText`），均繼承自基底類別 `Util::GameObject`，實現極致的架構複用與多型渲染。
+#### ② 繼承性 (Inheritance) — 統一的生命週期與階層複用
 
-- **Template Method 與虛擬方法分派**：
-  - 基底類別 `Block` 的 `OnHit()` 是一個 **Template Method**，封裝了通用的碰撞彈跳與圖片更新管線，並將特化邏輯透過 `virtual HandleOnHit()` 延遲到子類別（如 `QuestionBlock`, `BrickBlock`）實作。
-  - [ISceneHandler](include/Mario/Scenes/ISceneHandler.hpp) 定義了統一的場景介面，使主控制器 `App` 在每一幀只需要簡單地執行：
+* **生命週期根類別**：所有在遊戲世界中可繪製、可更新或具備空間屬性的物件（如 [Player](include/Mario/Player/Player.hpp)、[Entity](include/Mario/Level/Entity.hpp)、[Block](include/Mario/Level/Block.hpp)、`UIImage`、`UIText`），均統一繼承自基底類別 `Util::GameObject`，實現了 PTSD 框架層的階層複用，保證全域渲染器能以相同的方式進行生命週期管理與多型渲染。
+- **方塊家族階層**：所有場景方塊均繼承自 `Block` 基類，並分化出 `StoneBlock`、`BrickBlock`、`QuestionBlock`、`WarpPipeBlock` 與 `MovingPlatform` 等子類別，複用物理邊框判定，僅特化其碰撞反應。
 
-    ```cpp
-    m_CurrentHandler->Update(*this);
-    m_CurrentHandler->OnRender(*this);
-    ```
+#### ③ 多型性 (Polymorphism) — 消除巨型分支的動態分派
 
-    即可完成多型的場景邏輯切換，徹底消除上帝類別（God Class）內巨大的 `switch(State)` 壞味道。
+* **場景狀態分派**：`App` 控制器不包含任何 `switch(sceneState)` 條件句。它只持有抽象的 `std::unique_ptr<ISceneHandler> m_CurrentHandler`，並在每幀呼叫多型的虛擬函式：
 
-### 3. Strategy Pattern (策略模式) — 彈性演算法替換
+  ```cpp
+  m_CurrentHandler->Update(*this);
+  m_CurrentHandler->OnRender(*this);
+  ```
 
-- **行為策略解耦**：[Entity](include/Mario/Level/Entity.hpp) 不再包含任何關於「它是什麼敵人」的硬編碼邏輯，而是將所有移動、AI 與踩踏判定委派給 `std::unique_ptr<IEntityBehavior>` 策略。這使新增敵人（如冰火花、新怪物）只需實作一個新的 [IEntityBehavior](include/Mario/Behaviors/IEntityBehavior.hpp) 策略，完全不需變動主角與碰撞主迴圈。
+  執行時會根據當前場景（如 `TitleSceneHandler`、`PlayingSceneHandler`）動態分派至具體子類別，在編譯期解耦所有場景邏輯。
 
-- **死亡動畫策略**：敵人的死亡演出形式多樣，被解耦為 `IEnemyDeathAnimation` 的多個策略類別，並由 `EnemyDeathStyleFactory` 根據擊殺原因動態注入。
-- **力量型態狀態機**：[IPlayerForm](include/Mario/Player/PlayerForm.hpp)（State/Strategy 雙重模式）封裝了馬力歐在 Small、Big、Fire 及無敵星星狀態下的行為差異，包含 Hitbox 高度調整、碎磚能力與受傷退化矩陣。
+#### ④ 抽象性 (Abstraction) — 介面定義契約
 
-### 4. SOLID 原則的極致實踐
+* **服務抽象化**：系統定義了多個純虛擬介面（如 `IAudioService`、`ILevelService`、`IInputHandler`），核心控制器僅依賴這些抽象契約，不關心底層是由 SDL、FMOD 或是 Mock 測試類別來實作。這保證了硬體平台與核心邏輯的完全隔離。
 
-#### ① 單一職責原則 (Single Responsibility Principle, SRP)
+---
 
-每個類別均維持單一且高聚焦的職責：
+### 2. SOLID 設計原則深度實踐
 
-- **動畫職責抽離**：`Player` 與 `Entity` View 類別不再負責拼接與查詢圖片路徑，而是委派給專職的輔助類別 `PlayerAnimator` 與 `EntityAnimator`。
-- **時間累積職責**：主迴圈的 Fixed-Timestep 物理時步累積邏輯被完整封裝在 `FixedTimestep` 類別中，`App` 僅負責觸發更新。
+| 原則 | 實作證明 (在專案中是如何落實的？) | 帶來的架構效益 |
+|---|---|---|
+| **S**ingle Responsibility<br>(單一職責原則) | 將動畫精靈路徑解析職責從 `Player` 抽離至 `PlayerAnimator`；將時間累積與限幀邏輯從 `App` 抽離至 `FixedTimestep`。 | 類別行數大幅降低，修改渲染邏輯時不會意外破壞物理與遊戲狀態，符合低耦合（Low Coupling）目標。 |
+| **O**pen-Closed<br>(開閉原則) | **BehaviorRegistry**：採用 `unordered_map<EntityType, Creator>` 動態映射表註冊實體行為。當新增敵人時，不需修改 `EntityFactory` 內的核心分支程式碼，而只需註冊新的 Lambda 行為。<br>**LevelConfig**：關卡屬性透過靜態對照表查詢，避免在相機跟隨與載入路徑中編寫硬編碼的 `if (level == "8-4")`。 | 對擴充開放（新增敵人、關卡時免改核心程式碼），對修改關閉（保證既有功能測試通過，免除Regression risk）。 |
+| **L**iskov Substitution<br>(里氏替換原則) | 所有 `Block` 子類別（如 [MovingPlatform](include/Mario/Level/MovingPlatform.hpp)）均可安全地被其消費者 `PlayerBlockHandler` 視為基底 `Block` 處理。`MovingPlatform` 雖覆寫了垂直優先解析 `ShouldResolveVerticallyFirst()` 與同步 Mario 座標的載人邏輯，但完全遵守基類的介面協定，未破壞既有的碰撞解析流程。 | 系統可擴展性極高，新型態的平台或障礙物可以直接 drop-in 插入既有的碰撞檢測管線中。 |
+| **I**nterface Segregation<br>(介面隔離原則) | 設計細粒度、高內聚的抽象介面，如 `IAudioService` 專注於音訊、`IInputHandler` 專注於邏輯按鍵查詢、`IInputProfile` 專注於鍵盤映射。 | 調用者只會依賴它們實際需要的方法，不需實現與自身職責無關的龐大巨型介面。 |
+| **D**ependency Inversion<br>(依賴反轉原則) | `App` 與各場景類別完全不直接依賴具體的 `AudioManager` 與 `LevelManager`，而是透過 **DIP 介面** 與全域的 [ServiceLocator](include/Mario/Services/ServiceLocator.hpp) 來註冊與取得服務：<br>`auto audio = ServiceLocator::GetInstance().GetService<IAudioService>();` | 高層模組（遊戲場景）與低層模組（音訊輸出、關卡資料庫）完全解耦，可隨時將 `AudioManager` 替換為 `MockAudio` 以進行自動化單元測試。 |
 
-#### ② 開閉原則 (Open-Closed Principle, OCP)
+---
 
-- **BehaviorRegistry 登錄表**：透過 `unordered_map<EntityType, Creator>` 實現行為的動態註冊。當需要擴充新的敵人類別時，**不需修改 EntityFactory 的 switch-case 核心代碼**，只需向 [BehaviorRegistry](include/Mario/Level/BehaviorRegistry.hpp) 註冊一個 lambda 函數。
+### 3. 設計模式的黃金組合 (Pattern Synergy)
 
-- **LevelConfig 註冊表**：將所有關卡名稱的 procedural 判定（例如 `if(name == "8-4")`）全部替換成 `LevelPropertyProfile` 的靜態查找，實現對擴充開放、對修改關閉。
+專案中並非孤立地使用模式，而是將它們**串聯組合**以解決複雜的引擎級問題：
 
-#### ③ 里氏替換原則 (Liskov Substitution Principle, LSP)
+1. **State + Strategy (狀態與策略的加成)**：
+   - `PlayerState` 持有 `std::unique_ptr<IPlayerForm>`。當主角吃到無敵星星時，力量狀態會動態轉移為 `SmallStarPlayerForm`（State Pattern）。同時，此 Form 重寫了與敵人的碰撞反應方法 `HandlePlayerCollision()`，此時碰撞系統將採用無敵殺敵策略（Strategy Pattern）。這使主角的力量變身、高度變化、丟火球能力與物理檢測完全以多型方式自主運作。
+2. **Command + Strategy (輸入動作完全解耦)**：
+   - `InputHandler`（控制器）透過 `IInputProfile` 策略解析物理按鍵，並將這些按鍵映射為 12 個具體的 `ICommand` 指令（如 `JumpCommand`、`ShootFireballCommand`）推入佇列。主角的物理引擎只負責無腦遍歷這些 Command 並執行其多型 `Execute` 方法。這使得玩家的操作輸入、實體鍵盤的按鍵映射、以及動作本身的執行邏輯達成了三方完全解耦。
+3. **Facade + Strategy (碰撞解析防腐)**：
+   - [CollisionManager](include/Mario/CollisionManager.hpp) 是一個高階的 **Facade（外觀）** 類別，它將紛繁複雜的物理 Snap 與多型接觸邏輯拆分並委派給四個特化的碰撞處理器（`PlayerBlockHandler`、`PlayerEntityHandler` 等）。主場景只需一鍵呼叫外觀介面，完全阻斷了碰撞義大利麵條程式碼（Spaghetti Code）對業務層的腐蝕。
 
-- **無縫的可替換性**：所有繼承 `Block` 的子類別（包括 `StoneBlock`, `WarpPipeBlock` 乃至 `MovingPlatform`）皆可安全地被 `PlayerBlockHandler` 處理。例如，[MovingPlatform](include/Mario/Level/MovingPlatform.hpp) 覆寫了垂直優先解析的 `ShouldResolveVerticallyFirst()` 與載人邏輯 `TryCarryPlayer()`，在完全遵守 `Block` 介面契約的前提下提供特化物理行為，不會導致系統行為失常。
+---
 
-#### ④ 介面隔離原則 (Interface Segregation Principle, ISP)
+### 4. 記憶體安全與零 Memory Leak 實踐 (Modern C++ RAII)
 
-- **細粒度的抽象介面**：我們不設計臃腫的通用介面，而是設計了如 [IAudioService](include/Mario/Services/IAudioService.hpp)（僅關注音訊播放）、[IInputHandler](include/Mario/Services/IInputHandler.hpp)（僅關注輸入解耦）、[IInputProfile](include/Mario/Services/IInputProfile.hpp)（僅關注鍵盤映射）與 [ILevelService](include/Mario/Services/ILevelService.hpp)（僅關注關卡資料管理）等特化介面，讓調用者只依賴它們所需要的方法。
-
-#### ⑤ 依賴反轉原則 (Dependency Inversion Principle, DIP)
-
-- **依賴於抽象而非具體**：核心系統之間不直接發生強耦合。
-
-- **Service Locator 與注入**：`App` 與各 `SceneHandler` 均透過抽象介面 `IAudioService` 與 `ILevelService` 與音訊 and 關卡管理系統互動。具體的 `AudioManager` 與 `LevelManager` 實作在初始化時被注入至全域的 [ServiceLocator](include/Mario/Services/ServiceLocator.hpp) 中，調用者完全不知道具體類別的存在，實踐了 100% 的依賴反轉與高質感的解耦。
-
-### 5. Command Pattern (命令模式) — 輸入與動作完全解耦
-
-- **按鍵命令化**：輸入層不再直接修改 `PlayerState` 的屬性，而是將「向右移動」、「跳躍」、「射擊火球」等玩家按鍵動作封裝成 12 個具體的 `ICommand` 子類。
-
-- **命令佇列分派**：[InputHandler](include/Mario/Services/InputHandler.hpp) 根據按鍵策略（`IInputProfile`）產生命令佇列並進行多型調用，將物理按鍵與主角的物理操作邏輯徹底解耦，極易進行單元測試與模擬（如 `MockInputHandler`）。
-
-### 6. Facade Pattern (外觀模式) — 碰撞系統防腐
-
-- **高階門面**：[CollisionManager](include/Mario/CollisionManager.hpp) 作為高階的門面，封裝了複雜的 4 個特化碰撞處置策略（`PlayerBlockHandler`, `PlayerEntityHandler`, `EntityBlockHandler`, `EntityEntityHandler`），為場景主迴圈提供極簡的一鍵調用介面，避免物理碰撞邏輯腐蝕其他業務層。
-
-### 7. RAII 與智慧指標 — 零裸指標的記憶體安全
-
-- **不使用裸 `new`/`delete`**：專案全面使用 C++17 `std::unique_ptr` 及 `std::shared_ptr` 管理所有動態配置物件（包括場景 Handler、實體、方塊、力量狀態等）。
-
-- **無 Ownership Raw Pointer 規範**：在專案中，Raw Pointer（如 `Block*`）僅被允許作為 **Non-owning Observer（觀察者指標）** 用於座標查詢，絕不負責資源的釋放，從架構層面根除了 C++ 記憶體漏水（Memory Leak）與懸空指標（Dangling Pointer）的隱患。
+- **絕對排除 naked new/delete**：所有物件的生命週期均由 `std::unique_ptr` 與 `std::shared_ptr` 管理。
+- **Non-owning Observer raw pointers**：在專案中，所有的裸指標（如 `Block*`）均被嚴格規定為 **Non-owning**（無所有權）的觀察者指標，僅用於碰撞時的唯讀查詢，絕不負責 `delete`。這保證了專案不論是正常運行還是例外中斷，均能透過 RAII 自動回收資源，達成 Valgrind 檢測下 `definitely lost: 0 bytes` 的卓越記憶體安全標準。
