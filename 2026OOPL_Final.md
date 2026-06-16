@@ -43,10 +43,10 @@
 
 | 圖示 | 型態 | 說明 |
 |:---:|:---:|---|
-| <img src="Resources/Sprites/MarioIdle.png" width="32"> | **小瑪利歐 (Small)** | 最基本狀態，被敵人碰到直接死亡 |
-| <img src="Resources/Sprites/MarioIdle1.png" width="32"> | **大瑪利歐 (Big)** | 吃紅香菇變大，可撞碎磚塊。被敵人碰到變為小瑪利歐，不會直接死亡 |
-| <img src="Resources/Sprites/MarioFire2.png" width="32"> | **火焰瑪利歐 (Fire)** | 吃火焰花升級，可按 `E` 發射火球消滅敵人 |
-| <img src="Resources/Sprites/Star1.png" width="32"> | **無敵星星 (Star)** | 吃星星後閃爍無敵，碰到任何敵人直接消滅敵人 |
+| <img src="Resources/Sprites/MarioIdle.png" width="32"> | **小瑪利歐 (Small)** | 最基本的狀態，只要被怪物碰到就會直接死掉。 |
+| <img src="Resources/Sprites/MarioIdle1.png" width="32"> | **大瑪利歐 (Big)** | 吃紅香菇變大，可以撞碎磚塊。碰到怪物會縮小變回小瑪利歐，多一次容錯機會，不會直接死。 |
+| <img src="Resources/Sprites/MarioFire2.png" width="32"> | **火焰瑪利歐 (Fire)** | 吃火焰花變身，可以按 `E` 鍵發射火球來打倒怪物。 |
+| <img src="Resources/Sprites/Star1.png" width="32"> | **無敵星星 (Star)** | 吃星星後身上會閃爍無敵，可以直接撞飛碰到的所有怪物。 |
 
 ---
 
@@ -54,13 +54,13 @@
 
 | 圖示 | 名稱 | 特性 |
 |:---:|:---:|---|
-| <img src="Resources/Sprites/Goomba1.png" width="36"> | **栗寶寶 (Goomba)** | 最基礎敵人，左右巡邏碰牆折返。可跳踩扁或用火球打飛 |
-| <img src="Resources/Sprites/KoopaTroopa1.png" width="36"> | **烏龜兵 (Koopa)** | 被踩後縮入龜殼。踢飛龜殼可連鎖擊殺其他敵人 |
-| <img src="Resources/Sprites/8-4/ParaKoopa1.png" width="36"> | **飛天龜 (ParaKoopa)** | 有翅膀的烏龜，正弦波飛行。踩一次失去翅膀變普通烏龜兵 |
-| <img src="Resources/Sprites/8-4/AxeKoopa1.png" width="36"> | **擲斧烏龜 (AxeKoopa)** | 會避坑、主動追蹤玩家、定期投擲斧頭，頗為棘手 |
-| <img src="Resources/Sprites/8-4/Bowser1.png" width="48"> | **Boss 庫巴 (Bowser)** | 8-4 終極 Boss，5 階段 AI：巡邏 → 噴火 → 跳躍 → 受傷 → 擊敗。需多發火球擊殺，或直接砍斷橋頭斧頭 |
-| <img src="Resources/Sprites/8-4/PiranhaPlant1.png" width="36"> | **食人花 (Piranha Plant)** | 藏在水管裡定時伸縮。玩家太靠近水管時，食人花不會出現（安全偵測防偷襲） |
-| <img src="Resources/Sprites/8-4/Podoboo1.png" width="32"> | **岩漿泡泡 (Podoboo)** | 從熔岩中定時向上彈跳，無法被踩踏 |
+| <img src="Resources/Sprites/Goomba1.png" width="36"> | **栗寶寶 (Goomba)** | 最普通的怪物，只會左右巡邏、撞到牆壁就回頭。可以用跳躍踩扁牠，或用火球打飛。 |
+| <img src="Resources/Sprites/KoopaTroopa1.png" width="36"> | **烏龜兵 (Koopa)** | 踩一下會縮進龜殼裡。如果把龜殼踢飛，可以順便撞飛路上其他怪物。 |
+| <img src="Resources/Sprites/8-4/ParaKoopa1.png" width="36"> | **飛天龜 (ParaKoopa)** | 長了翅膀的烏龜，會上下飛行。踩一下翅膀會掉下來，變成一般的烏龜。 |
+| <img src="Resources/Sprites/8-4/AxeKoopa1.png" width="36"> | **擲斧烏龜 (AxeKoopa)** | 8-4 關卡的敵人，會避開懸崖，還會朝著玩家走並丟斧頭，有點難纏。 |
+| <img src="Resources/Sprites/8-4/Bowser1.png" width="48"> | **Boss 庫巴 (Bowser)** | 最後的大 Boss。有 5 階段 AI 動作（巡邏、噴火、跳躍、受傷、被打敗）。要用好幾發火球才能打倒牠，或者可以直接繞到後面砍斷吊橋的斧頭，讓牠掉進岩漿。 |
+| <img src="Resources/Sprites/8-4/PiranhaPlant1.png" width="36"> | **食人花 (Piranha Plant)** | 躲在水管裡的植物，會定時伸出來咬人。如果玩家站太近，牠就不會伸出來（有安全距離偵測，防偷襲）。 |
+| <img src="Resources/Sprites/8-4/Podoboo1.png" width="32"> | **岩漿泡泡 (Podoboo)** | 從岩漿定時跳上來的岩漿泡泡，不能用踩的，只能想辦法閃過去。 |
 
 ---
 
@@ -68,11 +68,11 @@
 
 | 圖示 | 名稱 | 效果 |
 |:---:|:---:|---|
-| <img src="Resources/Sprites/Mushroom.png" width="32"> | **紅香菇 (Mushroom)** | 小 → 大瑪利歐，身體變高且能敲碎磚塊 |
-| <img src="Resources/Sprites/FireFlower1.png" width="32"> | **火焰花 (Fire Flower)** | 升級為火焰瑪利歐，可投擲火球 |
-| <img src="Resources/Sprites/Star1.png" width="32"> | **無敵星星 (Star)** | 短時間無敵，碰到敵人直接撞飛 |
-| <img src="Resources/Sprites/OneUpShroom.png" width="32"> | **綠香菇 (1-UP)** | 額外增加一條命 |
-| <img src="Resources/Sprites/Coin.png" width="32"> | **金幣 (Coin)** | 加分，集滿 100 枚獲得額外 1 命 |
+| <img src="Resources/Sprites/Mushroom.png" width="32"> | **紅香菇 (Mushroom)** | 讓瑪利歐變大隻，可以敲碎磚塊。 |
+| <img src="Resources/Sprites/FireFlower1.png" width="32"> | **火焰花 (Fire Flower)** | 讓瑪利歐變成火焰型態，可以發射火球打怪。 |
+| <img src="Resources/Sprites/Star1.png" width="32"> | **無敵星星 (Star)** | 短時間內變成無敵狀態，碰到怪物直接撞飛。 |
+| <img src="Resources/Sprites/OneUpShroom.png" width="32"> | **綠香菇 (1-UP)** | 就是 1-UP 香菇，吃了可以多一條命。 |
+| <img src="Resources/Sprites/Coin.png" width="32"> | **金幣 (Coin)** | 吃金幣加分，集滿 100 個金幣就可以多加一條命。 |
 
 ---
 
@@ -96,10 +96,10 @@ World 8-4 (庫巴城堡 — 有 城堡火焰 與 Boss 庫巴)
 
 | 功能 | 說明 |
 |---|---|
-| 自由變身 | 隨時切換小瑪利歐 / 大瑪利歐 / 火焰瑪利歐 |
-| 無限無敵星星 | Mario 永久閃爍無敵 |
-| 火球射擊能力 | 任何型態都能射火球 |
-| 虛空救援 | 掉進深淵自動傳送回上一個起跳平台 |
+| 自由變身 | 在暫停選單裡可以隨時切換成小、大或火焰瑪利歐。 |
+| 無限無敵星星 | 讓瑪利歐一直保持無敵星星的閃爍狀態。 |
+| 火球射擊能力 | 不管是小隻還是大隻的瑪利歐，都可以發射火球。 |
+| 虛空救援 | 掉到懸崖或洞裡時，會自動被救起來，傳送回剛剛跳過來的平台。 |
 
 ---
 
@@ -107,10 +107,10 @@ World 8-4 (庫巴城堡 — 有 城堡火焰 與 Boss 庫巴)
 
 | 機制 | 說明 |
 |---|---|
-| **生命系統** | 起始 3 條命。掉入懸崖、被敵人碰到（未踩踏）、時間歸零均扣命；命數歸零則 Game Over |
-| **時間限制** | 每關限時 400 秒。低於 100 秒時，背景音樂自動切換為加速版提醒玩家 |
-| **踩踏連擊** | 連續踩踏多個敵人且中間未落地，得分持續翻倍：100 → 200 → 400 → 800 → 1000 |
-| **金幣獎命** | 收集滿 100 枚金幣，額外獲得 1 條命 |
+| **生命系統** | 一開始有 3 條命。掉進懸崖、被怪物撞到、或是時間到了都會扣 1 條命。命扣完就 Game Over。 |
+| **時間限制** | 每關有 400 秒限制。時間低於 100 秒時背景音樂會自動變快，提醒玩家快點通關。 |
+| **踩踏連擊** | 腳不落地連續踩怪物的話，拿到的分數會一直加倍（從 100 翻倍到 1000 分）。 |
+| **金幣獎命** | 只要集滿 100 個金幣，就會自動送 1 條命。 |
 
 ---
 
@@ -373,7 +373,7 @@ sequenceDiagram
 
 ### 使用到 AI/AI Agent 的部分
 
-在開發這個專案的過程中，我使用了 AI 助手（Google Gemini Antigravity、VSCode Copilot Pro）來協助我進行開發。以下是我如何與 AI 協作的心得與分工：
+在開發這個專案的過程中，我主要與 AI 程式助理 GitHub Copilot，以及 Gemini Antigravity 和 Claude 等大型語言模型進行協作。以下是我如何與這些 AI 工具分工與協作的心得：
 
 - **架構發想與重構建議**：當我遇到 God Class 義大利麵程式碼崩潰的時候，我請 AI 幫我分析並給予重構建議。AI 幫我提出了使用 State Pattern 拆解 App 和 IPlayerForm，以及使用 Strategy Pattern 拆解 AI 行為的點子。我根據它的點子，畫出 UML 繼承圖，定義好類別介面後，再由我引導 AI 寫出具體實作。
 - **輔助撰寫核心程式碼**：在定義好 `IEntityBehavior` 和 `ISceneHandler` 的空殼後，我讓 AI 協助生成一些重複性高但繁瑣的實作，例如 20 種 Behaviors 的具體狀態邏輯，以及 10 個場景狀態的跳轉流程，大幅節省了我的打字時間。
@@ -426,7 +426,7 @@ sequenceDiagram
 
 #### 1. 從「AI 魔法」到「義大利麵地獄」
 
-剛開始開發這個瑪利歐專案時，我其實蠻放鬆的，甚至有點樂觀。我想著：「反正現在有 VS Code Copilot 和 Antigravity 這些超強的 AI 工具，我只要用口語描述需求，程式碼就能自動生成，寫專案應該很輕鬆吧！」（現在回想起來，當時真的是完全低估了大型專案的複雜度）。
+剛開始開發這個瑪利歐專案時，我其實蠻放鬆的，甚至有點樂觀。我想著：「反正現在有 GitHub Copilot 和 Gemini Antigravity 這些超強的 AI 工具，我只要用口語描述需求，程式碼就能自動生成，寫專案應該很輕鬆吧！」（現在回想起來，當時真的是完全低估了大型專案的複雜度）。
 
 確實，開發前幾天非常順暢，給個指令 AI 就能產出大量程式碼，瑪利歐也真的能跑能跳，看起來有模有樣。但因為當時我太過依賴 AI 的即時產出，沒有事先規劃整體的 OOP 架構，導致程式碼在不知不覺中糾纏在一起，充斥著數百個 if-else 和硬編碼（Hard-coding），寫出了一大坨很難維護的義大利麵程式碼。
 
