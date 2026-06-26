@@ -28,6 +28,7 @@
 
 #include <string>
 std::string GetResourceDirectory();
+std::string GetPTSDAssetsDirectory();
 
 #ifdef RESOURCE_DIR
 #ifndef BUILDING_RESOURCE_RESOLVER

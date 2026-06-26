@@ -12,6 +12,10 @@
 #include "config.hpp"
 #include <glm/fwd.hpp>
 
+#include <windows.h>
+#include <fstream>
+#include <vector>
+
 std::shared_ptr<SDL_Surface> LoadSurface(const std::string &filepath) {
     auto surface = std::shared_ptr<SDL_Surface>(IMG_Load(filepath.c_str()),
                                                 SDL_FreeSurface);
@@ -23,6 +27,42 @@ std::shared_ptr<SDL_Surface> LoadSurface(const std::string &filepath) {
     }
 
     return surface;
+}
+
+std::string GetPTSDAssetsDirectory() {
+    static std::string cachedPath = "";
+    if (!cachedPath.empty()) {
+        return cachedPath;
+    }
+
+    char path[MAX_PATH];
+    GetModuleFileNameA(NULL, path, MAX_PATH);
+    std::string exePath(path);
+    std::string::size_type pos = exePath.find_last_of("\\/");
+    std::string exeDir = (pos != std::string::npos) ? exePath.substr(0, pos) : ".";
+
+    std::vector<std::string> searchPaths = {
+        exeDir + "/assets",
+        exeDir + "/PTSD/assets",
+        exeDir + "/../PTSD/assets",
+        exeDir + "/../../PTSD/assets",
+        exeDir + "/../../../PTSD/assets"
+    };
+
+    for (const auto& p : searchPaths) {
+        std::ifstream testFile(p + "/shaders/Base.vert");
+        if (testFile.good()) {
+            cachedPath = p;
+            return cachedPath;
+        }
+    }
+
+#ifdef PTSD_ASSETS_DIR
+    cachedPath = PTSD_ASSETS_DIR;
+#else
+    cachedPath = "./assets";
+#endif
+    return cachedPath;
 }
 
 namespace Util {
@@ -67,9 +107,10 @@ void Image::Draw(const Core::Matrices &data) {
 
 void Image::InitProgram() {
     // TODO: Create `BaseProgram` from `Program` and pass it into `Drawable`
+    std::string vertShader = GetPTSDAssetsDirectory() + "/shaders/Base.vert";
+    std::string fragShader = GetPTSDAssetsDirectory() + "/shaders/Base.frag";
     s_Program =
-        std::make_unique<Core::Program>(PTSD_ASSETS_DIR "/shaders/Base.vert",
-                                        PTSD_ASSETS_DIR "/shaders/Base.frag");
+        std::make_unique<Core::Program>(vertShader, fragShader);
     s_Program->Bind();
 
     GLint location = glGetUniformLocation(s_Program->GetId(), "surface");

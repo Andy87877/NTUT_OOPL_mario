@@ -8,6 +8,7 @@
 #include "Util/TransformUtils.hpp"
 
 #include "config.hpp"
+#include "pch.hpp"
 
 namespace Util {
 Text::Text(const std::string &font, int fontSize, const std::string &text,
@@ -58,9 +59,10 @@ void Text::Draw(const Core::Matrices &data) {
 
 void Text::InitProgram() {
     // TODO: Create `BaseProgram` from `Program` and pass it into `Drawable`
+    std::string vertShader = GetPTSDAssetsDirectory() + "/shaders/Base.vert";
+    std::string fragShader = GetPTSDAssetsDirectory() + "/shaders/Base.frag";
     s_Program =
-        std::make_unique<Core::Program>(PTSD_ASSETS_DIR "/shaders/Base.vert",
-                                        PTSD_ASSETS_DIR "/shaders/Base.frag");
+        std::make_unique<Core::Program>(vertShader, fragShader);
     s_Program->Bind();
 
     GLint location = glGetUniformLocation(s_Program->GetId(), "surface");

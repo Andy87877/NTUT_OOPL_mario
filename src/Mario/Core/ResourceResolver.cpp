@@ -10,6 +10,7 @@
 #include <windows.h>
 
 #include <fstream>
+#include <vector>
 
 #include "pch.hpp"
 
@@ -27,20 +28,27 @@ std::string GetResourceDirectory() {
     std::string exeDir =
         (pos != std::string::npos) ? exePath.substr(0, pos) : ".";
 
-    // Test if there is a local "Resources/Levels/LevelSequence.csv" next to the
-    // exe
-    std::string localPath = exeDir + "/Resources";
-    std::ifstream testFile(localPath + "/Levels/LevelSequence.csv");
-    if (testFile.good()) {
-        cachedPath = localPath;
-    } else {
-        // Fallback to compile-time RESOURCE_DIR defined via compiler flag
+    // Search paths relative to exeDir
+    std::vector<std::string> searchPaths = {
+        exeDir + "/Resources",
+        exeDir + "/../Resources",
+        exeDir + "/../../Resources",
+        exeDir + "/../../../Resources"
+    };
 
-#ifdef RESOURCE_DIR
-        cachedPath = RESOURCE_DIR;
-#else
-        cachedPath = "./Resources";
-#endif
+    for (const auto& p : searchPaths) {
+        std::ifstream testFile(p + "/Levels/LevelSequence.csv");
+        if (testFile.good()) {
+            cachedPath = p;
+            return cachedPath;
+        }
     }
+
+    // Fallback to compile-time RESOURCE_DIR defined via compiler flag
+#ifdef RESOURCE_DIR
+    cachedPath = RESOURCE_DIR;
+#else
+    cachedPath = "./Resources";
+#endif
     return cachedPath;
 }
