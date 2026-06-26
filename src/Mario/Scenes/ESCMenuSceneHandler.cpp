@@ -32,9 +32,9 @@ void ESCMenuSceneHandler::Update(App& app) {
         int& sel = app.GetESCMenuSelection();
         int size = static_cast<int>(m_MenuItems.size());
 
-        if (Util::Input::IsKeyDown(Util::Keycode::UP))
+        if (Util::Input::IsKeyDown(Util::Keycode::UP) || Util::Input::IsKeyDown(Util::Keycode::W))
             sel = (sel - 1 + size) % size;
-        if (Util::Input::IsKeyDown(Util::Keycode::DOWN))
+        if (Util::Input::IsKeyDown(Util::Keycode::DOWN) || Util::Input::IsKeyDown(Util::Keycode::S))
             sel = (sel + 1) % size;
 
         if (Util::Input::IsKeyDown(Util::Keycode::RETURN)) {
