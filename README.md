@@ -14,6 +14,7 @@
 - 操作：控制主角 `Mario` 跑、跳、踩敵、收集金幣與道具
 - 目標：抵達關卡旗杆完成關卡
 - 參考畫面：[遊戲畫面連結](https://www.youtube.com/watch?v=rLl9XBg7wSs)
+- 實際成果畫面：[遊玩影片連結](https://www.youtube.com/watch?v=fFDtERBdbKA)
 
 實作功能：
 
