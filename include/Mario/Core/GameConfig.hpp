@@ -196,6 +196,14 @@ struct GameConfig {
      * path.
      */
     static std::string GetChineseFontPath(const std::string& fallbackPath) {
+        // 1. Bundle path (relative to executable / compile directory)
+        std::string bundledFont = GetResourceDirectory() + "/Font/msjh.ttc";
+        std::ifstream f(bundledFont);
+        if (f.good()) {
+            return bundledFont;
+        }
+
+        // 2. Windows system fonts
         std::ifstream f1("C:/Windows/Fonts/msjh.ttc");
         if (f1.good()) {
             return "C:/Windows/Fonts/msjh.ttc";
@@ -204,6 +212,17 @@ struct GameConfig {
         if (f2.good()) {
             return "C:/Windows/Fonts/msjh.ttf";
         }
+
+        // 3. macOS system fonts
+        std::ifstream f3("/System/Library/Fonts/PingFang.ttc");
+        if (f3.good()) {
+            return "/System/Library/Fonts/PingFang.ttc";
+        }
+        std::ifstream f4("/Library/Fonts/Arial Unicode.ttf");
+        if (f4.good()) {
+            return "/Library/Fonts/Arial Unicode.ttf";
+        }
+
         return fallbackPath;
     }
 };
