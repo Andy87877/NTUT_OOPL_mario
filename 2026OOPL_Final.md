@@ -13,6 +13,7 @@
 - 這次期末專案我是使用助教提供的 PTSD 遊戲框架，以 C++17 來復刻大家最經典的 2D 橫向捲軸動作遊戲《超級瑪利歐兄弟》（Super Mario Bros.）。
 - 遊戲中我完整還原了玩家的操控體驗：除了基本的左右移動、跳躍和踩踏敵人，也實作了吃紅香菇變大、吃火焰花發射火球，以及吃無敵星星進入閃爍無敵狀態等經典變身機制。
 - 關卡方面我實作了三個不同風格的代表性關卡：分別是大家最熟悉的起點 **World 1-1（地面關卡）**、難度逐漸提升的 **World 1-2（地下關卡）**，以及挑戰難度最高的 **World 8-4（城堡關卡）**。玩家需要運用各種道具與動作技巧，穿越重重障礙與不同的敵人，最後在城堡深處擊敗 Boss 庫巴（Bowser）救出公主。
+- 遊玩畫面：[遊玩影片連結](https://www.youtube.com/watch?v=fFDtERBdbKA)
 
 ### 組別分工
 
@@ -58,7 +59,7 @@
 | <img src="Resources/Sprites/KoopaTroopa1.png" width="36"> | **烏龜兵 (Koopa)** | 踩一下會縮進龜殼裡。如果把龜殼踢飛，可以順便撞飛路上其他怪物。 |
 | <img src="Resources/Sprites/8-4/ParaKoopa1.png" width="36"> | **飛天龜 (ParaKoopa)** | 長了翅膀的烏龜，會上下飛行。踩一下翅膀會掉下來，變成一般的烏龜。 |
 | <img src="Resources/Sprites/8-4/AxeKoopa1.png" width="36"> | **擲斧烏龜 (AxeKoopa)** | 8-4 關卡的敵人，會避開懸崖，還會朝著玩家走並丟斧頭，有點難纏。 |
-| <img src="Resources/Sprites/8-4/Bowser1.png" width="48"> | **Boss 庫巴 (Bowser)** | 最後的大 Boss。具有 5 階段 AI 動作（巡邏、噴火、跳躍、受傷、死亡）。需要多發火球才能打倒牠，或者可以直接繞到後面砍斷吊橋的斧頭，讓牠掉進岩漿。 |
+| <img src="Resources/Sprites/8-4/Bowser1.png" width="48"> | **Boss 庫巴 (Bowser)** | 最後的大 Boss。具有 5 階段 AI 動作（巡邏、噴火、跳躍、受傷、死亡）。需要多發火球才能打倒牠，或者可以直接繞到後面踩下斧頭，砍斷吊橋，讓牠掉進岩漿。 |
 | <img src="Resources/Sprites/8-4/PiranhaPlant1.png" width="36"> | **食人花 (Piranha Plant)** | 躲在水管裡的植物，會定時伸出來。如果玩家站太近，牠就不會伸出來（有安全距離偵測，防偷襲）。 |
 | <img src="Resources/Sprites/8-4/Podoboo1.png" width="32"> | **岩漿泡泡 (Podoboo)** | 從岩漿定時跳上來的岩漿泡泡，無法踩踏，只能想辦法閃過去。 |
 
@@ -72,7 +73,7 @@
 | <img src="Resources/Sprites/FireFlower1.png" width="32"> | **火焰花 (Fire Flower)** | 讓瑪利歐變成火焰型態，可以發射火球打怪。 |
 | <img src="Resources/Sprites/Star1.png" width="32"> | **無敵星星 (Star)** | 短時間內變成無敵狀態，碰到怪物直接撞飛。 |
 | <img src="Resources/Sprites/OneUpShroom.png" width="32"> | **綠香菇 (1-UP)** | 就是 1-UP 香菇，吃了可以多一條命。 |
-| <img src="Resources/Sprites/Coin.png" width="32"> | **金幣 (Coin)** | 吃金幣加分，集滿 100 個金幣就可以多加一條命。 |
+| <img src="Resources/Sprites/Coin.png" width="32"> | **金幣 (Coin)** | 吃金幣加分，集滿 100 個金幣就可以多一條命。 |
 
 ---
 
@@ -129,7 +130,7 @@ World 8-4 (庫巴城堡 — 有 城堡火焰 與 Boss 庫巴)
 | 主角變身 (火焰瑪利歐) | <img src="2026OOPL_Final_imgs/mario_fire_powerup.png"> |
 | 主角變身 (無敵星星) | <img src="2026OOPL_Final_imgs/mario_star_powerup.png"> |
 | 作弊模式 (Cheat / Debug Mode) | <img src="2026OOPL_Final_imgs/cheat_mode.png"> |
-| 踩踏敵方 (Stomp Goomba) | <img src="2026OOPL_Final_imgs/stomp_enemy.png"> |
+| 踩踏敵人 (Stomp Goomba) | <img src="2026OOPL_Final_imgs/stomp_enemy.png"> |
 | 拉旗子 (Flagpole) | <img src="2026OOPL_Final_imgs/flagpole.png"> |
 | 食人花 (Piranha Plant) | <img src="2026OOPL_Final_imgs/piranha_plant.png"> |
 | 庫巴 Boss 戰 (Bowser Battle) | <img src="2026OOPL_Final_imgs/bowser_battle.png"> |
@@ -223,7 +224,7 @@ classDiagram
 - `PlayingSceneHandler`：主要遊玩畫面，裡面有非常嚴謹的每幀更新流程。
 - `FlagpoleSceneHandler`：瑪利歐滑下旗桿並走進城堡的過場動畫。
 - `PipeWarpSceneHandler`：瑪利歐蹲下進入水管的傳送動畫。
-- `AxeSequenceSceneHandler`：瑪利歐砍斷城堡吊橋、庫巴落水死亡的劇情動畫。
+- `AxeSequenceSceneHandler`：瑪利歐砍斷城堡吊橋、庫巴死亡的劇情動畫。
 - `DeathSceneHandler` / `GameOverSceneHandler` / `GameWonSceneHandler`：死亡、遊戲結束、通關祝賀畫面。
 - `ESCMenuSceneHandler`：暫停選單與外掛開啟介面。
 
@@ -428,13 +429,11 @@ sequenceDiagram
     - **物件創造的「點餐櫃檯」（Factory Pattern）**：以前要產生一個怪物或道具，程式碼裡到處都是手動 `new Goomba(...)`、`new Mushroom(...)`，還要設定 Z-Index、碰撞箱大小和初始速度，寫起來很雜亂。重構後我寫了 `EntityFactory`，它就像個點餐櫃檯，現在不論是地圖生成還是 Boss 吐火球，呼叫端只需要告訴工廠：『在座標 $(x,y)$ 產生 Goomba』。工廠就會自己去配對對應的 AI 行為（`IEntityBehavior`）與死亡動畫策略，並把實體傳回來。呼叫端完全不需要知道組裝細節，這讓我真正體會到了封裝的好處。
     - **怪物行為的「插拔式」設計（Strategy Pattern）**：以前寫怪物行為時塞滿了 `if (type == Goomba)` 分支。為了解耦，我將每種實體的行為封裝成繼承自 `IEntityBehavior` 的策略類別。現在 `Entity` 裝載著對應的 AI 行為策略（`IEntityBehavior`）指標。Goomba 裝 `GoombaBehavior`，Koopa 裝 `KoopaBehavior`。當飛天龜被踩到失去翅膀時，我也只要將它的行為策略當場換成普通的 `KoopaBehavior` 即可。物件本身不需要銷毀重建，換個「行為策略」就能改變行為，這在開發上的彈性非常大。
     - **主角力量變身的優雅切換（State Pattern）**：瑪利歐有小隻、大隻、火焰和無敵等多種型態。我設計了 `IPlayerForm` 介面與五種對應的狀態類別。每次變身或受傷時，我只要讓狀態機回傳新的型態物件即可。這樣在計算瑪利歐的高度或是判斷能不能發射火球時，完全不需要寫 `if (isBig)` 這種判斷，全靠多型解決，程式碼乾淨很多。
-    - **碰撞系統的「櫃檯分發」機制（Facade Pattern）**：一開始所有物件的碰撞判斷都混在 `CollisionManager` 裡，非常容易出 Bug。重構後我用門面模式把它做成一個統一的分發櫃檯，底下拆成 `PlayerBlock`、`PlayerEntity` 等四個子處理器各司其職。這樣一來，如果玩家撞怪物的邏輯有 Bug，我實作的碰撞系統只去對應的子處理器修改即可，完全不會影響到地形碰撞，除錯的效率提升非常多。
+    - **碰撞系統的「櫃檯分發」機制（Facade Pattern）**：一開始所有物件的碰撞判斷都混在 `CollisionManager` 裡，非常容易出 Bug。重構後我用門面模式把它做成一個統一的分發櫃檯，底下拆成 `PlayerBlock`、`PlayerEntity` 等四個子處理器各司其職。這樣一來，如果玩家撞怪物的邏輯有 Bug，我實作的碰撞系統只需到對應的子處理器修改即可，完全不會影響到地形碰撞，除錯的效率提升非常多。
   - **與 AI 協作的心得**：在開發過程中，我也摸索出和不同 AI 模型的協作方式，發現它們適合的開發階段不太一樣：
     - **Claude 模型（前期的開路軍師）**：在專案初期需要大刀闊斧重構或發想複雜邏輯時，Claude 的點子非常多、邏輯也很強。但它的缺點是很容易發散，有時會自作主張引入新的類別，如果在後期沒有盯緊，容易偏離原本設計好的架構。
     - **Gemini 模型（後期的防守門神）**：當專案架構已經定型、進入收尾和優化階段時，Gemini 非常好用。它的優勢在於能嚴格遵守現有的程式架構和[Constructure.md](Constructure.md)的規範。在不破壞既有設計的前提下，能精準地協助修 Bug、優化效能，合作起來非常省心。
   - **總結**：這次的瑪利歐專案除了讓我實現用 C++ 復刻經典遊戲的夢想外，更大的收穫是學會了如何從架構層面去掌控整個專案。在現在 AI 協作開發的時代，如果我們自己沒有主導系統架構的能力，只是一味讓 AI 幫忙生程式碼，最後只會被工具牽著鼻子走。這是我目前上大學以來，做過最有成就感的一個專案！
-
-- 遊玩畫面：[遊玩影片連結](https://www.youtube.com/watch?v=fFDtERBdbKA)
 
 ### 貢獻比例
 

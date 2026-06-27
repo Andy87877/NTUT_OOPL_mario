@@ -13,8 +13,8 @@
 - 類型：2D 橫捲軸動作遊戲
 - 操作：控制主角 `Mario` 跑、跳、踩敵、收集金幣與道具
 - 目標：抵達關卡旗杆完成關卡
-- 參考畫面：[遊戲畫面連結](https://www.youtube.com/watch?v=rLl9XBg7wSs)
-- 實際成果畫面：[遊玩影片連結](https://www.youtube.com/watch?v=fFDtERBdbKA)
+<!-- - 參考畫面：[遊戲畫面連結](https://www.youtube.com/watch?v=rLl9XBg7wSs) -->
+- 實際遊玩畫面：[遊玩影片連結](https://www.youtube.com/watch?v=fFDtERBdbKA)
 
 實作功能：
 
@@ -113,17 +113,17 @@
 classDiagram
 ``` -->
 
-## 參考資料
+## 素材來源標示 (Credits & Acknowledgments)
 
-- [PTSD Template](https://github.com/ntut-open-source-club/practical-tools-for-simple-design)
-- [Google Test Documentation](https://google.github.io/googletest/)
+本專案為學術研究與程式設計練習之復刻作品，所有遊戲內使用之影音與圖像素材版權皆歸原創作者或其所屬公司（Nintendo）所有。本專案絕不應用於任何商業營利行為。
 
-- [Super Mario Bros. C# Remake](https://github.com/Jack-Development/SuperMarioBros-CSharp-Remake)
 - [Super Mario Bros. Maps](https://www.mariowiki.com/Category:Super_Mario_Bros._maps)
 - [Super Mario Bros. Tileset](https://www.spriters-resource.com/wii_u/supermariomaker/asset/69702/)
 - [Super Mario Bros. Items](https://www.spriters-resource.com/wii_u/supermariomaker/asset/69701/)
 - [Super Mario Bros. BGM](https://downloads.khinsider.com/game-soundtracks/album/super-mario-bros)
 - [Super Mario Bros. SFX](https://downloads.khinsider.com/game-soundtracks/album/super-mario-bros-sfx-gamerip-1985)
+- [Super Mario Bros. C# Remake](https://github.com/Jack-Development/SuperMarioBros-CSharp-Remake)
+- [PTSD Template](https://github.com/ntut-open-source-club/practical-tools-for-simple-design)
 
 ~~~
 ~~~
